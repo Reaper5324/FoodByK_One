@@ -53,14 +53,14 @@ protected static string $table = 'users';
 
     }
 
-    public function isCustomer(): bool{
+    public function isAdmin(): bool{
         return $this->hasRole(Role::ADMIN);
 
     }
-    public function isBuyer(): bool{
+    public function isCustomer(): bool{
         return $this->hasRole(Role::CUSTOMER);
     }
-    public function isSeller(): bool{
+    public function isStaff(): bool{
         return $this->hasRole(Role::STAFF);
     }
 
