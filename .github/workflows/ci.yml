@@ -1,0 +1,38 @@
+name: FoodbyK CI
+
+on: 
+  push:
+    branches:
+      - main
+    pull_request:
+      branches:
+        - main
+
+
+jobs:
+
+  backend-checks:
+    name: Backend Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: CheckoutRepository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: Check PHP files
+        shell: bash
+        run: | files=$(find backend -type f -name "*.php")
+          if [ -z "$files"]; then echo "No PHP files found. skip syntax checks"
+          exit 0
+          fi
+          echo "PHP checks."
+
+          for file in $files; do php -l "$file"
+          done
+
+          
