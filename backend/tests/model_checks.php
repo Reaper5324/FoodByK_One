@@ -57,9 +57,7 @@ expect(
 );
 
 $productService = new ProductService();
-$validator = new ReflectionMethod($productService, 'validateProductInput');
-$validator->setAccessible(true);
-$validProduct = $validator->invoke($productService, [
+$validProduct = $productService->validateProductInput([
     'category_id' => 1,
     'name' => 'Classic Burger',
     'description' => 'A burger',
@@ -67,7 +65,7 @@ $validProduct = $validator->invoke($productService, [
     'is_available' => '1',
 ]);
 expect($validProduct['success'], 'Valid product input must be accepted.');
-$invalidProduct = $validator->invoke($productService, [
+$invalidProduct = $productService->validateProductInput([
     'category_id' => 1,
     'name' => 'Classic Burger',
     'description' => '',
