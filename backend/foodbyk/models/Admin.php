@@ -29,10 +29,19 @@ class Admin extends User {
     }
 
     public static function findAdminById(int $id): ?static {
-        $user = User::findById($id);
-        if ($user && $user->isAdmin()) {
-            return static::fromRow((array) $user);
+        if ($id <= 0) {
+            return null;
         }
-        return null;
+
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'SELECT u.*, r.role_name FROM users u
+             INNER JOIN roles r ON r.id = u.role_id
+             WHERE u.id = ? AND r.role_name = ? LIMIT 1'
+        );
+        $stmt->execute([$id, Role::ADMIN]);
+        $row = $stmt->fetch();
+
+        return $row ? static::fromRow($row) : null;
     }
 }

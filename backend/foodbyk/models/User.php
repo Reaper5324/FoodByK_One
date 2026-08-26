@@ -20,7 +20,7 @@ protected static string $table = 'users';
         public bool    $is_active = true,
         public ?string $created_at = null,
         public ?string $updated_at = null,
-        public ?int $role_id = 0
+        public ?int $role_id = null
     )
     {
         
@@ -96,7 +96,6 @@ protected static string $table = 'users';
         ];
     }
 
-    #[Override]
     protected static function fromRow(array $row): static
     {
         $user= new static();
@@ -104,7 +103,8 @@ protected static string $table = 'users';
         $user->full_name =  $row['name'];
         $user->email =  $row['email'];
         $user->password_hash = $row['password_hash'];
-        $user->role_id = (int)$row['role_id'];
+        $user->role_id = isset($row['role_id']) ? (int) $row['role_id'] : null;
+        $user->role = $row['role_name'] ?? '';
         $user->profile_picture =$row['profile_picture'] ?? null;
         $user->phone  =$row['phone'] ?? null;
         $user->address = $row['address'] ?? null;

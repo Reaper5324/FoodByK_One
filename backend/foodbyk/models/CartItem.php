@@ -11,6 +11,10 @@ public function __construct(
 ) {}
 
 public function increaseQuantity(int $by = 1): bool {
+    if ($this->id === null || $by <= 0 || $this->quantity + $by <= 0) {
+        return false;
+    }
+
     $this->quantity += $by;
     return $this->save();
 }

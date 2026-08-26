@@ -29,36 +29,32 @@ public function beginCharge(): bool {
 
 public function markSuccessful(string $gatewayReference): bool {
     if ($this->status === self::STATUS_SUCCESS) return true; // idempotent - duplicate ITN
+    if ($this->status !== self::STATUS_CHARGE_PENDING || $gatewayReference === '') {
+        return false;
+    }
+
     $this->status            = self::STATUS_SUCCESS;
     $this->gateway_reference = $gatewayReference;
     $this->charged_at        = date('Y-m-d H:i:s');
     $ok = $this->save();
 
-    if ($ok) {
-        $order = Order::findById($this->order_id);
-        if ($order && $order->canTransitionTo(Order::STATUS_PAID)) {
-            $order->status = Order::STATUS_PAID;
-            $order->save();
-        }
-    }
     return $ok;
 }
 
 public function markFailed(): bool {
-    $this->status = self::STATUS_FAILED;
-    $ok = $this->save();
-
-    if ($ok) {
-        $order = Order::findById($this->order_id);
-        if ($order && $order->canTransitionTo(Order::STATUS_PAYMENT_FAILED)) {
-            $order->status = Order::STATUS_PAYMENT_FAILED;
-            $order->save();
-        }
+    if ($this->status !== self::STATUS_CHARGE_PENDING) {
+        return false;
     }
-    return $ok;
+
+    $this->status = self::STATUS_FAILED;
+    return $this->save();
 }
 
 public function voidToken(): bool {
+    if ($this->status !== self::STATUS_TOKENIZED) {
+        return false;
+    }
+
     $this->status = self::STATUS_VOIDED;
     return $this->save();
 }

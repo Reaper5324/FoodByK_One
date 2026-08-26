@@ -9,6 +9,10 @@ abstract class Model {
    
 
     public static function findById(int $id): ?static {
+        if ($id <= 0) {
+            return null;
+        }
+
         $db = Database::getConnection();
         $table = static::$table;
         $stmt = $db->prepare("SELECT * FROM `{$table}` WHERE id = ? LIMIT 1");
@@ -29,7 +33,7 @@ abstract class Model {
     }
 
     public static function findBy(string $column, mixed $value): array {
-
+        static::assertColumnName($column);
         $db = Database::getConnection();
         $table = static::$table;
         $stmt = $db->prepare("SELECT * FROM `{$table}` WHERE `{$column}` = ?");
@@ -62,6 +66,12 @@ abstract class Model {
         $table = static::$table;
         $stmt = $db->prepare("DELETE FROM `{$table}` WHERE id = ?");
         return $stmt->execute([$this->id]);
+    }
+
+    private static function assertColumnName(string $column): void {
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $column) !== 1) {
+            throw new InvalidArgumentException('Invalid model column name.');
+        }
     }
 
 

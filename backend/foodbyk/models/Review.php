@@ -21,6 +21,10 @@ class Review extends Model {
         return Product::findById($this->product_id);
     }
 
+    public function isValidRating(): bool {
+        return $this->rating >= 1 && $this->rating <= 5;
+    }
+
     protected function toArray(): array {
         return [
             'reviewer_id' => $this->reviewer_id,

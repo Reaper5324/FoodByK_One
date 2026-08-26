@@ -13,7 +13,14 @@ public function __construct(
 ) {}
 
 public function hasCoordinates(): bool {
-    return $this->latitude !== null && $this->longitude !== null;
+    return $this->latitude !== null
+        && $this->longitude !== null
+        && is_finite($this->latitude)
+        && is_finite($this->longitude)
+        && $this->latitude >= -90.0
+        && $this->latitude <= 90.0
+        && $this->longitude >= -180.0
+        && $this->longitude <= 180.0;
 }
 
 protected function toArray(): array {

@@ -19,7 +19,7 @@ const STATUS_PREPARING      = 'preparing';
 const STATUS_READY          = 'ready';
 const STATUS_COMPLETED      = 'completed';
 
-private const ALLOWED_TRANSITIONS = [
+public const ALLOWED_TRANSITIONS = [
     self::STATUS_SUBMITTED      => [self::STATUS_ACCEPTED, self::STATUS_ADJUSTED, self::STATUS_DECLINED, self::STATUS_CANCELLED],
     self::STATUS_ACCEPTED       => [self::STATUS_CHARGE_PENDING, self::STATUS_CANCELLED],
     self::STATUS_ADJUSTED       => [self::STATUS_CHARGE_PENDING, self::STATUS_CANCELLED],
@@ -55,7 +55,15 @@ public function __construct(
 ) {}
 
 public function total(): float {
-    return round($this->subtotal + $this->delivery_fee, 2);
+    return round(max(0.0, $this->subtotal - $this->locked_discount) + $this->delivery_fee, 2);
+}
+
+public function isDelivery(): bool {
+    return $this->fulfilment_type === self::TYPE_DELIVERY;
+}
+
+public function isCollection(): bool {
+    return $this->fulfilment_type === self::TYPE_COLLECTION;
 }
 
 public function canTransitionTo(string $newStatus): bool {

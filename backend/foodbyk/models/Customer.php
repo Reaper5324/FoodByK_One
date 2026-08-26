@@ -9,7 +9,7 @@ class Customer extends User {
     }
 
     public function getDefaultAddress(): ?Address{
-        $addresses = array_filter($this->getAddresses(), fn($a) => $a->is_default);
+        $addresses = array_filter($this->getAddresses(), fn(Address $a) => $a->is_default);
         return $addresses ? array_values($addresses)[0] : null;
 
     }
@@ -25,6 +25,10 @@ class Customer extends User {
     }
 
     public function addLoyaltyPoints(int $points): bool {
+        if ($points < 0 || $this->id === null) {
+            return false;
+        }
+
         $this->loyalty_points += $points;
         return $this->save();
     }
@@ -41,12 +45,20 @@ class Customer extends User {
     }
 
     public static function findCustomerById(int $id): ?static {
-        $user = User::findById($id);
-        if($user && $user->isCustomer()){
-            return static::fromRow((array) $user);
-
+        if ($id <= 0) {
+            return null;
         }
-        return null;
+
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'SELECT u.*, r.role_name FROM users u
+             INNER JOIN roles r ON r.id = u.role_id
+             WHERE u.id = ? AND r.role_name = ? LIMIT 1'
+        );
+        $stmt->execute([$id, Role::CUSTOMER]);
+        $row = $stmt->fetch();
+
+        return $row ? static::fromRow($row) : null;
     }
 
 

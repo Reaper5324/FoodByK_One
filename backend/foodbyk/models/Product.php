@@ -35,7 +35,7 @@ public static function search(string $keyword): array {
         $stmt = $db->prepare(
             "SELECT * FROM products
              WHERE status = 'active'
-               AND (title LIKE ? OR description LIKE ?)
+               AND (name LIKE ? OR description LIKE ?)
              ORDER BY created_at DESC"
         );
         $term = '%' . $keyword . '%';
