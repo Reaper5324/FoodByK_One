@@ -1,0 +1,4 @@
+*.env
+*.env.example
+/AGENTS.md
+/DOMAIN.md
