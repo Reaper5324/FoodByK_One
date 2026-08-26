@@ -3,7 +3,10 @@
 require_once __DIR__ . '/../foodbyk/models/model.php';
 require_once __DIR__ . '/../foodbyk/models/Address.php';
 require_once __DIR__ . '/../foodbyk/models/Order.php';
+require_once __DIR__ . '/../foodbyk/models/Product.php';
 require_once __DIR__ . '/../foodbyk/models/Promotion.php';
+require_once __DIR__ . '/../foodbyk/services/AuthService.php';
+require_once __DIR__ . '/../foodbyk/services/ProductService.php';
 
 function expect(bool $condition, string $message): void {
     if (!$condition) {
@@ -44,5 +47,32 @@ $expired = new Promotion(
     end_date: '2020-01-01 00:00:00'
 );
 expect($expired->calculateDiscount(100.0) === 0.0, 'Expired promotion must not apply.');
+
+$auth = new AuthService();
+expect($auth->validatePassword('Str0ng!Passw0rd') === null, 'Strong password must be accepted.');
+expect($auth->validatePassword('weak') !== null, 'Weak password must be rejected.');
+expect(
+    $auth->validatePassword('Customer!1234', 'customer@example.com') !== null,
+    'Password containing the email local-part must be rejected.'
+);
+
+$productService = new ProductService();
+$validator = new ReflectionMethod($productService, 'validateProductInput');
+$validator->setAccessible(true);
+$validProduct = $validator->invoke($productService, [
+    'category_id' => 1,
+    'name' => 'Classic Burger',
+    'description' => 'A burger',
+    'price' => '49.99',
+    'is_available' => '1',
+]);
+expect($validProduct['success'], 'Valid product input must be accepted.');
+$invalidProduct = $validator->invoke($productService, [
+    'category_id' => 1,
+    'name' => 'Classic Burger',
+    'description' => '',
+    'price' => '-1',
+]);
+expect(!$invalidProduct['success'], 'Negative product prices must be rejected.');
 
 echo "Model checks passed.\n";

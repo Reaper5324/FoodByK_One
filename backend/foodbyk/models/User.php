@@ -36,9 +36,13 @@ protected static string $table = 'users';
     }
 
     public function setPassword(string $password): void {
+        $algorithm = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;
+        $hash = password_hash($password, $algorithm);
+        if ($hash === false) {
+            throw new RuntimeException('Unable to hash password.');
+        }
 
-    $this->password_hash = password_hash($password, PASSWORD_BCRYPT);
-
+        $this->password_hash = $hash;
     }
 
 
