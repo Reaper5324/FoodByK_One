@@ -88,7 +88,47 @@ class AuthService {
         }
         return $this->success(null);
     }
+        // Admin-only provisioning - there is no public registration path to
+    // staff/admin roles. The account is created with a random, unknown
+    // password and an invite link is issued through the same
+    // PasswordReset flow used for forgotten passwords - the admin never
+    // sets or sees the actual login credential.
+    public function createStaffAccount(string $name, string $email, string $role, ?string $phone = null): array {
+        $name = trim($name);
+        $email = $this->normaliseEmail($email);
+        $phone = $this->normalisePhone($phone);
 
+        if (!in_array($role, [Role::STAFF, Role::ADMIN], true)) {
+            return $this->failure('Invalid role.');
+        }
+        if ($name === '' || $this->stringLength($name) > self::MAX_NAME_LENGTH) {
+            return $this->failure('Enter a valid full name.');
+        }
+        if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return $this->failure('Enter a valid email address.');
+        }
+        if (User::findByEmail($email) !== null) {
+            return $this->failure('An account with this email already exists.');
+        }
+
+        $roleRow = Role::findOneBy('role_name', $role);
+        if ($roleRow === null || $roleRow->id === null) {
+            return $this->failure('That role is not configured.');
+        }
+
+        $user = new User(full_name: $name, email: $email, phone: $phone, role_id: $roleRow->id);
+        $user->setPassword(bin2hex(random_bytes(32))); // unusable placeholder - account activates only via invite link
+        if (!$user->save()) {
+            return $this->failure('Unable to create the account.');
+        }
+
+        $invite = PasswordReset::create($user->id, 72); // 72h invite window, wider than the 1h forgot-password window
+        if ($invite['success']) {
+            error_log("Staff/admin invite link for {$email}: /set-password?token={$invite['token']}");
+        }
+
+        return $this->success(['id' => $user->id, 'full_name' => $user->full_name, 'email' => $user->email, 'role' => $role]);
+    }
     public function changePassword(User $user, string $currentPassword, string $newPassword): array {
         if ($user->id === null || !$user->is_active || !$user->verifyPassword($currentPassword)) {
             return $this->failure('Unable to change password.');
@@ -149,6 +189,58 @@ class AuthService {
         $_SESSION['authenticated_at'] = time();
     }
 
+    public function getCurrentUser(): ?User{
+        if (session_status() !== PHP_SESSION_ACTIVE){
+            session_start();
+        }
+
+        $userId = $_SESSION['user_id'] ?? null;
+        if($userId === null){ return null;}
+        return User::findbyId((int) $userId);
+    }
+
+    public function requestPasswordReset(string $email): array {
+        $email = $this->normaliseEmail($email);
+        $user = User::findbyEmail($email);
+
+        if($user == null){return $this->success(null);}
+
+        $result = PasswordReset::create($user->id, 1);
+        if($result['success']){
+            error_log("Password reset link for {$email}: /reset-password?token={$result['token']}");
+        }
+
+        return $this->success(null);
+    }
+
+     public function resetPassword(string $rawToken, string $newPassword): array {
+        $reset = PasswordReset::findByToken($rawToken); // already filters expires_at > NOW()
+        if ($reset === null) {
+            return $this->failure('This reset link is invalid or has expired.');
+        }
+
+        $user = User::findById($reset->user_id);
+        if ($user === null || !$user->is_active) {
+            return $this->failure('This reset link is invalid or has expired.');
+        }
+         $error = $this->validatePassword($newPassword, $user->email, $user->full_name);
+        if ($error !== null) {
+            return $this->failure($error);
+        }
+
+        $user->setPassword($newPassword);
+        if (!$user->save()) {
+            return $this->failure('Unable to reset password at this time.');
+        }
+
+        // No used-flag exists on this model - deleting every outstanding
+        // token for this user is the closest equivalent, and correctly
+        // invalidates any other reset links requested since.
+        PasswordReset::deleteForUser($user->id);
+
+        return $this->success(null);
+    }
+
     private function normaliseEmail(string $email): string {
         return strtolower(trim($email));
     }
@@ -169,8 +261,9 @@ class AuthService {
         return defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;
     }
 
-    private function publicUser(User $user): array {
-        return ['id' => $user->id, 'full_name' => $user->full_name, 'email' => $user->email, 'phone' => $user->phone, 'role' => $user->role];
+     private function publicUser(User $user): array {
+        $role = Role::findById($user->role_id);
+        return ['id' => $user->id, 'full_name' => $user->full_name, 'email' => $user->email, 'phone' => $user->phone, 'role' => $role?->role_name];
     }
 
     private function success(mixed $data): array {
