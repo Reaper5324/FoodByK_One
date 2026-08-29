@@ -189,19 +189,19 @@ class AuthService {
         $_SESSION['authenticated_at'] = time();
     }
 
-    public function getCurrentUser(): ?User{
-        if (session_status() !== PHP_SESSION_ACTIVE){
+    public function getCurrentUser(): ?User {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
             session_start();
         }
 
         $userId = $_SESSION['user_id'] ?? null;
-        if($userId === null){ return null;}
-        return User::findbyId((int) $userId);
+        if ($userId === null) { return null; }
+        return User::findById((int) $userId);
     }
 
     public function requestPasswordReset(string $email): array {
         $email = $this->normaliseEmail($email);
-        $user = User::findbyEmail($email);
+        $user = User::findByEmail($email);
 
         if($user == null){return $this->success(null);}
 

@@ -5,6 +5,7 @@ class OrderItem extends Model {
 protected static string $table = 'order_items';
 
 public function __construct(
+    public string $product_name = '',
     public int   $order_id   = 0,
     public int   $product_id = 0,
     public int   $quantity   = 1,

@@ -5,6 +5,7 @@ class CartItem extends Model {
 protected static string $table = 'cart_items';
 
 public function __construct(
+    public int $unit_price = 0,
     public int $customer_id = 0,
     public int $product_id  = 0,
     public int $quantity    = 1

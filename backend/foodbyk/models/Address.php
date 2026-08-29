@@ -8,6 +8,9 @@ public function __construct(
     public int    $customer_id = 0,
     public string $raw_address = '',
     public ?float $latitude    = null,
+    public ?string $street = null,
+    public ?int $postal_code = null,
+    public ?string $city = null,
     public ?float $longitude   = null,
     public bool   $is_default  = false
 ) {}
