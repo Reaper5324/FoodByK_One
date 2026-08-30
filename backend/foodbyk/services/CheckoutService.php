@@ -62,6 +62,9 @@ class CheckoutService {
         // Check delivery eligibility and get fee
         $deliveryService = new DeliveryService();
         $address = $addressId ? Address::findById($addressId) : null;
+        if ($fulfilmentType === Order::TYPE_DELIVERY && (!$address || $address->customer_id !== $customerId)) {
+            return $this->failure('Delivery address not found.');
+        }
         $eligibility = $deliveryService->checkEligibility($fulfilmentType, $address);
         if (!$eligibility['success']) {
             return $this->failure($eligibility['error']);
@@ -129,15 +132,6 @@ class CheckoutService {
                 );
             }
 
-            // Optional: warn if price changed significantly (>5%)
-            if ($product->price !== $item->unit_price) {
-                $percentChange = abs($product->price - $item->unit_price) / $item->unit_price * 100;
-                if ($percentChange > 5) {
-                    return $this->failure(
-                        'Item price changed significantly. Please review your cart.'
-                    );
-                }
-            }
         }
 
         return $this->success($cartItems);
@@ -194,7 +188,7 @@ class CheckoutService {
         }
 
         $deliveryService = new DeliveryService();
-        if (!$deliveryService->isWithinTradingHours($start)) {
+        if (!$deliveryService->isWithinTradingHours($start) || !$deliveryService->isWithinTradingHours($end)) {
             return $this->failure('Requested time is outside trading hours.');
         }
 
@@ -207,17 +201,17 @@ class CheckoutService {
      * @param int $customerId
      * @param string $fulfilmentType
      * @param ?int $addressId
-     * @param ?string $requestedWindowStart
-     * @param ?string $requestedWindowEnd
+     * @param string $requestedWindowStart
+     * @param string $requestedWindowEnd
      * @param ?string $promotionCode
      * @return array ['success' => bool, 'data' => Order, 'error' => ?string]
      */
     public function submitOrder(
         int $customerId,
         string $fulfilmentType,
-        ?int $addressId = null,
-        ?string $requestedWindowStart = null,
-        ?string $requestedWindowEnd = null,
+        ?int $addressId,
+        string $requestedWindowStart,
+        string $requestedWindowEnd,
         ?string $promotionCode = null
     ): array {
         $orderService = new OrderService();

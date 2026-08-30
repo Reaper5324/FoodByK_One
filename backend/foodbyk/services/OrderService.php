@@ -12,10 +12,12 @@ class OrderService {
             $db->beginTransaction();
             $result = $work($db);
             $db->commit();
-            return ['success' => true, 'data' => $result];
-        } catch (\Exception $e) {
-            $db->rollBack();
-            return ['success' => false, 'error' => $e->getMessage()];
+            return ['success' => true, 'data' => $result, 'error' => null];
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            return ['success' => false, 'data' => null, 'error' => $e->getMessage()];
         }
     }
 
@@ -40,7 +42,9 @@ class OrderService {
             $order->status   = Order::STATUS_ACCEPTED;
             if ($confirmedStart) $order->confirmed_window_start = $confirmedStart;
             if ($confirmedEnd)   $order->confirmed_window_end   = $confirmedEnd;
-            $order->save();
+            if (!$order->save()) {
+                throw new \Exception('Unable to confirm order.');
+            }
 
             $this->logTransition($order->id, $fromStatus, $order->status, $staffId);
 
@@ -60,7 +64,9 @@ class OrderService {
             $order->staff_id       = $staffId;
             $order->status         = Order::STATUS_DECLINED;
             $order->decline_reason = $reason;
-            $order->save();
+            if (!$order->save()) {
+                throw new \Exception('Unable to decline order.');
+            }
 
             $order->getPayment()?->voidToken(); // token never charged - FR-08
 
@@ -70,12 +76,13 @@ class OrderService {
         });
     }
 
-    // Customer-initiated - $userId is null in the history row when it's the
-    // customer, not staff, per DOMAIN.md's order_status_history convention.
-    public function cancelOrder(int $orderId, ?int $staffId, string $reason): array {
-        return $this->transactional(function () use ($orderId, $staffId, $reason) {
+    public function cancelOrder(int $orderId, ?int $customerId, ?int $staffId, string $reason): array {
+        return $this->transactional(function () use ($orderId, $customerId, $staffId, $reason) {
             $order = Order::lockById($orderId);
             if (!$order) throw new \Exception("Order {$orderId} not found.");
+            if ($staffId === null && $customerId !== null && $order->customer_id !== $customerId) {
+                throw new \Exception("Order {$orderId} not found.");
+            }
             if (!$order->canTransitionTo(Order::STATUS_CANCELLED)) {
                 // Deliberately includes the "already paid" case - see DOMAIN.md §7.
                 throw new \Exception("Order {$orderId} can no longer be cancelled (status: '{$order->status}').");
@@ -84,7 +91,9 @@ class OrderService {
             $fromStatus = $order->status;
             $order->status        = Order::STATUS_CANCELLED;
             $order->cancel_reason = $reason;
-            $order->save();
+            if (!$order->save()) {
+                throw new \Exception('Unable to cancel order.');
+            }
 
             $payment = $order->getPayment();
             if ($payment && $payment->status === Payment::STATUS_TOKENIZED) {
@@ -107,7 +116,9 @@ class OrderService {
 
             $fromStatus = $order->status;
             $order->status = $newStatus;
-            $order->save();
+            if (!$order->save()) {
+                throw new \Exception('Unable to update order status.');
+            }
 
             $this->logTransition($order->id, $fromStatus, $newStatus, $staffId);
 
@@ -126,11 +137,13 @@ class OrderService {
              WHERE o.status = '" . Order::STATUS_SUBMITTED . "'
              ORDER BY o.created_at ASC"
         )->fetchAll();
-        return ['success' => true, 'data' => $rows];
+        return ['success' => true, 'data' => $rows, 'error' => null];
     }
 
     private function logTransition(int $orderId, ?string $from, string $to, ?int $actorId, ?string $notes = null): void {
-        (new OrderStatusHistory(order_id: $orderId, from_status: $from, to_status: $to, changed_by: $actorId, notes: $notes))->save();
+        if (!(new OrderStatusHistory(order_id: $orderId, from_status: $from, to_status: $to, changed_by: $actorId, notes: $notes))->save()) {
+            throw new \Exception('Unable to record order status history.');
+        }
     }
 
     /**
@@ -140,23 +153,27 @@ class OrderService {
      * @param int $customerId
      * @param string $fulfilmentType (collection|delivery)
      * @param ?int $addressId (required if delivery)
-     * @param ?string $requestedWindowStart (preferred fulfillment start time)
-     * @param ?string $requestedWindowEnd (preferred fulfillment end time)
+     * @param string $requestedWindowStart (required preferred fulfilment start time)
+     * @param string $requestedWindowEnd (required preferred fulfilment end time)
      * @param ?string $promotionCode (optional promo/coupon code)
      * @return array ['success' => bool, 'data' => Order, 'error' => ?string]
      */
     public function submitOrder(
         int $customerId,
         string $fulfilmentType,
-        ?int $addressId = null,
-        ?string $requestedWindowStart = null,
-        ?string $requestedWindowEnd = null,
+        ?int $addressId,
+        string $requestedWindowStart,
+        string $requestedWindowEnd,
         ?string $promotionCode = null
     ): array {
         return $this->transactional(function () use (
             $customerId, $fulfilmentType, $addressId,
             $requestedWindowStart, $requestedWindowEnd, $promotionCode
         ) {
+            if (!in_array($fulfilmentType, [Order::TYPE_COLLECTION, Order::TYPE_DELIVERY], true)) {
+                throw new \Exception('Invalid fulfilment type.');
+            }
+
             // Load cart items
             $cartItems = CartItem::findBy('customer_id', $customerId);
             if (empty($cartItems)) {
@@ -185,37 +202,16 @@ class OrderService {
                 if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
                     throw new \Exception("Item {$cartItem->product_id} is no longer available.");
                 }
-                $subtotal += $cartItem->getLineTotal();
+                $subtotal += $product->price * $cartItem->quantity;
             }
             $order->subtotal = round($subtotal, 2);
-
-            // Apply promotion if provided
-            $promotionService = new PromotionService();
-            $discount = 0.0;
-            $promotionId = null;
-            if ($promotionCode) {
-                $promoResult = $promotionService->validateAndCalculate(
-                    $promotionCode,
-                    $subtotal,
-                    array_map(fn(CartItem $item) => [
-                        'product_id' => $item->product_id,
-                        'quantity' => $item->quantity,
-                        'unit_price' => $item->unit_price,
-                    ], $cartItems),
-                    0.0 // delivery_fee will be added after
-                );
-                if (!$promoResult['success']) {
-                    throw new \Exception('Invalid promotion: ' . $promoResult['error']);
-                }
-                $discount = $promoResult['data']['discount'];
-                $promotionId = $promoResult['data']['promotion_id'];
-            }
-            $order->locked_discount = $discount;
-            $order->promotion_id = $promotionId;
 
             // Check delivery eligibility and calculate fee
             $deliveryService = new DeliveryService();
             $address = $addressId ? Address::findById($addressId) : null;
+            if ($fulfilmentType === Order::TYPE_DELIVERY && (!$address || $address->customer_id !== $customerId)) {
+                throw new \Exception('Delivery address not found.');
+            }
             $eligibility = $deliveryService->checkEligibility($fulfilmentType, $address);
             if (!$eligibility['success']) {
                 throw new \Exception($eligibility['error']);
@@ -226,10 +222,37 @@ class OrderService {
                 $order->delivery_fee = $eligibility['data']['fee'];
             }
 
+            // Apply promotion after delivery is priced so free-delivery promotions
+            // lock the actual delivery fee, not zero.
+            if ($promotionCode) {
+                $promoResult = (new PromotionService())->validateAndCalculate(
+                    $promotionCode,
+                    $subtotal,
+                    array_map(fn(CartItem $item) => [
+                        'product_id' => $item->product_id,
+                        'quantity' => $item->quantity,
+                        'unit_price' => Product::findById($item->product_id)?->price ?? 0.0,
+                    ], $cartItems),
+                    $order->delivery_fee
+                );
+                if (!$promoResult['success']) {
+                    throw new \Exception('Invalid promotion: ' . $promoResult['error']);
+                }
+                $order->locked_discount = $promoResult['data']['discount'];
+                $order->promotion_id = $promoResult['data']['promotion_id'];
+            }
+
             // Check trading hours
-            $when = $requestedWindowStart ? new \DateTimeImmutable($requestedWindowStart) : new \DateTimeImmutable();
-            if (!$deliveryService->isWithinTradingHours($when)) {
-                throw new \Exception('Order time is outside trading hours.');
+            try {
+                $windowStart = new \DateTimeImmutable($requestedWindowStart);
+                $windowEnd = new \DateTimeImmutable($requestedWindowEnd);
+            } catch (\Exception) {
+                throw new \Exception('Invalid requested time window.');
+            }
+            if ($windowStart >= $windowEnd
+                || !$deliveryService->isWithinTradingHours($windowStart)
+                || !$deliveryService->isWithinTradingHours($windowEnd)) {
+                throw new \Exception('Requested time window is outside trading hours.');
             }
 
             // Save order
@@ -346,8 +369,7 @@ class OrderService {
                 throw new \Exception("Order {$orderId} not found.");
             }
 
-            // Can only adjust submitted/accepted/adjusted orders - not after charge_pending
-            if (!in_array($order->status, [Order::STATUS_SUBMITTED, Order::STATUS_ACCEPTED, Order::STATUS_ADJUSTED], true)) {
+            if (!in_array($order->status, [Order::STATUS_SUBMITTED, Order::STATUS_ADJUSTED], true)) {
                 throw new \Exception("Cannot adjust order in status '{$order->status}'.");
             }
 
@@ -356,6 +378,9 @@ class OrderService {
 
             // Update items if provided
             if ($adjustedItems !== null) {
+                if ($adjustedItems === []) {
+                    throw new \Exception('Adjusted order must contain at least one item.');
+                }
                 // Delete existing OrderItems
                 foreach ($order->getItems() as $item) {
                     $item->delete();
@@ -365,11 +390,14 @@ class OrderService {
                 $newSubtotal = 0.0;
                 foreach ($adjustedItems as $adj) {
                     $product = Product::findById($adj['product_id'] ?? 0);
-                    if (!$product || $product->status !== Product::STATUS_ACTIVE) {
-                        throw new \Exception("Product {$adj['product_id']} is invalid.");
+                    if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
+                        throw new \Exception('Adjusted product is unavailable.');
                     }
 
-                    $quantity = max(1, (int) ($adj['quantity'] ?? 1));
+                    if (filter_var($adj['quantity'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
+                        throw new \Exception('Adjusted item quantity must be at least one.');
+                    }
+                    $quantity = (int) $adj['quantity'];
                     $orderItem = new OrderItem(
                         order_id: $order->id,
                         product_id: $product->id,
@@ -406,8 +434,9 @@ class OrderService {
             $fromStatus = $order->status;
             if ($adjustedItems !== null || $newWindowStart !== null || $newWindowEnd !== null) {
                 if ($order->status === Order::STATUS_SUBMITTED) {
-                    $order->status = Order::STATUS_ADJUSTED;
-                } elseif ($order->status === Order::STATUS_ACCEPTED) {
+                    if (!$order->canTransitionTo(Order::STATUS_ADJUSTED)) {
+                        throw new \Exception("Order {$orderId} cannot be adjusted from status '{$order->status}'.");
+                    }
                     $order->status = Order::STATUS_ADJUSTED;
                 }
             }
