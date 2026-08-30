@@ -5,6 +5,8 @@ class AuthService {
     private const MAX_PASSWORD_LENGTH = 128;
     private const MAX_NAME_LENGTH = 120;
     private const MAX_EMAIL_LENGTH = 254;
+    private const SESSION_IDLE_LIFETIME_SECONDS = 7200;
+    private const SESSION_ABSOLUTE_LIFETIME_SECONDS = 86400;
     private const DUMMY_PASSWORD_HASH = '$2y$12$Orrp0BWnrHGJxJKEbcr34OM4KZoAFhu7esQzaCO4SaTIAdTMNtbfe';
 
     public function register(string $name, string $email, string $password, ?string $phone = null): array {
@@ -187,6 +189,7 @@ class AuthService {
         session_regenerate_id(true);
         $_SESSION['user_id'] = $user->id;
         $_SESSION['authenticated_at'] = time();
+        $_SESSION['last_activity'] = time();
     }
 
     public function getCurrentUser(): ?User {
@@ -195,8 +198,35 @@ class AuthService {
         }
 
         $userId = $_SESSION['user_id'] ?? null;
-        if ($userId === null) { return null; }
-        return User::findById((int) $userId);
+        $authenticatedAt = $_SESSION['authenticated_at'] ?? null;
+        $lastActivity = $_SESSION['last_activity'] ?? null;
+        $now = time();
+
+        if (!is_int($userId) && !ctype_digit((string) $userId)
+            || !is_int($authenticatedAt) || !is_int($lastActivity)
+            || $now - $authenticatedAt >= self::SESSION_ABSOLUTE_LIFETIME_SECONDS
+            || $now - $lastActivity >= self::SESSION_IDLE_LIFETIME_SECONDS) {
+            $this->destroySession();
+            return null;
+        }
+
+        $user = User::findById((int) $userId);
+        if ($user === null) {
+            $this->destroySession();
+            return null;
+        }
+
+        $_SESSION['last_activity'] = $now;
+        return $user;
+    }
+
+    private function destroySession(): void {
+        $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+        }
+        session_destroy();
     }
 
     public function requestPasswordReset(string $email): array {

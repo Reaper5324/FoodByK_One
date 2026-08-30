@@ -9,7 +9,7 @@ class Request {
     public array  $headers;
     public array  $attributes = []; // middleware-populated - e.g. 'user' => Customer/Staff/Admin
 
-    public static function capture(): self {
+        public static function capture(): self {
         $req = new self();
         $req->method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $req->path   = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -20,10 +20,22 @@ class Request {
             ? (json_decode($raw, true) ?? [])
             : $_POST;
 
+        // HTML forms only submit GET/POST natively - a hidden _method
+        // field lets a plain <form> fake PUT/PATCH/DELETE. Harmless for
+        // fetch()-based calls, which send the real method and never set this.
+        if ($req->method === 'POST' && !empty($req->body['_method'])) {
+            $override = strtoupper((string) $req->body['_method']);
+            if (in_array($override, ['PUT', 'PATCH', 'DELETE'], true)) {
+                $req->method = $override;
+            }
+        }
+
         $req->headers = function_exists('getallheaders') ? getallheaders() : [];
 
         return $req;
     }
+
+    
 
     public function input(string $key, mixed $default = null): mixed {
         return $this->body[$key] ?? $this->query[$key] ?? $default;
@@ -39,4 +51,6 @@ class Request {
     public function user(): ?User {
         return $this->attributes['user'] ?? null;
     }
+
+    
 }

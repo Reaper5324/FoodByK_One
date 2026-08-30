@@ -7,21 +7,19 @@ class AuthMiddleware implements Middleware {
         $authService = new AuthService();
         $baseUser = $authService->getCurrentUser();
 
-        if(!$baseUser || !$baseUser->is_active){
-            return Response::error('Authentication required', 401);
-
+        if (!$baseUser || !$baseUser->is_active) {
+            return Response::error('Authentication required.', 401);
         }
-        $role = Role::findbyId($baseUser->role_id);
-         $request->attributes['user'] = match ($role?->role_name) {
+        $role = Role::findById($baseUser->role_id);
+        $request->attributes['user'] = match ($role?->role_name) {
             Role::CUSTOMER => Customer::findCustomerById($baseUser->id),
             Role::STAFF    => Staff::findStaffById($baseUser->id),
             Role::ADMIN    => Admin::findAdminById($baseUser->id),
             default        => null,
         };
 
-        if ($request->attributes['user'] === null){
-            return Response::error('authentication Required', 401);
-
+        if ($request->attributes['user'] === null) {
+            return Response::error('Authentication required.', 401);
         }
         return null;
     }

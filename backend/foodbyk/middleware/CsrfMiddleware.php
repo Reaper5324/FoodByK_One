@@ -1,29 +1,34 @@
 <?php
 
-class CsrfMiddleware implements Middleware{
+class CsrfMiddleware implements Middleware {
+    public function handle(Request $request): ?Response {
+        $sessionToken = $this->ensureToken();
 
+        if (in_array($request->method, ['GET', 'HEAD', 'OPTIONS'], true)) {
+            header('X-CSRF-Token: ' . $sessionToken);
+            return null;
+        }
 
-public function handle(Request $request): ?Response{
+        $token = $request->header('X-CSRF-Token')
+            ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null)
+            ?? $request->input('csrf_token');
 
-    if(in_array($request->method, ['GET', 'HEAD', 'OPTIONS'], true )){
-    return null; //safe methods dont change anything
+        if (!is_string($token) || !hash_equals($sessionToken, $token)) {
+            return Response::error('Invalid or missing CSRF token.', 419);
+        }
+
+        return null;
     }
 
-    $token = $request->header('X-CSRF-Token') ?? $request->input('csrf_token');
-    $sesionToken = $_SESSION['csrf_token'] ?? null;
+    private function ensureToken(): string {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
 
-    if(!$token || !$sesionToken || !hash_equals($sesionToken, $token)){
-        return Response::error('Invalid or missing CSRF token.', 419);
+        if (!isset($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
 
-    
+        return $_SESSION['csrf_token'];
     }
-
-    return null;
-
-}
-
-
-
-
-
 }

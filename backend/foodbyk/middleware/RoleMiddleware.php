@@ -19,17 +19,17 @@ class RoleMiddleware implements Middleware{
         return new self([Role::STAFF, Role::ADMIN]);
     }
 
-    public function handle(Request $request): ?Response{
+    public function handle(Request $request): ?Response {
+        $user = $request->user();
+        if ($user === null) {
+            return Response::error('Authentication required.', 401);
+        }
 
-    $user = $request->user();
-    if(!$user || !in_array($user->role, $this->allowedRoles, true)){
-        return Response::error('You dont have permission to access this resource', 403);
+        if (!in_array($user->role, $this->allowedRoles, true)) {
+            return Response::error('You do not have permission to access this resource.', 403);
+        }
 
-
-    }
-    //if role checks pass
-    return null;
-
+        return null;
     }
 
 
