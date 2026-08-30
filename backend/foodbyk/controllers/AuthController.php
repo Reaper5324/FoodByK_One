@@ -4,16 +4,16 @@ class AuthController extends Controller {
 
     public function register(Request $request): Response {
         $result = (new AuthService())->register(
-            $request->input('full_name'),
-            $request->input('email'),
-            $request->input('password'),
-            $request->input('phone')
+            (string) $request->input('name', $request->input('full_name', '')),
+            (string) $request->input('email', ''),
+            (string) $request->input('password', ''),
+            $request->input('phone') === null ? null : (string) $request->input('phone')
         );
         return $this->respond($result, 201);
     }
 
     public function login(Request $request): Response {
-        return $this->respond((new AuthService())->login($request->input('email'), $request->input('password')), 200, 401);
+        return $this->respond((new AuthService())->login((string) $request->input('email', ''), (string) $request->input('password', '')), 200, 401);
     }
 
     public function logout(Request $request): Response {
@@ -30,11 +30,11 @@ class AuthController extends Controller {
     }
 
     public function requestPasswordReset(Request $request): Response {
-        return $this->respond((new AuthService())->requestPasswordReset($request->input('email')));
+        return $this->respond((new AuthService())->requestPasswordReset((string) $request->input('email', '')));
     }
 
     public function resetPassword(Request $request): Response {
-        return $this->respond((new AuthService())->resetPassword($request->input('token'), $request->input('password')));
+        return $this->respond((new AuthService())->resetPassword((string) $request->input('token', ''), (string) $request->input('password', '')));
     }
 
     public function changePassword(Request $request): Response {

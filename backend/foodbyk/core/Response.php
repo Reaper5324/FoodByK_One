@@ -2,6 +2,8 @@
 
 class Response {
 
+    private ?string $redirectUrl = null;
+
     private function __construct(
         private array $payload,
         private int $statusCode
@@ -19,10 +21,6 @@ class Response {
         return new self(['success' => false, 'data' => null, 'error' => $message], $statusCode);
     }
 
-    // Every service returns ['success'=>, 'data'=>, 'error'=>] - this is the
-    // one translation point from that convention to an HTTP response.
-    // Services don't know about HTTP status codes (correctly - that's not
-    // their concern), so the controller supplies both codes per call.
     public static function fromService(array $result, int $successCode = 200, int $failureCode = 400): self {
         if ($result['success'] ?? false) {
             return new self($result, $successCode);
@@ -30,8 +28,23 @@ class Response {
         return new self($result, $failureCode);
     }
 
+    // For real browser navigations only (e.g. the PayFast return/cancel
+    // trip) - controllers still return this like any other Response, the
+    // Router still sends it. No exit() here or anywhere else in this class.
+    public static function redirect(string $url, int $statusCode = 302): self {
+        $response = new self([], $statusCode);
+        $response->redirectUrl = $url;
+        return $response;
+    }
+
     public function send(): void {
         http_response_code($this->statusCode);
+
+        if ($this->redirectUrl !== null) {
+            header("Location: {$this->redirectUrl}");
+            return;
+        }
+
         header('Content-Type: application/json');
         echo json_encode($this->payload);
     }

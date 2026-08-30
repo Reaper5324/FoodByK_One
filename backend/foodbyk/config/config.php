@@ -10,4 +10,4 @@ define('PAYFAST_CANCEL_URL', getenv('PAYFAST_CANCEL_URL') ?: '');
 define('PAYFAST_NOTIFY_URL', getenv('PAYFAST_NOTIFY_URL') ?: '');
 define('PAYFAST_SANDBOX', getenv('PAYFAST_SANDBOX') ?: '');
 define('PAYFAST_PASSPHRASE', getenv('PAYFAST_PASSPHRASE') ?: '');
-
+define('FRONTEND_URL', getenv('FRONTEND_URL') ?: '');
