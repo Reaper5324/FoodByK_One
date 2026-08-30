@@ -7,3 +7,7 @@ define('PAYFAST_MERCHANT_ID', getenv('PAYFAST_MERCHANT_ID') ?: '');
 define('PAYFAST_MERCHANT_KEY', getenv('PAYFAST_MERCHANT_KEY') ?: '');
 define('PAYFAST_RETURN_URL', getenv('PAYFAST_RETURN_URL') ?: '');
 define('PAYFAST_CANCEL_URL', getenv('PAYFAST_CANCEL_URL') ?: '');
+define('PAYFAST_NOTIFY_URL', getenv('PAYFAST_NOTIFY_URL') ?: '');
+define('PAYFAST_SANDBOX', getenv('PAYFAST_SANDBOX') ?: '');
+define('PAYFAST_PASSPHRASE', getenv('PAYFAST_PASSPHRASE') ?: '');
+
