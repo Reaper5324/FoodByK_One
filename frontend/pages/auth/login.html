@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Login | Food by K</title>
+
+    <!-- Shared website styling -->
+    <link rel="stylesheet"
+          href="../../assets/css/style.css">
+
+    <!-- Authentication styling -->
+    <link rel="stylesheet"
+          href="../../assets/css/auth.css">
+
+</head>
+
+
+<body class="auth-page">
+
+
+<!-- Login Container -->
+
+<main class="auth-container">
+
+
+    <!-- Food by K Logo -->
+
+    <div class="auth-brand">
+
+        <a href="../../index.html">
+            FOOD<span>BY K</span>
+        </a>
+
+    </div>
+
+
+    <!-- Login Card -->
+
+    <section class="auth-card">
+
+        <h1>
+            Welcome Back
+        </h1>
+
+        <p class="auth-subtitle">
+            Log in to your Food by K account
+            to continue.
+        </p>
+
+
+        <!-- Error / Success Messages -->
+
+        <div id="message"></div>
+
+
+        <!-- Login Form -->
+
+        <form id="loginForm">
+
+
+            <!-- Email -->
+
+            <div class="form-group">
+
+                <label for="loginEmail">
+                    Email Address
+                </label>
+
+                <input
+                        type="email"
+                        id="loginEmail"
+                        name="email"
+                        placeholder="Enter your email address"
+                        autocomplete="email"
+                        required
+                >
+
+            </div>
+
+
+            <!-- Password -->
+
+            <div class="form-group">
+
+                <label for="loginPassword">
+                    Password
+                </label>
+
+                <input
+                        type="password"
+                        id="loginPassword"
+                        name="password"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        required
+                >
+
+            </div>
+
+
+            <!-- Remember Me + Forgot Password -->
+
+            <div class="form-options">
+
+                <label class="remember-me">
+
+                    <input
+                            type="checkbox"
+                            id="rememberMe"
+                    >
+
+                    Remember me
+
+                </label>
+
+
+                <a href="forgot-password.html">
+                    Forgot Password?
+                </a>
+
+            </div>
+
+
+            <!-- Login Button -->
+
+            <button
+                    type="submit"
+                    class="btn btn-primary auth-btn"
+            >
+                Login
+            </button>
+
+
+        </form>
+
+
+        <!-- Registration Link -->
+
+        <p class="auth-footer">
+
+            Don't have an account?
+
+            <a href="register.html">
+                Create an account
+            </a>
+
+        </p>
+
+
+    </section>
+
+
+</main>
+
+
+<!-- Authentication JavaScript -->
+
+<script src="../../assets/js/auth.js"></script>
+
+</body>
+
+</html>
