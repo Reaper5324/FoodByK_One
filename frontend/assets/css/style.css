@@ -1,0 +1,37 @@
+/* =========================================
+   FOOD BY K - P1
+   SHARED NAVIGATION JAVASCRIPT
+   ========================================= */
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    // Highlight the current page in the navigation
+    const currentPage = window.location.pathname.split("/").pop();
+
+    const navLinks = document.querySelectorAll(".navbar nav a");
+
+    navLinks.forEach(function (link) {
+        const linkPage = link.getAttribute("href");
+
+        if (linkPage && linkPage === currentPage) {
+            link.classList.add("active");
+        }
+    });
+
+    // Handle logout button
+    const logoutButton = document.querySelector(".logout-nav");
+
+    if (logoutButton) {
+        logoutButton.addEventListener("click", function (event) {
+            event.preventDefault();
+
+            // Remove stored login information
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+
+            // Redirect to login page
+            window.location.href = "login.html";
+        });
+    }
+
+});

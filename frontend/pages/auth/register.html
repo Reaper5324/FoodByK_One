@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    ```
+    <title>Register | Food by K</title>
+
+    <!-- Shared website styling -->
+    <link rel="stylesheet" href="../../assets/css/style.css">
+
+    <!-- Authentication styling -->
+    <link rel="stylesheet" href="../../assets/css/auth.css">
+    ```
+
+</head>
+
+<body class="auth-page">
+
+<div class="auth-container">
+
+    ```
+    <!-- Food by K Branding -->
+
+    <div class="auth-brand">
+        <a href="../../src/index.html">
+            FOOD<span>BY K</span>
+        </a>
+    </div>
+
+
+    <!-- Registration Card -->
+
+    <div class="auth-card">
+
+        <h1>Create Your Account</h1>
+
+        <p class="auth-subtitle">
+            Join Food by K and start enjoying delicious food.
+        </p>
+
+
+        <!-- Registration Message -->
+
+        <div id="message"></div>
+
+
+        <!-- Registration Form -->
+
+        <form id="registerForm">
+
+            <!-- First Name -->
+
+            <div class="form-group">
+
+                <label for="firstName">
+                    First Name
+                </label>
+
+                <input
+                        type="text"
+                        id="firstName"
+                        name="firstName"
+                        placeholder="Enter your first name"
+                        required
+                >
+
+            </div>
+
+
+            <!-- Last Name -->
+
+            <div class="form-group">
+
+                <label for="lastName">
+                    Last Name
+                </label>
+
+                <input
+                        type="text"
+                        id="lastName"
+                        name="lastName"
+                        placeholder="Enter your last name"
+                        required
+                >
+
+            </div>
+
+
+            <!-- Email -->
+
+            <div class="form-group">
+
+                <label for="email">
+                    Email Address
+                </label>
+
+                <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="Enter your email address"
+                        required
+                >
+
+            </div>
+
+
+            <!-- Password -->
+
+            <div class="form-group">
+
+                <label for="password">
+                    Password
+                </label>
+
+                <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Create a password"
+                        required
+                >
+
+            </div>
+
+
+            <!-- Confirm Password -->
+
+            <div class="form-group">
+
+                <label for="confirmPassword">
+                    Confirm Password
+                </label>
+
+                <input
+                        type="password"
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        placeholder="Confirm your password"
+                        required
+                >
+
+            </div>
+
+
+            <!-- Register Button -->
+
+            <button
+                    type="submit"
+                    class="btn btn-primary auth-btn">
+                Create Account
+            </button>
+
+        </form>
+
+
+        <!-- Login Link -->
+
+        <div class="auth-footer">
+
+            <p>
+                Already have an account?
+                <a href="login.html">
+                    Login here
+                </a>
+            </p>
+
+        </div>
+
+    </div>
+    ```
+
+</div>
+
+<!-- API Configuration -->
+
+<script src="../../assets/js/config.js"></script>
+
+<!-- API Layer -->
+
+<script src="../../assets/js/api/api.js"></script>
+
+<!-- Authentication API -->
+
+<script src="../../assets/js/api/auth.js"></script>
+
+<!-- Authentication Logic -->
+
+<script src="../../assets/js/auth.js"></script>
+
+</body>
+
+</html>
