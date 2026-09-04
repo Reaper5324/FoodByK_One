@@ -1,38 +1,32 @@
 /* =========================================
    FOOD BY K - P1
-   AUTHENTICATION STYLES
+   LOGIN / AUTHENTICATION STYLES
    ========================================= */
 
+/* ---------- Entire Page ---------- */
 
-/* ---------- Authentication Page ---------- */
-
-.auth-page {
-    min-height: 100vh;
-
-    background: linear-gradient(
-        135deg,
-        var(--food-black) 0%,
-        var(--food-dark) 65%,
-        #3A080A 100%
-    );
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    padding: 40px 20px;
+html,
+body {
+    min-height: 100%;
 }
 
+body.auth-page {
+    min-height: 100vh !important;
+    margin: 0;
+    background-color: #111111 !important;
+    color: #FFFFFF;
+}
 
-/* ---------- Authentication Container ---------- */
+/* ---------- Login Container ---------- */
 
 .auth-container {
     width: 100%;
-    max-width: 460px;
+    max-width: 450px;
+    margin: 0 auto;
+    padding: 40px 20px;
 }
 
-
-/* ---------- Authentication Brand ---------- */
+/* ---------- Food by K Logo ---------- */
 
 .auth-brand {
     text-align: center;
@@ -40,43 +34,46 @@
 }
 
 .auth-brand a {
-    color: var(--food-white);
-    font-size: 28px;
+    color: #FFFFFF !important;
+    font-size: 32px;
     font-weight: 800;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
 }
 
 .auth-brand span {
-    color: var(--food-yellow);
+    color: #FFC928 !important;
 }
 
-
-/* ---------- Authentication Card ---------- */
+/* ---------- Login Card ---------- */
 
 .auth-card {
-    background-color: var(--food-white);
-    border-radius: 12px;
+    width: 100%;
+    background-color: #FFFFFF !important;
+    border-top: 8px solid #D71920 !important;
+    border-radius: 10px;
     padding: 40px;
-
-    box-shadow:
-        0 20px 50px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
+
+/* ---------- Heading ---------- */
 
 .auth-card h1 {
-    color: var(--food-black);
-    font-size: 30px;
-    line-height: 1.2;
-    margin-bottom: 10px;
+    color: #111111 !important;
+    font-size: 28px;
+    text-align: center;
+    margin-bottom: 8px;
 }
+
+/* ---------- Subtitle ---------- */
 
 .auth-subtitle {
-    color: var(--food-grey);
+    color: #6B6B6B !important;
+    text-align: center;
     font-size: 15px;
-    margin-bottom: 28px;
+    margin-bottom: 30px;
 }
 
-
-/* ---------- Form Groups ---------- */
+/* ---------- Form ---------- */
 
 .form-group {
     margin-bottom: 20px;
@@ -85,279 +82,139 @@
 .form-group label {
     display: block;
     margin-bottom: 7px;
-
-    color: var(--food-black);
-
-    font-size: 14px;
+    color: #111111 !important;
     font-weight: 700;
+    font-size: 14px;
 }
 
-.form-group input {
+/* ---------- Inputs ---------- */
+
+.form-group input[type="email"],
+.form-group input[type="password"] {
     width: 100%;
     padding: 13px 14px;
-
-    border: 1px solid var(--food-border);
+    border: 2px solid #E2E2E2;
     border-radius: 6px;
-
-    background-color: var(--food-white);
-    color: var(--food-black);
-
-    font-family: inherit;
+    background-color: #FFFFFF !important;
+    color: #111111 !important;
     font-size: 15px;
-
     outline: none;
-
-    transition:
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
 }
 
-.form-group input::placeholder {
-    color: #999999;
+.form-group input[type="email"]:focus,
+.form-group input[type="password"]:focus {
+    border-color: #D71920;
+    box-shadow: 0 0 0 3px rgba(215, 25, 32, 0.15);
 }
 
-.form-group input:focus {
-    border-color: var(--food-red);
-
-    box-shadow:
-        0 0 0 3px rgba(215, 25, 32, 0.12);
-}
-
-
-/* ---------- Form Options ---------- */
+/* ---------- Remember Me ---------- */
 
 .form-options {
     display: flex;
     align-items: center;
     justify-content: space-between;
-
-    gap: 15px;
     margin-bottom: 25px;
-
-    font-size: 13px;
+    font-size: 14px;
 }
-
-.form-options a {
-    color: var(--food-red);
-    font-weight: 700;
-}
-
-.form-options a:hover {
-    color: var(--food-red-dark);
-    text-decoration: underline;
-}
-
-
-/* ---------- Remember Me ---------- */
 
 .remember-me {
     display: flex;
     align-items: center;
-
     gap: 7px;
-
-    color: var(--food-grey);
-
-    cursor: pointer;
+    color: #6B6B6B !important;
 }
 
 .remember-me input {
-    accent-color: var(--food-red);
-    cursor: pointer;
+    accent-color: #D71920;
 }
 
+/* ---------- Links ---------- */
 
-/* ---------- Authentication Button ---------- */
-
-.auth-btn {
-    width: 100%;
-    min-height: 48px;
-
-    font-size: 15px;
-}
-
-
-/* ---------- Authentication Footer ---------- */
-
-.auth-footer {
-    margin-top: 25px;
-
-    color: var(--food-grey);
-
-    text-align: center;
-
-    font-size: 14px;
-}
-
+.form-options a,
 .auth-footer a {
-    color: var(--food-red);
+    color: #D71920 !important;
     font-weight: 700;
 }
 
+.form-options a:hover,
 .auth-footer a:hover {
+    color: #A90F15 !important;
     text-decoration: underline;
 }
 
+/* ---------- Login Button ---------- */
+
+.auth-btn {
+    width: 100%;
+    background-color: #D71920 !important;
+    color: #FFFFFF !important;
+    border: none;
+}
+
+.auth-btn:hover {
+    background-color: #A90F15 !important;
+}
+
+/* ---------- Registration ---------- */
+
+.auth-footer {
+    margin-top: 25px;
+    text-align: center;
+    color: #6B6B6B !important;
+    font-size: 14px;
+}
 
 /* ---------- Messages ---------- */
 
-.message {
-    padding: 12px 14px;
+#message {
     margin-bottom: 20px;
-
-    border-radius: 6px;
-
-    font-size: 14px;
-    line-height: 1.5;
 }
 
-.message.error {
-    background-color: #FFF0F0;
+/* ---------- Mobile ---------- */
 
-    border-left: 4px solid var(--food-red);
+@media (max-width: 480px) {
 
-    color: #9D1015;
-}
-
-.message.success {
-    background-color: #FFF9DC;
-
-    border-left: 4px solid var(--food-yellow);
-
-    color: #705A00;
-}
-
-
-/* ---------- Account Page ---------- */
-
-.account-page {
-    max-width: 1100px;
-
-    margin: 0 auto;
-    padding: 60px 20px;
-}
-
-.account-header {
-    display: flex;
-    align-items: center;
-
-    gap: 22px;
-    margin-bottom: 40px;
-}
-
-.profile-avatar {
-    width: 85px;
-    height: 85px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    flex-shrink: 0;
-
-    border-radius: 50%;
-
-    background-color: var(--food-red);
-    color: var(--food-white);
-
-    font-size: 32px;
-    font-weight: 800;
-}
-
-.account-label {
-    color: var(--food-red);
-
-    font-size: 12px;
-    font-weight: 800;
-
-    letter-spacing: 1.5px;
-}
-
-.account-header h1 {
-    margin: 5px 0;
-
-    font-size: 32px;
-}
-
-.account-header p:last-child {
-    color: var(--food-grey);
-
-    font-size: 15px;
-}
-
-
-/* ---------- Account Cards ---------- */
-
-.account-grid {
-    display: grid;
-
-    grid-template-columns:
-        repeat(2, minmax(0, 1fr));
-
-    gap: 22px;
-}
-
-.account-card {
-    background-color: var(--food-white);
-
-    padding: 30px;
-
-    border-radius: 10px;
-
-    border: 1px solid var(--food-border);
-
-    box-shadow:
-        0 5px 20px rgba(0, 0, 0, 0.06);
-}
-
-.account-card h2 {
-    margin-bottom: 10px;
-
-    font-size: 21px;
-}
-
-.account-card p {
-    margin-bottom: 22px;
-
-    color: var(--food-grey);
-
-    font-size: 14px;
-    line-height: 1.6;
-}
-
-
-/* ---------- Mobile Authentication ---------- */
-
-@media (max-width: 600px) {
-
-    .auth-page {
-        padding: 25px 15px;
+    .auth-container {
+        padding: 30px 15px;
     }
 
     .auth-card {
-        padding: 30px 22px;
+        padding: 30px 20px;
+    }
+
+    .auth-brand a {
+        font-size: 27px;
     }
 
     .auth-card h1 {
-        font-size: 26px;
+        font-size: 24px;
     }
 
     .form-options {
         flex-direction: column;
         align-items: flex-start;
+        gap: 12px;
     }
 
-    .account-page {
-        padding: 40px 15px;
-    }
+}
+/* ---------- Validation Messages ---------- */
 
-    .account-header {
-        align-items: flex-start;
-        flex-direction: column;
-    }
+.message {
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+}
 
-    .account-grid {
-        grid-template-columns: 1fr;
-    }
+.message.error {
+    background-color: #FDECEC;
+    color: #D71920;
+    border: 1px solid #D71920;
+}
 
+.message.success {
+    background-color: #FFF8D6;
+    color: #111111;
+    border: 1px solid #FFC928;
 }
