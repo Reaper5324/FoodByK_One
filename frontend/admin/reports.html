@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Reports - Food by K Admin</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <h1>FOOD <span>BY K</span></h1>
+            <p>ADMIN PANEL</p>
+        </div>
+
+        <nav class="sidebar-menu">
+
+            <a href="dashboard.html" class="menu-item">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="orders.html" class="menu-item">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Orders</span>
+            </a>
+
+            <a href="menu-items.html" class="menu-item">
+                <i class="fa-solid fa-utensils"></i>
+                <span>Menu Items</span>
+            </a>
+
+            <a href="categories.html" class="menu-item">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Categories</span>
+            </a>
+
+            <a href="promotions.html" class="menu-item">
+                <i class="fa-solid fa-tags"></i>
+                <span>Promotions</span>
+            </a>
+
+            <a href="customers.html" class="menu-item">
+                <i class="fa-solid fa-users"></i>
+                <span>Customers</span>
+            </a>
+
+            <a href="staff-users.html" class="menu-item">
+                <i class="fa-solid fa-user-shield"></i>
+                <span>Staff & Users</span>
+            </a>
+
+            <a href="reports.html" class="menu-item active">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Reports</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="menu-item logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main-content">
+
+        <!-- TOPBAR -->
+
+        <header class="topbar">
+
+            <div class="topbar-left">
+
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <div>
+                    <p class="welcome-text">BUSINESS REPORTING</p>
+                    <h2>Reports</h2>
+                </div>
+
+            </div>
+
+
+            <div class="topbar-right">
+
+                <button class="notification-btn">
+                    <i class="fa-regular fa-bell"></i>
+                    <span></span>
+                </button>
+
+                <div class="admin-profile">
+
+                    <div class="profile-image">
+                        A
+                    </div>
+
+                    <div class="profile-info">
+                        <h4>Admin</h4>
+                        <p>Administrator</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- PAGE CONTENT -->
+
+        <section class="dashboard-content">
+
+            <div class="menu-page-header">
+
+                <div>
+
+                    <p class="card-label">REPORTS</p>
+
+                    <h3>Business Reports</h3>
+
+                    <p class="menu-description">
+                        View sales, orders and customer performance.
+                    </p>
+
+                </div>
+
+                <button class="save-menu-btn" id="printReportBtn">
+                    <i class="fa-solid fa-print"></i>
+                    Print Report
+                </button>
+
+            </div>
+
+
+            <!-- REPORT FILTER -->
+
+            <div class="content-card report-filter-card">
+
+                <div class="report-filter-row">
+
+                    <div class="form-group">
+
+                        <label for="reportPeriod">
+                            Report Period
+                        </label>
+
+                        <select id="reportPeriod">
+
+                            <option value="today">
+                                Today
+                            </option>
+
+                            <option value="week" selected>
+                                This Week
+                            </option>
+
+                            <option value="month">
+                                This Month
+                            </option>
+
+                            <option value="year">
+                                This Year
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <button class="report-update-btn" id="updateReportBtn">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        Update Report
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- REPORT STATISTICS -->
+
+            <div class="stats-grid report-stats">
+
+                <div class="stat-card">
+
+                    <div class="stat-icon orders-icon">
+                        <i class="fa-solid fa-money-bill-wave"></i>
+                    </div>
+
+                    <div>
+                        <p>Total Sales</p>
+                        <h3 id="reportSales">R18,450</h3>
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <div class="stat-icon completed-icon">
+                        <i class="fa-solid fa-receipt"></i>
+                    </div>
+
+                    <div>
+                        <p>Total Orders</p>
+                        <h3 id="reportOrders">126</h3>
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <div class="stat-icon today-icon">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+
+                    <div>
+                        <p>Average Order</p>
+                        <h3 id="reportAverage">R146</h3>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- SALES SUMMARY -->
+
+            <div class="content-card report-section">
+
+                <div class="report-section-header">
+
+                    <div>
+
+                        <p class="card-label">
+                            SALES PERFORMANCE
+                        </p>
+
+                        <h3>Sales Summary</h3>
+
+                    </div>
+
+                </div>
+
+
+                <div class="sales-chart">
+
+                    <div class="chart-y-axis">
+
+                        <span>R4k</span>
+                        <span>R3k</span>
+                        <span>R2k</span>
+                        <span>R1k</span>
+                        <span>R0</span>
+
+                    </div>
+
+
+                    <div class="chart-area">
+
+                        <div class="chart-bars">
+
+                            <div class="chart-column">
+                                <div class="chart-bar" style="height:55%"></div>
+                                <span>Mon</span>
+                            </div>
+
+                            <div class="chart-column">
+                                <div class="chart-bar" style="height:70%"></div>
+                                <span>Tue</span>
+                            </div>
+
+                            <div class="chart-column">
+                                <div class="chart-bar" style="height:45%"></div>
+                                <span>Wed</span>
+                            </div>
+
+                            <div class="chart-column">
+                                <div class="chart-bar" style="height:85%"></div>
+                                <span>Thu</span>
+                            </div>
+
+                            <div class="chart-column">
+                                <div class="chart-bar" style="height:65%"></div>
+                                <span>Fri</span>
+                            </div>
+
+                            <div class="chart-column">
+                                <div class="chart-bar" style="height:95%"></div>
+                                <span>Sat</span>
+                            </div>
+
+                            <div class="chart-column">
+                                <div class="chart-bar" style="height:25%"></div>
+                                <span>Sun</span>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- TWO REPORT CARDS -->
+
+            <div class="report-two-column">
+
+
+                <!-- TOP MENU ITEMS -->
+
+                <div class="content-card report-section">
+
+                    <div class="report-section-header">
+
+                        <div>
+
+                            <p class="card-label">
+                                MENU PERFORMANCE
+                            </p>
+
+                            <h3>Top Selling Items</h3>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="top-item">
+
+                        <div class="top-item-number">
+                            1
+                        </div>
+
+                        <div class="top-item-info">
+
+                            <strong>Kay Special</strong>
+
+                            <span>42 orders</span>
+
+                        </div>
+
+                        <strong>R3,864</strong>
+
+                    </div>
+
+
+                    <div class="top-item">
+
+                        <div class="top-item-number">
+                            2
+                        </div>
+
+                        <div class="top-item-info">
+
+                            <strong>Chicken Kota</strong>
+
+                            <span>35 orders</span>
+
+                        </div>
+
+                        <strong>R2,450</strong>
+
+                    </div>
+
+
+                    <div class="top-item">
+
+                        <div class="top-item-number">
+                            3
+                        </div>
+
+                        <div class="top-item-info">
+
+                            <strong>Food Platter</strong>
+
+                            <span>28 orders</span>
+
+                        </div>
+
+                        <strong>R4,760</strong>
+
+                    </div>
+
+
+                    <div class="top-item">
+
+                        <div class="top-item-number">
+                            4
+                        </div>
+
+                        <div class="top-item-info">
+
+                            <strong>Chicken Wrap</strong>
+
+                            <span>21 orders</span>
+
+                        </div>
+
+                        <strong>R1,680</strong>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ORDER STATUS -->
+
+                <div class="content-card report-section">
+
+                    <div class="report-section-header">
+
+                        <div>
+
+                            <p class="card-label">
+                                ORDER ANALYSIS
+                            </p>
+
+                            <h3>Order Status</h3>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="order-report-item">
+
+                        <div class="order-report-label">
+                            <span>Completed</span>
+                            <strong>82%</strong>
+                        </div>
+
+                        <div class="progress-bar">
+                            <div
+                                class="progress-fill completed"
+                                style="width:82%">
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                    <div class="order-report-item">
+
+                        <div class="order-report-label">
+                            <span>Pending</span>
+                            <strong>10%</strong>
+                        </div>
+
+                        <div class="progress-bar">
+                            <div
+                                class="progress-fill pending"
+                                style="width:10%">
+                            </div>
+                        </div>
+
+                    </div>
+
+
+                    <div class="order-report-item">
+
+                        <div class="order-report-label">
+                            <span>Cancelled</span>
+                            <strong>8%</strong>
+                        </div>
+
+                        <div class="progress-bar">
+                            <div
+                                class="progress-fill cancelled"
+                                style="width:8%">
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <script src="../js/dashboard.js"></script>
+
+</body>
+
+</html>

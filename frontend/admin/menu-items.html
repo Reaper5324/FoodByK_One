@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Food by K | Menu Items</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Dashboard CSS -->
+    <link rel="stylesheet" href="../css/dashboard.css">
+
+</head>
+
+<body>
+
+
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <h1>FOOD <span>BY K</span></h1>
+            <p>ADMIN PANEL</p>
+        </div>
+
+
+        <nav class="sidebar-menu">
+
+            <a href="dashboard.html" class="menu-item">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="orders.html" class="menu-item">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Orders</span>
+                <span class="notification">12</span>
+            </a>
+
+            <a href="menu-items.html" class="menu-item active">
+                <i class="fa-solid fa-utensils"></i>
+                <span>Menu Items</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Categories</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-tag"></i>
+                <span>Promotions</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-users"></i>
+                <span>Customers</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-user-gear"></i>
+                <span>Staff & Users</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-chart-column"></i>
+                <span>Reports</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="menu-item logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================== -->
+
+    <main class="main-content">
+
+
+        <!-- TOPBAR -->
+
+        <header class="topbar">
+
+            <div class="topbar-left">
+
+                <button class="sidebar-toggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <div>
+                    <p class="welcome-text">MENU MANAGEMENT</p>
+                    <h2>Menu Items</h2>
+                </div>
+
+            </div>
+
+
+            <div class="topbar-right">
+
+                <button class="notification-btn">
+                    <i class="fa-regular fa-bell"></i>
+                    <span></span>
+                </button>
+
+                <div class="admin-profile">
+
+                    <div class="profile-image">
+                        K
+                    </div>
+
+                    <div class="profile-info">
+                        <h4>Admin User</h4>
+                        <p>Administrator</p>
+                    </div>
+
+                    <i class="fa-solid fa-chevron-down"></i>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- =========================
+             MENU CONTENT
+        ========================== -->
+
+        <section class="dashboard-content">
+
+
+            <!-- PAGE HEADER -->
+
+            <div class="menu-page-header">
+
+                <div>
+
+                    <p class="card-label">
+                        FOOD BY K MENU
+                    </p>
+
+                    <h3>
+                        Manage Menu Items
+                    </h3>
+
+                    <p class="menu-description">
+                        Add, edit, remove and manage the availability
+                        of food items on the menu.
+                    </p>
+
+                </div>
+
+
+                <button class="add-menu-btn" id="addMenuBtn">
+
+                    <i class="fa-solid fa-plus"></i>
+
+                    Add New Item
+
+                </button>
+
+            </div>
+
+
+            <!-- =========================
+                 SEARCH & FILTERS
+            ========================== -->
+
+            <div class="content-card menu-filters">
+
+                <div class="menu-filter-row">
+
+
+                    <!-- SEARCH -->
+
+                    <div class="search-box">
+
+                        <i class="fa-solid fa-magnifying-glass"></i>
+
+                        <input
+                            type="text"
+                            id="menuSearch"
+                            placeholder="Search menu items..."
+                        >
+
+                    </div>
+
+
+                    <!-- CATEGORY FILTERS -->
+
+                    <div class="menu-filter-buttons">
+
+                        <button
+                            class="menu-filter-btn active"
+                            data-category="all"
+                        >
+                            All
+                        </button>
+
+                        <button
+                            class="menu-filter-btn"
+                            data-category="meals"
+                        >
+                            Meals
+                        </button>
+
+                        <button
+                            class="menu-filter-btn"
+                            data-category="sides"
+                        >
+                            Sides
+                        </button>
+
+                        <button
+                            class="menu-filter-btn"
+                            data-category="desserts"
+                        >
+                            Desserts
+                        </button>
+
+                        <button
+                            class="menu-filter-btn"
+                            data-category="drinks"
+                        >
+                            Drinks
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 MENU GRID
+            ========================== -->
+
+            <div class="menu-grid" id="menuGrid">
+
+
+                <!-- MENU ITEM 1 -->
+
+                <div class="menu-card" data-category="meals">
+
+                    <div class="menu-image">
+
+                        <img
+                            src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80"
+                            alt="Food by K meal"
+                        >
+
+                        <span class="availability available">
+                            Available
+                        </span>
+
+                    </div>
+
+
+                    <div class="menu-card-content">
+
+                        <div class="menu-card-title">
+
+                            <div>
+
+                                <p class="menu-category">
+                                    MEALS
+                                </p>
+
+                                <h3>Grilled Chicken Meal</h3>
+
+                            </div>
+
+                        </div>
+
+
+                        <p class="menu-price">
+                            R85.00
+                        </p>
+
+
+                        <div class="menu-card-actions">
+
+                            <button class="edit-menu-btn">
+
+                                <i class="fa-solid fa-pen"></i>
+
+                                Edit
+
+                            </button>
+
+
+                            <button class="availability-btn">
+
+                                <i class="fa-solid fa-toggle-on"></i>
+
+                                Available
+
+                            </button>
+
+
+                            <button class="delete-menu-btn">
+
+                                <i class="fa-solid fa-trash"></i>
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- MENU ITEM 2 -->
+
+                <div class="menu-card" data-category="meals">
+
+                    <div class="menu-image">
+
+                        <img
+                            src="https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=800&q=80"
+                            alt="Burger meal"
+                        >
+
+                        <span class="availability available">
+                            Available
+                        </span>
+
+                    </div>
+
+
+                    <div class="menu-card-content">
+
+                        <p class="menu-category">
+                            MEALS
+                        </p>
+
+                        <h3>Beef Burger & Chips</h3>
+
+                        <p class="menu-price">
+                            R95.00
+                        </p>
+
+
+                        <div class="menu-card-actions">
+
+                            <button class="edit-menu-btn">
+                                <i class="fa-solid fa-pen"></i>
+                                Edit
+                            </button>
+
+                            <button class="availability-btn">
+                                <i class="fa-solid fa-toggle-on"></i>
+                                Available
+                            </button>
+
+                            <button class="delete-menu-btn">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- MENU ITEM 3 -->
+
+                <div class="menu-card" data-category="sides">
+
+                    <div class="menu-image">
+
+                        <img
+                            src="https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=800&q=80"
+                            alt="French fries"
+                        >
+
+                        <span class="availability unavailable">
+                            Unavailable
+                        </span>
+
+                    </div>
+
+
+                    <div class="menu-card-content">
+
+                        <p class="menu-category">
+                            SIDES
+                        </p>
+
+                        <h3>Seasoned Chips</h3>
+
+                        <p class="menu-price">
+                            R30.00
+                        </p>
+
+
+                        <div class="menu-card-actions">
+
+                            <button class="edit-menu-btn">
+                                <i class="fa-solid fa-pen"></i>
+                                Edit
+                            </button>
+
+                            <button class="availability-btn unavailable-btn">
+                                <i class="fa-solid fa-toggle-off"></i>
+                                Unavailable
+                            </button>
+
+                            <button class="delete-menu-btn">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- MENU ITEM 4 -->
+
+                <div class="menu-card" data-category="desserts">
+
+                    <div class="menu-image">
+
+                        <img
+                            src="https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=800&q=80"
+                            alt="Dessert"
+                        >
+
+                        <span class="availability available">
+                            Available
+                        </span>
+
+                    </div>
+
+
+                    <div class="menu-card-content">
+
+                        <p class="menu-category">
+                            DESSERTS
+                        </p>
+
+                        <h3>Chocolate Cake</h3>
+
+                        <p class="menu-price">
+                            R45.00
+                        </p>
+
+
+                        <div class="menu-card-actions">
+
+                            <button class="edit-menu-btn">
+                                <i class="fa-solid fa-pen"></i>
+                                Edit
+                            </button>
+
+                            <button class="availability-btn">
+                                <i class="fa-solid fa-toggle-on"></i>
+                                Available
+                            </button>
+
+                            <button class="delete-menu-btn">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- MENU ITEM 5 -->
+
+                <div class="menu-card" data-category="drinks">
+
+                    <div class="menu-image">
+
+                        <img
+                            src="https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=800&q=80"
+                            alt="Cold drink"
+                        >
+
+                        <span class="availability available">
+                            Available
+                        </span>
+
+                    </div>
+
+
+                    <div class="menu-card-content">
+
+                        <p class="menu-category">
+                            DRINKS
+                        </p>
+
+                        <h3>Fresh Fruit Juice</h3>
+
+                        <p class="menu-price">
+                            R25.00
+                        </p>
+
+
+                        <div class="menu-card-actions">
+
+                            <button class="edit-menu-btn">
+                                <i class="fa-solid fa-pen"></i>
+                                Edit
+                            </button>
+
+                            <button class="availability-btn">
+                                <i class="fa-solid fa-toggle-on"></i>
+                                Available
+                            </button>
+
+                            <button class="delete-menu-btn">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- MENU ITEM 6 -->
+
+                <div class="menu-card" data-category="meals">
+
+                    <div class="menu-image">
+
+                        <img
+                            src="https://images.unsplash.com/photo-1598514983318-2f64f8f4796c?auto=format&fit=crop&w=800&q=80"
+                            alt="Pasta meal"
+                        >
+
+                        <span class="availability available">
+                            Available
+                        </span>
+
+                    </div>
+
+
+                    <div class="menu-card-content">
+
+                        <p class="menu-category">
+                            MEALS
+                        </p>
+
+                        <h3>Creamy Chicken Pasta</h3>
+
+                        <p class="menu-price">
+                            R90.00
+                        </p>
+
+
+                        <div class="menu-card-actions">
+
+                            <button class="edit-menu-btn">
+                                <i class="fa-solid fa-pen"></i>
+                                Edit
+                            </button>
+
+                            <button class="availability-btn">
+                                <i class="fa-solid fa-toggle-on"></i>
+                                Available
+                            </button>
+
+                            <button class="delete-menu-btn">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+        </section>
+
+    </main>
+
+
+    <!-- =========================
+         ADD / EDIT MENU MODAL
+    ========================== -->
+
+    <div class="modal" id="menuModal">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <div>
+
+                    <p class="card-label">
+                        MENU ITEM
+                    </p>
+
+                    <h3 id="menuModalTitle">
+                        Add New Menu Item
+                    </h3>
+
+                </div>
+
+
+                <button class="close-menu-modal">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <form id="menuForm">
+
+
+                    <div class="form-group">
+
+                        <label for="itemName">
+                            ITEM NAME
+                        </label>
+
+                        <input
+                            type="text"
+                            id="itemName"
+                            placeholder="Enter item name"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="itemCategory">
+                            CATEGORY
+                        </label>
+
+                        <select id="itemCategory" required>
+
+                            <option value="">
+                                Select category
+                            </option>
+
+                            <option value="meals">
+                                Meals
+                            </option>
+
+                            <option value="sides">
+                                Sides
+                            </option>
+
+                            <option value="desserts">
+                                Desserts
+                            </option>
+
+                            <option value="drinks">
+                                Drinks
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="itemPrice">
+                            PRICE (R)
+                        </label>
+
+                        <input
+                            type="number"
+                            id="itemPrice"
+                            placeholder="0.00"
+                            step="0.01"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="itemImage">
+                            IMAGE URL
+                        </label>
+
+                        <input
+                            type="text"
+                            id="itemImage"
+                            placeholder="Paste image URL"
+                        >
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="save-menu-btn"
+                    >
+
+                        Save Menu Item
+
+                    </button>
+
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- JAVASCRIPT -->
+
+    <script src="../js/dashboard.js"></script>
+
+</body>
+
+</html>

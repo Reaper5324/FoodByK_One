@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Customers - Food by K Admin</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <h1>FOOD <span>BY K</span></h1>
+            <p>ADMIN PANEL</p>
+        </div>
+
+        <nav class="sidebar-menu">
+
+            <a href="dashboard.html" class="menu-item">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="orders.html" class="menu-item">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Orders</span>
+            </a>
+
+            <a href="menu-items.html" class="menu-item">
+                <i class="fa-solid fa-utensils"></i>
+                <span>Menu Items</span>
+            </a>
+
+            <a href="categories.html" class="menu-item">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Categories</span>
+            </a>
+
+            <a href="promotions.html" class="menu-item">
+                <i class="fa-solid fa-tags"></i>
+                <span>Promotions</span>
+            </a>
+
+            <a href="customers.html" class="menu-item active">
+                <i class="fa-solid fa-users"></i>
+                <span>Customers</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-user-shield"></i>
+                <span>Staff & Users</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Reports</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="menu-item logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main-content">
+
+        <!-- TOPBAR -->
+
+        <header class="topbar">
+
+            <div class="topbar-left">
+
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <div>
+                    <p class="welcome-text">CUSTOMER MANAGEMENT</p>
+                    <h2>Customers</h2>
+                </div>
+
+            </div>
+
+
+            <div class="topbar-right">
+
+                <button class="notification-btn">
+                    <i class="fa-regular fa-bell"></i>
+                    <span></span>
+                </button>
+
+                <div class="admin-profile">
+
+                    <div class="profile-image">
+                        A
+                    </div>
+
+                    <div class="profile-info">
+                        <h4>Admin</h4>
+                        <p>Administrator</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- PAGE CONTENT -->
+
+        <section class="dashboard-content">
+
+            <div class="menu-page-header">
+
+                <div>
+                    <p class="card-label">CUSTOMERS</p>
+
+                    <h3>Manage Customers</h3>
+
+                    <p class="menu-description">
+                        View and manage registered customers.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <!-- STATISTICS -->
+
+            <div class="stats-grid customer-stats">
+
+                <div class="stat-card">
+
+                    <div class="stat-icon orders-icon">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+
+                    <div>
+                        <p>Total Customers</p>
+                        <h3 id="totalCustomers">8</h3>
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <div class="stat-icon completed-icon">
+                        <i class="fa-solid fa-user-check"></i>
+                    </div>
+
+                    <div>
+                        <p>Active Customers</p>
+                        <h3 id="activeCustomers">6</h3>
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <div class="stat-icon today-icon">
+                        <i class="fa-solid fa-user-plus"></i>
+                    </div>
+
+                    <div>
+                        <p>New This Month</p>
+                        <h3 id="newCustomers">3</h3>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- SEARCH AND FILTER -->
+
+            <div class="content-card customer-filter-card">
+
+                <div class="customer-filter-row">
+
+                    <div class="search-box">
+
+                        <i class="fa-solid fa-magnifying-glass"></i>
+
+                        <input
+                            type="text"
+                            id="customerSearch"
+                            placeholder="Search customers..."
+                        >
+
+                    </div>
+
+
+                    <select id="customerStatusFilter">
+
+                        <option value="all">
+                            All Customers
+                        </option>
+
+                        <option value="active">
+                            Active
+                        </option>
+
+                        <option value="inactive">
+                            Inactive
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <!-- CUSTOMER TABLE -->
+
+            <div class="content-card">
+
+                <div class="table-wrapper">
+
+                    <table class="customer-table">
+
+                        <thead>
+
+                            <tr>
+                                <th>Customer</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Orders</th>
+                                <th>Total Spent</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="customerTableBody">
+
+
+                            <tr data-status="active">
+
+                                <td>
+
+                                    <div class="customer-name">
+
+                                        <div class="customer-avatar">
+                                            TM
+                                        </div>
+
+                                        <div>
+                                            <strong>
+                                                Thabo Mokoena
+                                            </strong>
+
+                                            <small>
+                                                Customer #001
+                                            </small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    thabo@example.com
+                                </td>
+
+                                <td>
+                                    081 234 5678
+                                </td>
+
+                                <td>
+                                    12
+                                </td>
+
+                                <td>
+                                    R1,450
+                                </td>
+
+                                <td>
+
+                                    <span class="customer-status active">
+                                        Active
+                                    </span>
+
+                                </td>
+
+                                <td>
+
+                                    <div class="customer-actions">
+
+                                        <button
+                                            class="customer-view-btn"
+                                            title="View Customer"
+                                        >
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+
+                                        <button
+                                            class="customer-toggle-btn"
+                                            title="Deactivate"
+                                        >
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr data-status="active">
+
+                                <td>
+
+                                    <div class="customer-name">
+
+                                        <div class="customer-avatar">
+                                            LM
+                                        </div>
+
+                                        <div>
+                                            <strong>
+                                                Lerato Molefe
+                                            </strong>
+
+                                            <small>
+                                                Customer #002
+                                            </small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    lerato@example.com
+                                </td>
+
+                                <td>
+                                    082 345 6789
+                                </td>
+
+                                <td>
+                                    8
+                                </td>
+
+                                <td>
+                                    R920
+                                </td>
+
+                                <td>
+
+                                    <span class="customer-status active">
+                                        Active
+                                    </span>
+
+                                </td>
+
+                                <td>
+
+                                    <div class="customer-actions">
+
+                                        <button class="customer-view-btn">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+
+                                        <button class="customer-toggle-btn">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr data-status="inactive">
+
+                                <td>
+
+                                    <div class="customer-name">
+
+                                        <div class="customer-avatar">
+                                            SK
+                                        </div>
+
+                                        <div>
+                                            <strong>
+                                                Sipho Khumalo
+                                            </strong>
+
+                                            <small>
+                                                Customer #003
+                                            </small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    sipho@example.com
+                                </td>
+
+                                <td>
+                                    083 456 7890
+                                </td>
+
+                                <td>
+                                    3
+                                </td>
+
+                                <td>
+                                    R360
+                                </td>
+
+                                <td>
+
+                                    <span class="customer-status inactive">
+                                        Inactive
+                                    </span>
+
+                                </td>
+
+                                <td>
+
+                                    <div class="customer-actions">
+
+                                        <button class="customer-view-btn">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+
+                                        <button class="customer-toggle-btn">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr data-status="active">
+
+                                <td>
+
+                                    <div class="customer-name">
+
+                                        <div class="customer-avatar">
+                                            NP
+                                        </div>
+
+                                        <div>
+                                            <strong>
+                                                Naledi Phiri
+                                            </strong>
+
+                                            <small>
+                                                Customer #004
+                                            </small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    naledi@example.com
+                                </td>
+
+                                <td>
+                                    084 567 8901
+                                </td>
+
+                                <td>
+                                    15
+                                </td>
+
+                                <td>
+                                    R1,875
+                                </td>
+
+                                <td>
+
+                                    <span class="customer-status active">
+                                        Active
+                                    </span>
+
+                                </td>
+
+                                <td>
+
+                                    <div class="customer-actions">
+
+                                        <button class="customer-view-btn">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+
+                                        <button class="customer-toggle-btn">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr data-status="active">
+
+                                <td>
+
+                                    <div class="customer-name">
+
+                                        <div class="customer-avatar">
+                                            ZD
+                                        </div>
+
+                                        <div>
+                                            <strong>
+                                                Zanele Dlamini
+                                            </strong>
+
+                                            <small>
+                                                Customer #005
+                                            </small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    zanele@example.com
+                                </td>
+
+                                <td>
+                                    079 678 9012
+                                </td>
+
+                                <td>
+                                    6
+                                </td>
+
+                                <td>
+                                    R710
+                                </td>
+
+                                <td>
+
+                                    <span class="customer-status active">
+                                        Active
+                                    </span>
+
+                                </td>
+
+                                <td>
+
+                                    <div class="customer-actions">
+
+                                        <button class="customer-view-btn">
+                                            <i class="fa-solid fa-eye"></i>
+                                        </button>
+
+                                        <button class="customer-toggle-btn">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- CUSTOMER DETAILS MODAL -->
+
+    <div class="modal" id="customerModal">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h3>Customer Details</h3>
+
+                <button class="close-modal" id="closeCustomerModal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <div class="customer-detail-profile">
+
+                    <div
+                        class="customer-detail-avatar"
+                        id="detailAvatar"
+                    >
+                        TM
+                    </div>
+
+                    <div>
+
+                        <h3 id="detailName">
+                            Thabo Mokoena
+                        </h3>
+
+                        <p id="detailCustomerId">
+                            Customer #001
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="customer-detail-row">
+
+                    <span>Email</span>
+
+                    <strong id="detailEmail">
+                        thabo@example.com
+                    </strong>
+
+                </div>
+
+
+                <div class="customer-detail-row">
+
+                    <span>Phone</span>
+
+                    <strong id="detailPhone">
+                        081 234 5678
+                    </strong>
+
+                </div>
+
+
+                <div class="customer-detail-row">
+
+                    <span>Total Orders</span>
+
+                    <strong id="detailOrders">
+                        12
+                    </strong>
+
+                </div>
+
+
+                <div class="customer-detail-row">
+
+                    <span>Total Spent</span>
+
+                    <strong id="detailSpent">
+                        R1,450
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script src="../js/dashboard.js"></script>
+
+</body>
+
+</html>

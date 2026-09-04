@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Staff & Users - Food by K Admin</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <h1>FOOD <span>BY K</span></h1>
+            <p>ADMIN PANEL</p>
+        </div>
+
+        <nav class="sidebar-menu">
+
+            <a href="dashboard.html" class="menu-item">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="orders.html" class="menu-item">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Orders</span>
+            </a>
+
+            <a href="menu-items.html" class="menu-item">
+                <i class="fa-solid fa-utensils"></i>
+                <span>Menu Items</span>
+            </a>
+
+            <a href="categories.html" class="menu-item">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Categories</span>
+            </a>
+
+            <a href="promotions.html" class="menu-item">
+                <i class="fa-solid fa-tags"></i>
+                <span>Promotions</span>
+            </a>
+
+            <a href="customers.html" class="menu-item">
+                <i class="fa-solid fa-users"></i>
+                <span>Customers</span>
+            </a>
+
+            <a href="staff-users.html" class="menu-item active">
+                <i class="fa-solid fa-user-shield"></i>
+                <span>Staff & Users</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Reports</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="menu-item logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main-content">
+
+        <!-- TOPBAR -->
+
+        <header class="topbar">
+
+            <div class="topbar-left">
+
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <div>
+                    <p class="welcome-text">USER MANAGEMENT</p>
+                    <h2>Staff & Users</h2>
+                </div>
+
+            </div>
+
+
+            <div class="topbar-right">
+
+                <button class="notification-btn">
+                    <i class="fa-regular fa-bell"></i>
+                    <span></span>
+                </button>
+
+                <div class="admin-profile">
+
+                    <div class="profile-image">
+                        A
+                    </div>
+
+                    <div class="profile-info">
+                        <h4>Admin</h4>
+                        <p>Administrator</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- PAGE CONTENT -->
+
+        <section class="dashboard-content">
+
+            <div class="menu-page-header">
+
+                <div>
+                    <p class="card-label">STAFF & USERS</p>
+
+                    <h3>Manage Staff & Users</h3>
+
+                    <p class="menu-description">
+                        Manage staff accounts, roles and account status.
+                    </p>
+                </div>
+
+                <button class="save-menu-btn" id="addUserBtn">
+                    <i class="fa-solid fa-plus"></i>
+                    Add User
+                </button>
+
+            </div>
+
+
+            <!-- STATISTICS -->
+
+            <div class="stats-grid user-stats">
+
+                <div class="stat-card">
+
+                    <div class="stat-icon orders-icon">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+
+                    <div>
+                        <p>Total Users</p>
+                        <h3 id="totalUsers">6</h3>
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <div class="stat-icon completed-icon">
+                        <i class="fa-solid fa-user-check"></i>
+                    </div>
+
+                    <div>
+                        <p>Active Users</p>
+                        <h3 id="activeUsers">5</h3>
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <div class="stat-icon today-icon">
+                        <i class="fa-solid fa-user-tie"></i>
+                    </div>
+
+                    <div>
+                        <p>Staff Members</p>
+                        <h3 id="staffMembers">4</h3>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- SEARCH -->
+
+            <div class="content-card user-filter-card">
+
+                <div class="user-filter-row">
+
+                    <div class="search-box">
+
+                        <i class="fa-solid fa-magnifying-glass"></i>
+
+                        <input
+                            type="text"
+                            id="userSearch"
+                            placeholder="Search users..."
+                        >
+
+                    </div>
+
+
+                    <select id="userRoleFilter">
+
+                        <option value="all">
+                            All Roles
+                        </option>
+
+                        <option value="admin">
+                            Administrator
+                        </option>
+
+                        <option value="manager">
+                            Manager
+                        </option>
+
+                        <option value="staff">
+                            Staff
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <!-- USERS TABLE -->
+
+            <div class="content-card">
+
+                <div class="table-wrapper">
+
+                    <table class="user-table">
+
+                        <thead>
+
+                            <tr>
+                                <th>User</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Last Login</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="userTableBody">
+
+
+                            <tr data-role="admin" data-status="active">
+
+                                <td>
+
+                                    <div class="user-name">
+
+                                        <div class="user-avatar">
+                                            AM
+                                        </div>
+
+                                        <div>
+                                            <strong>Admin Manager</strong>
+                                            <small>User #001</small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    admin@foodbyk.co.za
+                                </td>
+
+                                <td>
+                                    <span class="user-role admin">
+                                        Administrator
+                                    </span>
+                                </td>
+
+                                <td>
+                                    Today, 09:15
+                                </td>
+
+                                <td>
+                                    <span class="user-status active">
+                                        Active
+                                    </span>
+                                </td>
+
+                                <td>
+
+                                    <div class="user-actions">
+
+                                        <button class="user-edit-btn">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+                                        <button class="user-toggle-btn">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr data-role="manager" data-status="active">
+
+                                <td>
+
+                                    <div class="user-name">
+
+                                        <div class="user-avatar">
+                                            KM
+                                        </div>
+
+                                        <div>
+                                            <strong>Kitchen Manager</strong>
+                                            <small>User #002</small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    kitchen@foodbyk.co.za
+                                </td>
+
+                                <td>
+                                    <span class="user-role manager">
+                                        Manager
+                                    </span>
+                                </td>
+
+                                <td>
+                                    Today, 10:02
+                                </td>
+
+                                <td>
+                                    <span class="user-status active">
+                                        Active
+                                    </span>
+                                </td>
+
+                                <td>
+
+                                    <div class="user-actions">
+
+                                        <button class="user-edit-btn">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+                                        <button class="user-toggle-btn">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr data-role="staff" data-status="active">
+
+                                <td>
+
+                                    <div class="user-name">
+
+                                        <div class="user-avatar">
+                                            JS
+                                        </div>
+
+                                        <div>
+                                            <strong>John Staff</strong>
+                                            <small>User #003</small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    john@foodbyk.co.za
+                                </td>
+
+                                <td>
+                                    <span class="user-role staff">
+                                        Staff
+                                    </span>
+                                </td>
+
+                                <td>
+                                    Today, 10:30
+                                </td>
+
+                                <td>
+                                    <span class="user-status active">
+                                        Active
+                                    </span>
+                                </td>
+
+                                <td>
+
+                                    <div class="user-actions">
+
+                                        <button class="user-edit-btn">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+                                        <button class="user-toggle-btn">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr data-role="staff" data-status="active">
+
+                                <td>
+
+                                    <div class="user-name">
+
+                                        <div class="user-avatar">
+                                            NS
+                                        </div>
+
+                                        <div>
+                                            <strong>Nomsa Staff</strong>
+                                            <small>User #004</small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    nomsa@foodbyk.co.za
+                                </td>
+
+                                <td>
+                                    <span class="user-role staff">
+                                        Staff
+                                    </span>
+                                </td>
+
+                                <td>
+                                    Yesterday, 16:45
+                                </td>
+
+                                <td>
+                                    <span class="user-status active">
+                                        Active
+                                    </span>
+                                </td>
+
+                                <td>
+
+                                    <div class="user-actions">
+
+                                        <button class="user-edit-btn">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+                                        <button class="user-toggle-btn">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr data-role="staff" data-status="active">
+
+                                <td>
+
+                                    <div class="user-name">
+
+                                        <div class="user-avatar">
+                                            PT
+                                        </div>
+
+                                        <div>
+                                            <strong>Peter Staff</strong>
+                                            <small>User #005</small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    peter@foodbyk.co.za
+                                </td>
+
+                                <td>
+                                    <span class="user-role staff">
+                                        Staff
+                                    </span>
+                                </td>
+
+                                <td>
+                                    Yesterday, 14:20
+                                </td>
+
+                                <td>
+                                    <span class="user-status active">
+                                        Active
+                                    </span>
+                                </td>
+
+                                <td>
+
+                                    <div class="user-actions">
+
+                                        <button class="user-edit-btn">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+                                        <button class="user-toggle-btn">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr data-role="staff" data-status="inactive">
+
+                                <td>
+
+                                    <div class="user-name">
+
+                                        <div class="user-avatar">
+                                            TK
+                                        </div>
+
+                                        <div>
+                                            <strong>Thuli Khumalo</strong>
+                                            <small>User #006</small>
+                                        </div>
+
+                                    </div>
+
+                                </td>
+
+                                <td>
+                                    thuli@foodbyk.co.za
+                                </td>
+
+                                <td>
+                                    <span class="user-role staff">
+                                        Staff
+                                    </span>
+                                </td>
+
+                                <td>
+                                    20 Aug 2026
+                                </td>
+
+                                <td>
+                                    <span class="user-status inactive">
+                                        Inactive
+                                    </span>
+                                </td>
+
+                                <td>
+
+                                    <div class="user-actions">
+
+                                        <button class="user-edit-btn">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+                                        <button class="user-toggle-btn">
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ADD / EDIT USER MODAL -->
+
+    <div class="modal" id="userModal">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h3 id="userModalTitle">
+                    Add User
+                </h3>
+
+                <button class="close-modal" id="closeUserModal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <form id="userForm">
+
+                    <div class="form-group">
+
+                        <label for="userName">
+                            Full Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="userName"
+                            placeholder="Enter full name"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="userEmail">
+                            Email Address
+                        </label>
+
+                        <input
+                            type="email"
+                            id="userEmail"
+                            placeholder="Enter email address"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="userRole">
+                            Role
+                        </label>
+
+                        <select id="userRole" required>
+
+                            <option value="">
+                                Select role
+                            </option>
+
+                            <option value="admin">
+                                Administrator
+                            </option>
+
+                            <option value="manager">
+                                Manager
+                            </option>
+
+                            <option value="staff">
+                                Staff
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="userPassword">
+                            Password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="userPassword"
+                            placeholder="Enter password"
+                        >
+
+                    </div>
+
+
+                    <div class="modal-footer">
+
+                        <button
+                            type="button"
+                            class="cancel-btn"
+                            id="cancelUserBtn"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="submit"
+                            class="save-menu-btn"
+                        >
+                            Save User
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script src="../js/dashboard.js"></script>
+
+</body>
+
+</html>

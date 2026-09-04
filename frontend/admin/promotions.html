@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Promotions - Food by K Admin</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- Main Dashboard CSS -->
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+
+<body>
+
+    <!-- =========================
+         SIDEBAR
+    ========================= -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <h1>FOOD <span>BY K</span></h1>
+            <p>ADMIN PANEL</p>
+        </div>
+
+        <nav class="sidebar-menu">
+
+            <a href="dashboard.html" class="menu-item">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="orders.html" class="menu-item">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Orders</span>
+            </a>
+
+            <a href="menu-items.html" class="menu-item">
+                <i class="fa-solid fa-utensils"></i>
+                <span>Menu Items</span>
+            </a>
+
+            <a href="categories.html" class="menu-item">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Categories</span>
+            </a>
+
+            <a href="promotions.html" class="menu-item active">
+                <i class="fa-solid fa-tags"></i>
+                <span>Promotions</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-users"></i>
+                <span>Customers</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-user-shield"></i>
+                <span>Staff & Users</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Reports</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="menu-item logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================= -->
+
+    <main class="main-content">
+
+        <!-- TOPBAR -->
+
+        <header class="topbar">
+
+            <div class="topbar-left">
+
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <div>
+                    <p class="welcome-text">PROMOTION MANAGEMENT</p>
+                    <h2>Promotions</h2>
+                </div>
+
+            </div>
+
+
+            <div class="topbar-right">
+
+                <button class="notification-btn">
+                    <i class="fa-regular fa-bell"></i>
+                    <span></span>
+                </button>
+
+                <div class="admin-profile">
+
+                    <div class="profile-image">
+                        A
+                    </div>
+
+                    <div class="profile-info">
+                        <h4>Admin</h4>
+                        <p>Administrator</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- =========================
+             PAGE CONTENT
+        ========================= -->
+
+        <section class="dashboard-content">
+
+            <!-- PAGE HEADER -->
+
+            <div class="menu-page-header">
+
+                <div>
+                    <p class="card-label">PROMOTIONS</p>
+
+                    <h3>Manage Promotions</h3>
+
+                    <p class="menu-description">
+                        Create and manage discounts and promotional offers.
+                    </p>
+                </div>
+
+                <button class="add-menu-btn" id="addPromotionBtn">
+                    <i class="fa-solid fa-plus"></i>
+                    Add Promotion
+                </button>
+
+            </div>
+
+
+            <!-- =========================
+                 STATISTICS
+            ========================= -->
+
+            <div class="stats-grid promotion-stats">
+
+                <div class="stat-card">
+
+                    <div class="stat-icon orders-icon">
+                        <i class="fa-solid fa-tags"></i>
+                    </div>
+
+                    <div>
+                        <p>Total Promotions</p>
+                        <h3 id="totalPromotions">4</h3>
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <div class="stat-icon completed-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+
+                    <div>
+                        <p>Active Promotions</p>
+                        <h3 id="activePromotions">3</h3>
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <div class="stat-icon today-icon">
+                        <i class="fa-solid fa-circle-pause"></i>
+                    </div>
+
+                    <div>
+                        <p>Inactive Promotions</p>
+                        <h3 id="inactivePromotions">1</h3>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 SEARCH
+            ========================= -->
+
+            <div class="content-card promotion-search-card">
+
+                <div class="search-box">
+
+                    <i class="fa-solid fa-magnifying-glass"></i>
+
+                    <input
+                        type="text"
+                        id="promotionSearch"
+                        placeholder="Search promotions..."
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 PROMOTION TABLE
+            ========================= -->
+
+            <div class="content-card">
+
+                <div class="table-wrapper">
+
+                    <table class="promotion-table">
+
+                        <thead>
+
+                            <tr>
+                                <th>Promotion</th>
+                                <th>Discount</th>
+                                <th>Start Date</th>
+                                <th>End Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="promotionTableBody">
+
+                            <tr
+                                data-start-date="2026-05-24"
+                                data-end-date="2026-05-26"
+                            >
+
+                                <td>
+                                    <div class="promotion-name">
+                                        Weekend Special
+                                    </div>
+                                </td>
+
+                                <td>15%</td>
+
+                                <td>24 May 2026</td>
+
+                                <td>26 May 2026</td>
+
+                                <td>
+                                    <span class="promotion-status active">
+                                        Active
+                                    </span>
+                                </td>
+
+                                <td>
+
+                                    <div class="promotion-actions">
+
+                                        <button
+                                            class="promotion-edit-btn"
+                                            title="Edit"
+                                        >
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+                                        <button
+                                            class="promotion-toggle-btn"
+                                            title="Deactivate"
+                                        >
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                        <button
+                                            class="promotion-delete-btn"
+                                            title="Delete"
+                                        >
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr
+                                data-start-date="2026-05-20"
+                                data-end-date="2026-06-30"
+                            >
+
+                                <td>
+                                    <div class="promotion-name">
+                                        Student Discount
+                                    </div>
+                                </td>
+
+                                <td>10%</td>
+
+                                <td>20 May 2026</td>
+
+                                <td>30 June 2026</td>
+
+                                <td>
+                                    <span class="promotion-status active">
+                                        Active
+                                    </span>
+                                </td>
+
+                                <td>
+
+                                    <div class="promotion-actions">
+
+                                        <button
+                                            class="promotion-edit-btn"
+                                            title="Edit"
+                                        >
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+                                        <button
+                                            class="promotion-toggle-btn"
+                                            title="Deactivate"
+                                        >
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                        <button
+                                            class="promotion-delete-btn"
+                                            title="Delete"
+                                        >
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr
+                                data-start-date="2026-05-15"
+                                data-end-date="2026-06-15"
+                            >
+
+                                <td>
+                                    <div class="promotion-name">
+                                        Combo Deal
+                                    </div>
+                                </td>
+
+                                <td>20%</td>
+
+                                <td>15 May 2026</td>
+
+                                <td>15 June 2026</td>
+
+                                <td>
+                                    <span class="promotion-status inactive">
+                                        Inactive
+                                    </span>
+                                </td>
+
+                                <td>
+
+                                    <div class="promotion-actions">
+
+                                        <button
+                                            class="promotion-edit-btn"
+                                            title="Edit"
+                                        >
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+                                        <button
+                                            class="promotion-toggle-btn"
+                                            title="Activate"
+                                        >
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                        <button
+                                            class="promotion-delete-btn"
+                                            title="Delete"
+                                        >
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <tr
+                                data-start-date="2026-05-01"
+                                data-end-date="2026-05-31"
+                            >
+
+                                <td>
+                                    <div class="promotion-name">
+                                        Free Delivery
+                                    </div>
+                                </td>
+
+                                <td>100%</td>
+
+                                <td>1 May 2026</td>
+
+                                <td>31 May 2026</td>
+
+                                <td>
+                                    <span class="promotion-status active">
+                                        Active
+                                    </span>
+                                </td>
+
+                                <td>
+
+                                    <div class="promotion-actions">
+
+                                        <button
+                                            class="promotion-edit-btn"
+                                            title="Edit"
+                                        >
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+                                        <button
+                                            class="promotion-toggle-btn"
+                                            title="Deactivate"
+                                        >
+                                            <i class="fa-solid fa-power-off"></i>
+                                        </button>
+
+                                        <button
+                                            class="promotion-delete-btn"
+                                            title="Delete"
+                                        >
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- =========================
+         ADD / EDIT PROMOTION MODAL
+    ========================= -->
+
+    <div class="modal" id="promotionModal">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h3 id="promotionModalTitle">
+                    Add Promotion
+                </h3>
+
+                <button class="close-modal" id="closePromotionModal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <form id="promotionForm">
+
+                    <div class="form-group">
+
+                        <label for="promotionName">
+                            PROMOTION NAME
+                        </label>
+
+                        <input
+                            type="text"
+                            id="promotionName"
+                            placeholder="Enter promotion name"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="promotionDiscount">
+                            DISCOUNT PERCENTAGE
+                        </label>
+
+                        <input
+                            type="number"
+                            id="promotionDiscount"
+                            min="1"
+                            max="100"
+                            placeholder="Enter discount percentage"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="promotion-form-row">
+
+                        <div class="form-group">
+
+                            <label for="promotionStartDate">
+                                START DATE
+                            </label>
+
+                            <input
+                                type="date"
+                                id="promotionStartDate"
+                                required
+                            >
+
+                        </div>
+
+
+                        <div class="form-group">
+
+                            <label for="promotionEndDate">
+                                END DATE
+                            </label>
+
+                            <input
+                                type="date"
+                                id="promotionEndDate"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="promotionStatus">
+                            STATUS
+                        </label>
+
+                        <select id="promotionStatus">
+
+                            <option value="active">
+                                Active
+                            </option>
+
+                            <option value="inactive">
+                                Inactive
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="save-menu-btn"
+                    >
+                        Save Promotion
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script src="../js/dashboard.js"></script>
+
+</body>
+</html>

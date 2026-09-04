@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Settings - Food by K Admin</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <h1>FOOD <span>BY K</span></h1>
+            <p>ADMIN PANEL</p>
+        </div>
+
+        <nav class="sidebar-menu">
+
+            <a href="dashboard.html" class="menu-item">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="orders.html" class="menu-item">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Orders</span>
+            </a>
+
+            <a href="menu-items.html" class="menu-item">
+                <i class="fa-solid fa-utensils"></i>
+                <span>Menu Items</span>
+            </a>
+
+            <a href="categories.html" class="menu-item">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Categories</span>
+            </a>
+
+            <a href="promotions.html" class="menu-item">
+                <i class="fa-solid fa-tags"></i>
+                <span>Promotions</span>
+            </a>
+
+            <a href="customers.html" class="menu-item">
+                <i class="fa-solid fa-users"></i>
+                <span>Customers</span>
+            </a>
+
+            <a href="staff-users.html" class="menu-item">
+                <i class="fa-solid fa-user-shield"></i>
+                <span>Staff & Users</span>
+            </a>
+
+            <a href="reports.html" class="menu-item">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Reports</span>
+            </a>
+
+            <a href="settings.html" class="menu-item active">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="menu-item logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main-content">
+
+        <!-- TOPBAR -->
+
+        <header class="topbar">
+
+            <div class="topbar-left">
+
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <div>
+                    <p class="welcome-text">SYSTEM SETTINGS</p>
+                    <h2>Settings</h2>
+                </div>
+
+            </div>
+
+
+            <div class="topbar-right">
+
+                <button class="notification-btn">
+                    <i class="fa-regular fa-bell"></i>
+                    <span></span>
+                </button>
+
+                <div class="admin-profile">
+
+                    <div class="profile-image">
+                        A
+                    </div>
+
+                    <div class="profile-info">
+                        <h4>Admin</h4>
+                        <p>Administrator</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- PAGE CONTENT -->
+
+        <section class="dashboard-content">
+
+            <div class="menu-page-header">
+
+                <div>
+
+                    <p class="card-label">SETTINGS</p>
+
+                    <h3>System Settings</h3>
+
+                    <p class="menu-description">
+                        Manage Food by K business and system preferences.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- BUSINESS INFORMATION -->
+
+            <div class="content-card settings-card">
+
+                <div class="settings-header">
+
+                    <div class="settings-icon">
+                        <i class="fa-solid fa-store"></i>
+                    </div>
+
+                    <div>
+
+                        <h3>Business Information</h3>
+
+                        <p>
+                            Update the information displayed for the business.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <form id="businessSettingsForm">
+
+                    <div class="settings-grid">
+
+                        <div class="form-group">
+
+                            <label for="businessName">
+                                Business Name
+                            </label>
+
+                            <input
+                                type="text"
+                                id="businessName"
+                                value="Food by K"
+                                required
+                            >
+
+                        </div>
+
+
+                        <div class="form-group">
+
+                            <label for="businessPhone">
+                                Contact Number
+                            </label>
+
+                            <input
+                                type="tel"
+                                id="businessPhone"
+                                value="081 447 8395"
+                                required
+                            >
+
+                        </div>
+
+
+                        <div class="form-group">
+
+                            <label for="businessEmail">
+                                Email Address
+                            </label>
+
+                            <input
+                                type="email"
+                                id="businessEmail"
+                                value="info@foodbyk.co.za"
+                            >
+
+                        </div>
+
+
+                        <div class="form-group">
+
+                            <label for="businessAddress">
+                                Business Address
+                            </label>
+
+                            <input
+                                type="text"
+                                id="businessAddress"
+                                value="Lenasia South, Johannesburg"
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="settings-actions">
+
+                        <button
+                            type="submit"
+                            class="save-menu-btn"
+                        >
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            Save Changes
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+
+            <!-- BUSINESS HOURS -->
+
+            <div class="content-card settings-card">
+
+                <div class="settings-header">
+
+                    <div class="settings-icon">
+                        <i class="fa-regular fa-clock"></i>
+                    </div>
+
+                    <div>
+
+                        <h3>Business Hours</h3>
+
+                        <p>
+                            Set the operating hours for Food by K.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="hours-list">
+
+
+                    <div class="hours-row">
+
+                        <strong>Monday</strong>
+
+                        <div>
+                            <input type="time" value="11:00">
+                            <span>to</span>
+                            <input type="time" value="18:00">
+                        </div>
+
+                        <label class="switch">
+
+                            <input
+                                type="checkbox"
+                                checked
+                            >
+
+                            <span class="slider"></span>
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="hours-row">
+
+                        <strong>Tuesday</strong>
+
+                        <div>
+                            <input type="time" value="11:00">
+                            <span>to</span>
+                            <input type="time" value="18:00">
+                        </div>
+
+                        <label class="switch">
+
+                            <input
+                                type="checkbox"
+                                checked
+                            >
+
+                            <span class="slider"></span>
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="hours-row">
+
+                        <strong>Wednesday</strong>
+
+                        <div>
+                            <input type="time" value="11:00">
+                            <span>to</span>
+                            <input type="time" value="18:00">
+                        </div>
+
+                        <label class="switch">
+
+                            <input
+                                type="checkbox"
+                                checked
+                            >
+
+                            <span class="slider"></span>
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="hours-row">
+
+                        <strong>Thursday</strong>
+
+                        <div>
+                            <input type="time" value="11:00">
+                            <span>to</span>
+                            <input type="time" value="18:00">
+                        </div>
+
+                        <label class="switch">
+
+                            <input
+                                type="checkbox"
+                                checked
+                            >
+
+                            <span class="slider"></span>
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="hours-row">
+
+                        <strong>Friday</strong>
+
+                        <div>
+                            <input type="time" value="11:00">
+                            <span>to</span>
+                            <input type="time" value="18:00">
+                        </div>
+
+                        <label class="switch">
+
+                            <input
+                                type="checkbox"
+                                checked
+                            >
+
+                            <span class="slider"></span>
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="hours-row">
+
+                        <strong>Saturday</strong>
+
+                        <div>
+                            <input type="time" value="11:00">
+                            <span>to</span>
+                            <input type="time" value="18:00">
+                        </div>
+
+                        <label class="switch">
+
+                            <input
+                                type="checkbox"
+                                checked
+                            >
+
+                            <span class="slider"></span>
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="hours-row closed-day">
+
+                        <strong>Sunday</strong>
+
+                        <span class="closed-label">
+                            Closed
+                        </span>
+
+                        <label class="switch">
+
+                            <input
+                                type="checkbox"
+                            >
+
+                            <span class="slider"></span>
+
+                        </label>
+
+                    </div>
+
+
+                </div>
+
+
+                <div class="settings-actions">
+
+                    <button
+                        type="button"
+                        class="save-menu-btn"
+                        id="saveHoursBtn"
+                    >
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        Save Hours
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- ORDER SETTINGS -->
+
+            <div class="content-card settings-card">
+
+                <div class="settings-header">
+
+                    <div class="settings-icon">
+                        <i class="fa-solid fa-receipt"></i>
+                    </div>
+
+                    <div>
+
+                        <h3>Order Settings</h3>
+
+                        <p>
+                            Configure how orders are handled.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="setting-option">
+
+                    <div>
+
+                        <strong>Require Staff Confirmation</strong>
+
+                        <p>
+                            Orders must be confirmed by staff before processing.
+                        </p>
+
+                    </div>
+
+                    <label class="switch">
+
+                        <input
+                            type="checkbox"
+                            id="staffConfirmation"
+                            checked
+                        >
+
+                        <span class="slider"></span>
+
+                    </label>
+
+                </div>
+
+
+                <div class="setting-option">
+
+                    <div>
+
+                        <strong>Accept New Orders</strong>
+
+                        <p>
+                            Allow customers to place new orders.
+                        </p>
+
+                    </div>
+
+                    <label class="switch">
+
+                        <input
+                            type="checkbox"
+                            id="acceptOrders"
+                            checked
+                        >
+
+                        <span class="slider"></span>
+
+                    </label>
+
+                </div>
+
+
+                <div class="setting-option">
+
+                    <div>
+
+                        <strong>Order Notifications</strong>
+
+                        <p>
+                            Receive notifications when a new order is placed.
+                        </p>
+
+                    </div>
+
+                    <label class="switch">
+
+                        <input
+                            type="checkbox"
+                            id="orderNotifications"
+                            checked
+                        >
+
+                        <span class="slider"></span>
+
+                    </label>
+
+                </div>
+
+            </div>
+
+
+            <!-- ACCOUNT SETTINGS -->
+
+            <div class="content-card settings-card">
+
+                <div class="settings-header">
+
+                    <div class="settings-icon">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+
+                    <div>
+
+                        <h3>Account Settings</h3>
+
+                        <p>
+                            Manage the administrator account.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-grid">
+
+                    <div class="form-group">
+
+                        <label for="adminName">
+                            Administrator Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="adminName"
+                            value="Admin"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="adminEmail">
+                            Email Address
+                        </label>
+
+                        <input
+                            type="email"
+                            id="adminEmail"
+                            value="admin@foodbyk.co.za"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-actions">
+
+                    <button
+                        type="button"
+                        class="save-menu-btn"
+                        id="saveAccountBtn"
+                    >
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        Save Account
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <script src="../js/dashboard.js"></script>
+
+</body>
+
+</html>

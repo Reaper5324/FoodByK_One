@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Food by K | Categories</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Dashboard CSS -->
+    <link rel="stylesheet" href="../css/dashboard.css">
+
+</head>
+
+<body>
+
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <h1>FOOD <span>BY K</span></h1>
+            <p>ADMIN PANEL</p>
+        </div>
+
+        <nav class="sidebar-menu">
+
+            <a href="dashboard.html" class="menu-item">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="orders.html" class="menu-item">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Orders</span>
+                <span class="notification">12</span>
+            </a>
+
+            <a href="menu-items.html" class="menu-item">
+                <i class="fa-solid fa-utensils"></i>
+                <span>Menu Items</span>
+            </a>
+
+            <a href="categories.html" class="menu-item active">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Categories</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-tag"></i>
+                <span>Promotions</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-users"></i>
+                <span>Customers</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-user-gear"></i>
+                <span>Staff & Users</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-chart-column"></i>
+                <span>Reports</span>
+            </a>
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="menu-item logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================== -->
+
+    <main class="main-content">
+
+        <!-- TOPBAR -->
+
+        <header class="topbar">
+
+            <div class="topbar-left">
+
+                <button class="sidebar-toggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <div>
+                    <p class="welcome-text">MENU MANAGEMENT</p>
+                    <h2>Categories</h2>
+                </div>
+
+            </div>
+
+
+            <div class="topbar-right">
+
+                <button class="notification-btn">
+                    <i class="fa-regular fa-bell"></i>
+                    <span></span>
+                </button>
+
+                <div class="admin-profile">
+
+                    <div class="profile-image">
+                        K
+                    </div>
+
+                    <div class="profile-info">
+                        <h4>Admin User</h4>
+                        <p>Administrator</p>
+                    </div>
+
+                    <i class="fa-solid fa-chevron-down"></i>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- =========================
+             CATEGORY CONTENT
+        ========================== -->
+
+        <section class="dashboard-content">
+
+            <!-- PAGE HEADER -->
+
+            <div class="menu-page-header">
+
+                <div>
+
+                    <p class="card-label">
+                        MENU ORGANISATION
+                    </p>
+
+                    <h3>
+                        Manage Categories
+                    </h3>
+
+                    <p class="menu-description">
+                        Organise menu items into categories and
+                        control which categories are available.
+                    </p>
+
+                </div>
+
+
+                <button class="add-menu-btn" id="addCategoryBtn">
+
+                    <i class="fa-solid fa-plus"></i>
+
+                    Add Category
+
+                </button>
+
+            </div>
+
+
+            <!-- =========================
+                 SUMMARY CARDS
+            ========================== -->
+
+            <div class="stats-grid category-stats">
+
+                <div class="stat-card">
+
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+
+                    <div>
+
+                        <p class="card-label">
+                            TOTAL CATEGORIES
+                        </p>
+
+                        <h3 id="totalCategories">
+                            4
+                        </h3>
+
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+
+                    <div>
+
+                        <p class="card-label">
+                            ACTIVE CATEGORIES
+                        </p>
+
+                        <h3 id="activeCategories">
+                            3
+                        </h3>
+
+                    </div>
+
+                </div>
+
+
+                <div class="stat-card">
+
+                    <div class="stat-icon">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+
+                    <div>
+
+                        <p class="card-label">
+                            MENU ITEMS
+                        </p>
+
+                        <h3 id="totalMenuItems">
+                            6
+                        </h3>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 SEARCH
+            ========================== -->
+
+            <div class="content-card category-search-card">
+
+                <div class="search-box">
+
+                    <i class="fa-solid fa-magnifying-glass"></i>
+
+                    <input
+                        type="text"
+                        id="categorySearch"
+                        placeholder="Search categories..."
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 CATEGORY TABLE
+            ========================== -->
+
+            <div class="content-card">
+
+                <div class="table-header">
+
+                    <div>
+
+                        <p class="card-label">
+                            CATEGORY LIST
+                        </p>
+
+                        <h3>
+                            Food Categories
+                        </h3>
+
+                    </div>
+
+                </div>
+
+
+                <div class="table-container">
+
+                    <table class="category-table" id="categoryTable">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Category</th>
+
+                                <th>Description</th>
+
+                                <th>Menu Items</th>
+
+                                <th>Status</th>
+
+                                <th>Actions</th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+
+                            <!-- CATEGORY 1 -->
+
+                            <tr data-category="meals">
+
+                                <td>
+
+                                    <div class="category-name">
+
+                                        <div class="category-icon">
+                                            <i class="fa-solid fa-bowl-food"></i>
+                                        </div>
+
+                                        <strong>Meals</strong>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+                                    Main meals and signature dishes
+                                </td>
+
+
+                                <td>
+                                    <strong>3</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <span class="category-status active">
+                                        Active
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <div class="category-actions">
+
+                                        <button
+                                            class="category-edit-btn"
+                                            title="Edit category"
+                                        >
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+
+                                        <button
+                                            class="category-toggle-btn"
+                                            title="Deactivate category"
+                                        >
+                                            <i class="fa-solid fa-toggle-on"></i>
+                                        </button>
+
+
+                                        <button
+                                            class="category-delete-btn"
+                                            title="Delete category"
+                                        >
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <!-- CATEGORY 2 -->
+
+                            <tr data-category="sides">
+
+                                <td>
+
+                                    <div class="category-name">
+
+                                        <div class="category-icon">
+                                            <i class="fa-solid fa-burger"></i>
+                                        </div>
+
+                                        <strong>Sides</strong>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+                                    Chips, salads and additional sides
+                                </td>
+
+
+                                <td>
+                                    <strong>1</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <span class="category-status active">
+                                        Active
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <div class="category-actions">
+
+                                        <button
+                                            class="category-edit-btn"
+                                            title="Edit category"
+                                        >
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+
+                                        <button
+                                            class="category-toggle-btn"
+                                            title="Deactivate category"
+                                        >
+                                            <i class="fa-solid fa-toggle-on"></i>
+                                        </button>
+
+
+                                        <button
+                                            class="category-delete-btn"
+                                            title="Delete category"
+                                        >
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <!-- CATEGORY 3 -->
+
+                            <tr data-category="desserts">
+
+                                <td>
+
+                                    <div class="category-name">
+
+                                        <div class="category-icon">
+                                            <i class="fa-solid fa-cake-candles"></i>
+                                        </div>
+
+                                        <strong>Desserts</strong>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+                                    Cakes and sweet treats
+                                </td>
+
+
+                                <td>
+                                    <strong>1</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <span class="category-status active">
+                                        Active
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <div class="category-actions">
+
+                                        <button
+                                            class="category-edit-btn"
+                                            title="Edit category"
+                                        >
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+
+                                        <button
+                                            class="category-toggle-btn"
+                                            title="Deactivate category"
+                                        >
+                                            <i class="fa-solid fa-toggle-on"></i>
+                                        </button>
+
+
+                                        <button
+                                            class="category-delete-btn"
+                                            title="Delete category"
+                                        >
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                            <!-- CATEGORY 4 -->
+
+                            <tr data-category="drinks">
+
+                                <td>
+
+                                    <div class="category-name">
+
+                                        <div class="category-icon">
+                                            <i class="fa-solid fa-glass-water"></i>
+                                        </div>
+
+                                        <strong>Drinks</strong>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+                                    Cold drinks, juices and beverages
+                                </td>
+
+
+                                <td>
+                                    <strong>1</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <span class="category-status inactive">
+                                        Inactive
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <div class="category-actions">
+
+                                        <button
+                                            class="category-edit-btn"
+                                            title="Edit category"
+                                        >
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+
+
+                                        <button
+                                            class="category-toggle-btn"
+                                            title="Activate category"
+                                        >
+                                            <i class="fa-solid fa-toggle-off"></i>
+                                        </button>
+
+
+                                        <button
+                                            class="category-delete-btn"
+                                            title="Delete category"
+                                        >
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- =========================
+         ADD / EDIT CATEGORY MODAL
+    ========================== -->
+
+    <div class="modal" id="categoryModal">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <div>
+
+                    <p class="card-label">
+                        CATEGORY
+                    </p>
+
+                    <h3 id="categoryModalTitle">
+                        Add New Category
+                    </h3>
+
+                </div>
+
+
+                <button class="close-category-modal">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <form id="categoryForm">
+
+
+                    <div class="form-group">
+
+                        <label for="categoryName">
+                            CATEGORY NAME
+                        </label>
+
+                        <input
+                            type="text"
+                            id="categoryName"
+                            placeholder="e.g. Breakfast"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="categoryDescription">
+                            DESCRIPTION
+                        </label>
+
+                        <textarea
+                            id="categoryDescription"
+                            placeholder="Enter a short description..."
+                            rows="4"
+                        ></textarea>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="save-menu-btn"
+                    >
+
+                        Save Category
+
+                    </button>
+
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- JAVASCRIPT -->
+
+    <script src="../js/dashboard.js"></script>
+
+</body>
+
+</html>

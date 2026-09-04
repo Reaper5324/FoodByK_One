@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Food by K | Orders</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="../css/dashboard.css">
+
+</head>
+
+<body>
+
+
+    <!-- =========================
+         SIDEBAR
+    ========================== -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <h1>FOOD <span>BY K</span></h1>
+            <p>ADMIN PANEL</p>
+        </div>
+
+
+        <nav class="sidebar-menu">
+
+            <a href="dashboard.html" class="menu-item">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+
+
+            <a href="orders.html" class="menu-item active">
+                <i class="fa-solid fa-receipt"></i>
+                <span>Orders</span>
+                <span class="notification">12</span>
+            </a>
+
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-utensils"></i>
+                <span>Menu Items</span>
+            </a>
+
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Categories</span>
+            </a>
+
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-tag"></i>
+                <span>Promotions</span>
+            </a>
+
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-users"></i>
+                <span>Customers</span>
+            </a>
+
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-user-gear"></i>
+                <span>Staff & Users</span>
+            </a>
+
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-chart-column"></i>
+                <span>Reports</span>
+            </a>
+
+
+            <a href="#" class="menu-item">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <a href="#" class="menu-item logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>Logout</span>
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =========================
+         MAIN CONTENT
+    ========================== -->
+
+    <main class="main-content">
+
+
+        <!-- TOPBAR -->
+
+        <header class="topbar">
+
+            <div class="topbar-left">
+
+                <button class="sidebar-toggle">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+
+                <div>
+                    <p class="welcome-text">ORDER MANAGEMENT</p>
+                    <h2>Manage Orders</h2>
+                </div>
+
+            </div>
+
+
+            <div class="topbar-right">
+
+                <button class="notification-btn">
+                    <i class="fa-regular fa-bell"></i>
+                    <span></span>
+                </button>
+
+
+                <div class="admin-profile">
+
+                    <div class="profile-image">
+                        K
+                    </div>
+
+                    <div class="profile-info">
+                        <h4>Admin User</h4>
+                        <p>Administrator</p>
+                    </div>
+
+                    <i class="fa-solid fa-chevron-down"></i>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- =========================
+             PAGE CONTENT
+        ========================== -->
+
+        <section class="dashboard-content">
+
+
+            <!-- ORDER SUMMARY -->
+
+            <div class="order-summary">
+
+
+                <div class="order-summary-card">
+
+                    <div>
+                        <p>All Orders</p>
+                        <h3>124</h3>
+                    </div>
+
+                    <i class="fa-solid fa-receipt"></i>
+
+                </div>
+
+
+                <div class="order-summary-card pending-summary">
+
+                    <div>
+                        <p>Awaiting Confirmation</p>
+                        <h3>12</h3>
+                    </div>
+
+                    <i class="fa-solid fa-clock"></i>
+
+                </div>
+
+
+                <div class="order-summary-card preparing-summary">
+
+                    <div>
+                        <p>Preparing</p>
+                        <h3>8</h3>
+                    </div>
+
+                    <i class="fa-solid fa-fire"></i>
+
+                </div>
+
+
+                <div class="order-summary-card ready-summary">
+
+                    <div>
+                        <p>Ready</p>
+                        <h3>6</h3>
+                    </div>
+
+                    <i class="fa-solid fa-circle-check"></i>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 SEARCH & FILTERS
+            ========================== -->
+
+            <div class="content-card order-filters">
+
+                <div class="filter-row">
+
+
+                    <div class="search-box">
+
+                        <i class="fa-solid fa-magnifying-glass"></i>
+
+                        <input
+                            type="text"
+                            id="orderSearch"
+                            placeholder="Search by Order ID or Customer..."
+                        >
+
+                    </div>
+
+
+                    <div class="filter-buttons">
+
+                        <button class="filter-btn active" data-filter="all">
+                            All
+                        </button>
+
+
+                        <button class="filter-btn" data-filter="awaiting">
+                            Awaiting Confirmation
+                        </button>
+
+
+                        <button class="filter-btn" data-filter="accepted">
+                            Accepted
+                        </button>
+
+
+                        <button class="filter-btn" data-filter="preparing">
+                            Preparing
+                        </button>
+
+
+                        <button class="filter-btn" data-filter="ready">
+                            Ready
+                        </button>
+
+
+                        <button class="filter-btn" data-filter="completed">
+                            Completed
+                        </button>
+
+
+                        <button class="filter-btn" data-filter="declined">
+                            Declined
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =========================
+                 ORDERS TABLE
+            ========================== -->
+
+            <div class="content-card orders-card">
+
+
+                <div class="card-header">
+
+                    <div>
+                        <p class="card-label">ORDERS</p>
+                        <h3>All Orders</h3>
+                    </div>
+
+
+                    <button class="refresh-btn">
+                        <i class="fa-solid fa-rotate"></i>
+                        Refresh
+                    </button>
+
+                </div>
+
+
+                <div class="table-wrapper">
+
+                    <table id="ordersTable">
+
+
+                        <thead>
+
+                            <tr>
+                                <th>ORDER ID</th>
+                                <th>CUSTOMER</th>
+                                <th>TYPE</th>
+                                <th>REQUESTED TIME</th>
+                                <th>TOTAL</th>
+                                <th>STATUS</th>
+                                <th>ACTION</th>
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+
+                            <!-- ORDER 1 -->
+
+                            <tr data-status="awaiting">
+
+                                <td>
+                                    <strong>#FBK-1024</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <div class="customer">
+
+                                        <div class="customer-avatar">
+                                            N
+                                        </div>
+
+                                        <span>Neo</span>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="type delivery">
+
+                                        <i class="fa-solid fa-motorcycle"></i>
+
+                                        Delivery
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>18:15</td>
+
+
+                                <td>
+                                    <strong>R245.00</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <span class="status awaiting">
+                                        Awaiting Confirmation
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <button class="manage-order-btn">
+                                        Review
+                                    </button>
+
+                                </td>
+
+                            </tr>
+
+
+                            <!-- ORDER 2 -->
+
+                            <tr data-status="preparing">
+
+                                <td>
+                                    <strong>#FBK-1023</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <div class="customer">
+
+                                        <div class="customer-avatar">
+                                            T
+                                        </div>
+
+                                        <span>Thabo</span>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="type collection">
+
+                                        <i class="fa-solid fa-store"></i>
+
+                                        Collection
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>18:25</td>
+
+
+                                <td>
+                                    <strong>R180.00</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <span class="status preparing">
+                                        Preparing
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <button class="manage-order-btn">
+                                        Manage
+                                    </button>
+
+                                </td>
+
+                            </tr>
+
+
+                            <!-- ORDER 3 -->
+
+                            <tr data-status="ready">
+
+                                <td>
+                                    <strong>#FBK-1022</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <div class="customer">
+
+                                        <div class="customer-avatar">
+                                            L
+                                        </div>
+
+                                        <span>Lerato</span>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="type collection">
+
+                                        <i class="fa-solid fa-store"></i>
+
+                                        Collection
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>18:40</td>
+
+
+                                <td>
+                                    <strong>R320.00</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <span class="status ready">
+                                        Ready
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <button class="manage-order-btn">
+                                        Manage
+                                    </button>
+
+                                </td>
+
+                            </tr>
+
+
+                            <!-- ORDER 4 -->
+
+                            <tr data-status="awaiting">
+
+                                <td>
+                                    <strong>#FBK-1021</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <div class="customer">
+
+                                        <div class="customer-avatar">
+                                            A
+                                        </div>
+
+                                        <span>Amanda</span>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="type delivery">
+
+                                        <i class="fa-solid fa-motorcycle"></i>
+
+                                        Delivery
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>19:00</td>
+
+
+                                <td>
+                                    <strong>R165.00</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <span class="status awaiting">
+                                        Awaiting Confirmation
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <button class="manage-order-btn">
+                                        Review
+                                    </button>
+
+                                </td>
+
+                            </tr>
+
+
+                            <!-- ORDER 5 -->
+
+                            <tr data-status="accepted">
+
+                                <td>
+                                    <strong>#FBK-1020</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <div class="customer">
+
+                                        <div class="customer-avatar">
+                                            S
+                                        </div>
+
+                                        <span>Sipho</span>
+
+                                    </div>
+
+                                </td>
+
+
+                                <td>
+
+                                    <span class="type collection">
+
+                                        <i class="fa-solid fa-store"></i>
+
+                                        Collection
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>19:15</td>
+
+
+                                <td>
+                                    <strong>R210.00</strong>
+                                </td>
+
+
+                                <td>
+
+                                    <span class="status accepted">
+                                        Accepted
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    <button class="manage-order-btn">
+                                        Manage
+                                    </button>
+
+                                </td>
+
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- =========================
+         ORDER MANAGEMENT MODAL
+    ========================== -->
+
+    <div class="modal" id="orderModal">
+
+
+        <div class="modal-content">
+
+
+            <!-- MODAL HEADER -->
+
+            <div class="modal-header">
+
+                <div>
+
+                    <p class="card-label">
+                        REVIEW ORDER
+                    </p>
+
+                    <h3 id="modalOrderId">
+                        #FBK-1024
+                    </h3>
+
+                </div>
+
+
+                <button class="close-modal">
+
+                    <i class="fa-solid fa-xmark"></i>
+
+                </button>
+
+            </div>
+
+
+            <!-- MODAL BODY -->
+
+            <div class="modal-body">
+
+
+                <!-- ORDER DETAILS -->
+
+                <div class="order-detail-row">
+
+                    <span>Customer</span>
+
+                    <strong id="modalCustomer">
+                        Neo
+                    </strong>
+
+                </div>
+
+
+                <div class="order-detail-row">
+
+                    <span>Order Type</span>
+
+                    <strong id="modalType">
+                        Delivery
+                    </strong>
+
+                </div>
+
+
+                <div class="order-detail-row">
+
+                    <span>Requested Time</span>
+
+                    <strong id="modalTime">
+                        18:15
+                    </strong>
+
+                </div>
+
+
+                <div class="order-detail-row">
+
+                    <span>Total</span>
+
+                    <strong id="modalTotal">
+                        R245.00
+                    </strong>
+
+                </div>
+
+
+                <!-- =========================
+                     STAFF DECISION
+                ========================== -->
+
+                <div
+                    class="confirmation-section"
+                    id="confirmationSection"
+                >
+
+                    <p class="modal-section-title">
+                        STAFF DECISION
+                    </p>
+
+
+                    <p class="decision-text">
+
+                        Review the order and either accept it,
+                        adjust the requested fulfilment time,
+                        or decline the order.
+
+                    </p>
+
+
+                    <div class="decision-buttons">
+
+
+                        <button class="accept-order-btn">
+
+                            <i class="fa-solid fa-check"></i>
+
+                            Accept Order
+
+                        </button>
+
+
+                        <button class="adjust-time-btn">
+
+                            <i class="fa-solid fa-clock"></i>
+
+                            Adjust Time
+
+                        </button>
+
+
+                        <button class="decline-order-btn">
+
+                            <i class="fa-solid fa-xmark"></i>
+
+                            Decline Order
+
+                        </button>
+
+
+                    </div>
+
+                </div>
+
+
+                <!-- =========================
+                     ADJUST TIME
+                ========================== -->
+
+                <div
+                    class="adjustment-section"
+                    id="adjustmentSection"
+                >
+
+                    <label for="adjustedTime">
+
+                        NEW COLLECTION / DELIVERY TIME
+
+                    </label>
+
+
+                    <input
+                        type="time"
+                        id="adjustedTime"
+                    >
+
+
+                    <button class="confirm-time-btn">
+
+                        Confirm New Time
+
+                    </button>
+
+                </div>
+
+
+                <!-- =========================
+                     DECLINE ORDER
+                ========================== -->
+
+                <div
+                    class="decline-section"
+                    id="declineSection"
+                >
+
+                    <label for="declineReason">
+
+                        REASON FOR DECLINING
+
+                    </label>
+
+
+                    <textarea
+                        id="declineReason"
+                        placeholder="Enter the reason for declining this order..."
+                    ></textarea>
+
+
+                    <button class="confirm-decline-btn">
+
+                        Confirm Decline
+
+                    </button>
+
+                </div>
+
+
+                <!-- =========================
+                     STATUS UPDATE
+                ========================== -->
+
+                <div
+                    class="status-update"
+                    id="statusSection"
+                >
+
+                    <label for="statusSelect">
+
+                        UPDATE ORDER STATUS
+
+                    </label>
+
+
+                    <select id="statusSelect">
+
+                        <option value="accepted">
+                            Accepted
+                        </option>
+
+                        <option value="preparing">
+                            Preparing
+                        </option>
+
+                        <option value="ready">
+                            Ready
+                        </option>
+
+                        <option value="completed">
+                            Completed
+                        </option>
+
+                    </select>
+
+
+                    <button class="save-status-btn">
+
+                        Update Status
+
+                    </button>
+
+                </div>
+
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- JAVASCRIPT -->
+
+    <script src="../js/dashboard.js"></script>
+
+</body>
+
+</html>
