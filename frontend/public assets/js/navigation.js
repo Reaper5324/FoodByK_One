@@ -162,7 +162,7 @@ font-size: 14px;
 
 @media (max-width: 768px) {
 
-```
+
 .navbar {
     padding: 18px 5%;
     flex-direction: column;
@@ -174,8 +174,6 @@ font-size: 14px;
     justify-content: center;
     gap: 15px;
 }
-```
-
 }
 
 

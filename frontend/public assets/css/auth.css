@@ -218,3 +218,107 @@ body.auth-page {
     color: #111111;
     border: 1px solid #FFC928;
 }
+/* =========================================
+   ACCOUNT PAGE
+   ========================================= */
+
+.account-page {
+    min-height: 100vh;
+    padding: 60px 7%;
+    background-color: var(--food-light);
+}
+
+.account-container {
+    width: 100%;
+    max-width: 850px;
+    margin: 0 auto;
+}
+
+.account-header {
+    margin-bottom: 30px;
+}
+
+.account-header h1 {
+    font-size: 36px;
+    color: var(--food-black);
+    margin-bottom: 8px;
+}
+
+.account-header p {
+    color: var(--food-grey);
+    font-size: 16px;
+}
+
+.account-card {
+    background-color: var(--food-white);
+    border: 1px solid var(--food-border);
+    border-radius: 10px;
+    padding: 35px;
+}
+
+.account-card h2 {
+    margin-bottom: 25px;
+    font-size: 22px;
+}
+
+.account-info {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.account-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--food-border);
+}
+
+.account-label {
+    font-weight: 700;
+    color: var(--food-black);
+}
+
+.account-value {
+    color: var(--food-grey);
+}
+
+.account-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+
+/* ---------- Responsive Account Page ---------- */
+
+@media (max-width: 600px) {
+
+    .account-page {
+        padding: 40px 5%;
+    }
+
+    .account-header h1 {
+        font-size: 30px;
+    }
+
+    .account-card {
+        padding: 25px;
+    }
+
+    .account-field {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+    .account-actions {
+        flex-direction: column;
+    }
+
+    .account-actions .btn {
+        width: 100%;
+    }
+
+}
