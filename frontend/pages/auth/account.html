@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>My Account | Food by K</title>
+
+    <!-- Shared Website Styling -->
+    <link rel="stylesheet"
+          href="../../assets/css/style.css">
+
+    <!-- Authentication Styling -->
+    <link rel="stylesheet"
+          href="../../assets/css/auth.css">
+
+</head>
+
+<body>
+
+<!-- Navigation will be inserted here -->
+
+<header id="navigation"></header>
+
+
+<main class="account-page">
+
+    <section class="account-container">
+
+        <!-- Page Heading -->
+
+        <div class="account-header">
+
+            <h1>
+                My Account
+            </h1>
+
+            <p>
+                View and manage your Food by K account.
+            </p>
+
+        </div>
+
+
+        <!-- Account Details -->
+
+        <section class="account-card">
+
+            <h2>
+                Account Information
+            </h2>
+
+
+            <!-- User Information -->
+
+            <div class="account-info">
+
+                <div class="account-field">
+
+                    <span class="account-label">
+                        First Name
+                    </span>
+
+                    <span
+                            id="accountFirstName"
+                            class="account-value"
+                    >
+                        Loading...
+                    </span>
+
+                </div>
+
+
+                <div class="account-field">
+
+                    <span class="account-label">
+                        Last Name
+                    </span>
+
+                    <span
+                            id="accountLastName"
+                            class="account-value"
+                    >
+                        Loading...
+                    </span>
+
+                </div>
+
+
+                <div class="account-field">
+
+                    <span class="account-label">
+                        Email Address
+                    </span>
+
+                    <span
+                            id="accountEmail"
+                            class="account-value"
+                    >
+                        Loading...
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- Account Actions -->
+
+            <div class="account-actions">
+
+                <a
+                        href="forgot-password.html"
+                        class="btn btn-secondary"
+                >
+                    Change Password
+                </a>
+
+                <button
+                        id="logoutButton"
+                        class="btn btn-primary"
+                >
+                    Logout
+                </button>
+
+            </div>
+
+        </section>
+
+    </section>
+
+</main>
+
+
+<!-- API Configuration -->
+
+<script src="../../assets/js/config.js"></script>
+
+
+<!-- Central API Client -->
+
+<script src="../../assets/js/api/api.js"></script>
+
+
+<!-- Authentication API Service -->
+
+<script src="../../assets/js/api/auth.js"></script>
+
+
+<!-- Navigation -->
+
+<script src="../../assets/js/navigation.js"></script>
+
+
+<!-- Authentication Page Logic -->
+
+<script src="../../assets/js/auth.js"></script>
+
+</body>
+
+</html>
