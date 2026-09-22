@@ -176,6 +176,17 @@ class CategoryService {
         ]);
     }
 
+        // Canonical place for "products in this category, optionally
+    // searched/filtered" - ProductController/CategoryController should
+    // route here rather than duplicating category-filter logic elsewhere.
+    public function getProductsInCategory(int $categoryId, ?string $search = null): array {
+        $category = Category::findById($categoryId);
+        if (!$category) {
+            return $this->failure('Category not found.');
+        }
+        return $this->success(Product::findByCategory($categoryId, $search));
+    }
+
     private function stringLength(string $value): int {
         return function_exists('mb_strlen') ? mb_strlen($value) : strlen($value);
     }

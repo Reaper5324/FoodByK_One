@@ -1,0 +1,8 @@
+{
+    "name": "foodbyk/backend",
+    "description": "FoodbyK Ordering System",
+    "type": "project",
+    "require": {
+        "php": ">=8.1"
+    }
+}

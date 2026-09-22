@@ -100,7 +100,7 @@ class PaymentService {
 
     // Step 4: ITN webhook confirming the actual charge outcome.
     // Idempotent via Payment::markSuccessful()'s internal guard.
-    public function handleChargeWebhook(array $itn): array {
+        public function handleChargeWebhook(array $itn): array {
         if (!$this->verifyItn($itn)) {
             return ['success' => false, 'error' => 'Invalid ITN signature/source.'];
         }
@@ -112,8 +112,18 @@ class PaymentService {
         $payment = $order->getPayment();
         if (!$payment) return ['success' => false, 'error' => 'No payment record for this order.'];
 
+        // Captured BEFORE markSuccessful() mutates it - markSuccessful() is
+        // a no-op on a duplicate ITN, so this is what tells us whether this
+        // is a genuinely new success (award points once) or a repeat
+        // webhook delivery (don't award again).
+        $wasAlreadySuccessful = ($payment->status === Payment::STATUS_SUCCESS);
+
         if (($itn['payment_status'] ?? '') === 'COMPLETE') {
             $payment->markSuccessful($itn['pf_payment_id'] ?? '');
+
+            if (!$wasAlreadySuccessful) {
+                (new LoyaltyService())->awardPointsForOrder($order->customer_id, $order->id, $order->total());
+            }
         } else {
             $payment->markFailed();
         }

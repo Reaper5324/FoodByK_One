@@ -2,7 +2,9 @@
 
 date_default_timezone_set('Africa/Johannesburg');
 error_reporting(E_ALL);
-ini_set('display_errors', '1');
+$isProduction = getenv('APP_ENV') === 'production';
+ini_set('display_errors', $isProduction ? '0' : '1');
+error_reporting($isProduction ? 0 : E_ALL);
 
 require_once __DIR__ . '/config/config.php';
 

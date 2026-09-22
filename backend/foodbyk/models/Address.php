@@ -26,25 +26,31 @@ public function hasCoordinates(): bool {
         && $this->longitude <= 180.0;
 }
 
-protected function toArray(): array {
-    return [
-        'customer_id' => $this->customer_id,
-        'raw_address' => $this->raw_address,
-        'latitude'    => $this->latitude,
-        'longitude'   => $this->longitude,
-        'is_default'  => (int) $this->is_default,
-    ];
-}
+    protected function toArray(): array {
+        return [
+            'customer_id' => $this->customer_id,
+            'raw_address' => $this->raw_address,
+            'street'      => $this->street,
+            'postal_code' => $this->postal_code,
+            'city'        => $this->city,
+            'latitude'    => $this->latitude,
+            'longitude'   => $this->longitude,
+            'is_default'  => (int) $this->is_default,
+        ];
+    }
 
-protected static function fromRow(array $row): static {
-    $a              = new static();
-    $a->id          = (int)  $row['id'];
-    $a->customer_id = (int)  $row['customer_id'];
-    $a->raw_address =        $row['raw_address'];
-    $a->latitude    = isset($row['latitude'])  ? (float) $row['latitude']  : null;
-    $a->longitude   = isset($row['longitude']) ? (float) $row['longitude'] : null;
-    $a->is_default  = (bool) $row['is_default'];
-    return $a;
-}
+    protected static function fromRow(array $row): static {
+        $a              = new static();
+        $a->id          = (int)  $row['id'];
+        $a->customer_id = (int)  $row['customer_id'];
+        $a->raw_address =        $row['raw_address'];
+        $a->street      =        $row['street'] ?? null;
+        $a->postal_code = isset($row['postal_code']) ? (int) $row['postal_code'] : null;
+        $a->city        =        $row['city'] ?? null;
+        $a->latitude    = isset($row['latitude'])  ? (float) $row['latitude']  : null;
+        $a->longitude   = isset($row['longitude']) ? (float) $row['longitude'] : null;
+        $a->is_default  = (bool) $row['is_default'];
+        return $a;
+    }
 
 }

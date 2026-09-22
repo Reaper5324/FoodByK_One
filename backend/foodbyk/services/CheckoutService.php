@@ -175,26 +175,9 @@ class CheckoutService {
      * @param string $windowEnd (ISO 8601 datetime)
      * @return array ['success' => bool, 'error' => ?string]
      */
-    public function validateTimeWindow(string $windowStart, string $windowEnd): array {
-        try {
-            $start = new \DateTimeImmutable($windowStart);
-            $end = new \DateTimeImmutable($windowEnd);
-        } catch (\Exception) {
-            return $this->failure('Invalid time format.');
-        }
-
-        if ($start >= $end) {
-            return $this->failure('End time must be after start time.');
-        }
-
-        $deliveryService = new DeliveryService();
-        if (!$deliveryService->isWithinTradingHours($start) || !$deliveryService->isWithinTradingHours($end)) {
-            return $this->failure('Requested time is outside trading hours.');
-        }
-
-        return $this->success(['start' => $windowStart, 'end' => $windowEnd]);
+       public function validateTimeWindow(string $windowStart, string $windowEnd): array {
+        return (new SlotService())->isValidSlot($windowStart, $windowEnd);
     }
-
     /**
      * Submit the order after all validations. Delegates to OrderService::submitOrder().
      * 
@@ -224,6 +207,8 @@ class CheckoutService {
             $promotionCode
         );
     }
+
+    
 
     private function success(mixed $data): array {
         return ['success' => true, 'data' => $data, 'error' => null];

@@ -43,12 +43,37 @@ public static function search(string $keyword): array {
         return array_map(fn($row) => static::fromRow($row), $stmt->fetchAll());
     }
 
-    public static function findByCategory(int $categoryId): array {
-        $db   = Database::getConnection();
-        $stmt = $db->prepare(
-            "SELECT * FROM products WHERE category_id = ? AND status = 'active' ORDER BY created_at DESC"
-        );
-        $stmt->execute([$categoryId]);
+        // Soft-delete: preserves the row so historical orders referencing this
+    // product still resolve. Matches STATUS_REMOVED's own "cannot be
+    // reversed" comment - a hard DELETE would break past order history.
+    public function markRemoved(): bool {
+        $this->status = self::STATUS_REMOVED;
+        $this->is_available = false;
+        return $this->save();
+    }
+
+    // Extended to accept an optional search term so CategoryService can
+    // do "products in category X matching keyword Y" as one query.
+    public static function findByCategory(int $categoryId, ?string $search = null): array {
+        $db = Database::getConnection();
+        $search = trim((string) $search);
+
+        if ($search !== '') {
+            $stmt = $db->prepare(
+                "SELECT * FROM products
+                 WHERE category_id = ? AND status = 'active'
+                   AND (name LIKE ? OR description LIKE ?)
+                 ORDER BY created_at DESC"
+            );
+            $term = '%' . $search . '%';
+            $stmt->execute([$categoryId, $term, $term]);
+        } else {
+            $stmt = $db->prepare(
+                "SELECT * FROM products WHERE category_id = ? AND status = 'active' ORDER BY created_at DESC"
+            );
+            $stmt->execute([$categoryId]);
+        }
+
         return array_map(fn($row) => static::fromRow($row), $stmt->fetchAll());
     }
 

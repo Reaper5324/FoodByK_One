@@ -14,6 +14,7 @@ public function getProducts(): array {
     return Product::findBy('category_id', $this->id);
 }
 
+
 protected function toArray(): array {
     return ['name' => $this->name, 'description' => $this->description, 'display_order' => $this->display_order];
 }

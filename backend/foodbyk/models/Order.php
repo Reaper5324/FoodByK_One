@@ -96,7 +96,26 @@ public static function lockById(int $id): ?static {
     $stmt->execute([$id]);
     $row = $stmt->fetch();
     return $row ? static::fromRow($row) : null;
+    
 }
+    public static function countActiveForSlot(string $windowStart): int {
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            "SELECT COUNT(*) FROM `orders` WHERE requested_window_start = ? AND status NOT IN (?, ?)"
+        );
+        $stmt->execute([$windowStart, self::STATUS_DECLINED, self::STATUS_CANCELLED]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    // Must be called inside an existing transaction - same rule as lockById().
+    public static function countActiveForSlotLocked(string $windowStart): int {
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            "SELECT COUNT(*) FROM `orders` WHERE requested_window_start = ? AND status NOT IN (?, ?) FOR UPDATE"
+        );
+        $stmt->execute([$windowStart, self::STATUS_DECLINED, self::STATUS_CANCELLED]);
+        return (int) $stmt->fetchColumn();
+    }
 
 protected function toArray(): array {
     return [

@@ -16,11 +16,10 @@ class AdminController extends Controller {
     }
 
     public function addPromotion(Request $request): Response {
-        $promo = $request->user()->addPromotion($request->input('code'), $request->input('discount_type'), (float) $request->input('discount_value'), $request->input('start_date'), $request->input('end_date'));
-        return Response::success($promo, 201);
+        return $this->respond((new AdminSettingsService())->addPromotion($request->body), 201);
     }
 
     public function updateSettings(Request $request): Response {
-        return Response::success($request->user()->updateBusinessSettings($request->body));
+        return $this->respond((new AdminSettingsService())->updateSettings($request->body));
     }
 }

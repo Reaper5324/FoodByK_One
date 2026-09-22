@@ -8,26 +8,6 @@ class Admin extends User {
         return $product;
     }
 
-    public function removeProduct(int $productId): bool {
-        $product = Product::findById($productId);
-        return $product?->delete() ?? false;
-    }
-
-    public function addPromotion(string $code, string $discountType, float $discountValue, string $start, string $end): Promotion {
-        $promo = new Promotion(code: $code, discount_type: $discountType, discount_value: $discountValue, start_date: $start, end_date: $end);
-        $promo->save();
-        return $promo;
-    }
-
-    public function updateBusinessSettings(array $changes): BusinessSettings {
-        $settings = BusinessSettings::current();
-        foreach ($changes as $key => $value) {
-            if (property_exists($settings, $key)) { $settings->$key = $value; }
-        }
-        $settings->save();
-        return $settings;
-    }
-
     public static function findAdminById(int $id): ?static {
         if ($id <= 0) {
             return null;

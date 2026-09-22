@@ -243,16 +243,16 @@ class OrderService {
             }
 
             // Check trading hours
-            try {
-                $windowStart = new \DateTimeImmutable($requestedWindowStart);
-                $windowEnd = new \DateTimeImmutable($requestedWindowEnd);
-            } catch (\Exception) {
-                throw new \Exception('Invalid requested time window.');
+                       // Validate against the fixed-slot grid, then reserve capacity -
+            // both inside this transaction so check-then-insert is atomic.
+            $slotService = new SlotService();
+            $slotValidation = $slotService->isValidSlot($requestedWindowStart, $requestedWindowEnd);
+            if (!$slotValidation['success']) {
+                throw new \Exception($slotValidation['error']);
             }
-            if ($windowStart >= $windowEnd
-                || !$deliveryService->isWithinTradingHours($windowStart)
-                || !$deliveryService->isWithinTradingHours($windowEnd)) {
-                throw new \Exception('Requested time window is outside trading hours.');
+            $capacity = $slotService->reserveCapacityLocked($requestedWindowStart);
+            if (!$capacity['success']) {
+                throw new \Exception($capacity['error']);
             }
 
             // Save order

@@ -20,18 +20,25 @@ public function getProduct(): ?Product {
     return Product::findById($this->product_id);
 }
 
-protected function toArray(): array {
-    return ['order_id' => $this->order_id, 'product_id' => $this->product_id, 'quantity' => $this->quantity, 'unit_price' => $this->unit_price];
+    protected function toArray(): array {
+        return [
+            'order_id'     => $this->order_id,
+            'product_id'   => $this->product_id,
+            'product_name' => $this->product_name,
+            'quantity'     => $this->quantity,
+            'unit_price'   => $this->unit_price,
+        ];
+    }
+
+    protected static function fromRow(array $row): static {
+        $i               = new static();
+        $i->id           = (int)   $row['id'];
+        $i->order_id     = (int)   $row['order_id'];
+        $i->product_id   = (int)   $row['product_id'];
+        $i->product_name = (string) ($row['product_name'] ?? '');
+        $i->quantity     = (int)   $row['quantity'];
+        $i->unit_price   = (float) $row['unit_price'];
+        return $i;
+    }
 }
 
-protected static function fromRow(array $row): static {
-    $i             = new static();
-    $i->id         = (int)   $row['id'];
-    $i->order_id   = (int)   $row['order_id'];
-    $i->product_id = (int)   $row['product_id'];
-    $i->quantity   = (int)   $row['quantity'];
-    $i->unit_price = (float) $row['unit_price'];
-    return $i;
-}
-
-}

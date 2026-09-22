@@ -5,6 +5,7 @@ function registerRoutes(Router $router): void {
     $router->post('/auth/login', [AuthController::class, 'login'], [new RateLimitMiddleware()]);
     $router->post('/auth/forgot-password', [AuthController::class, 'requestPasswordReset'], [new RateLimitMiddleware()]);
     $router->post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+    
 
     $router->get('/health', [HealthController::class, 'check']);
     $router->get('/products', [ProductController::class, 'index']);
@@ -45,4 +46,5 @@ function registerRoutes(Router $router): void {
     $router->post('/admin/staff', [AdminController::class, 'addStaff'], $admin);
     $router->post('/admin/products', [AdminController::class, 'addProduct'], $admin);
     $router->delete('/admin/products/{id}', [AdminController::class, 'removeProduct'], $admin);
+        
 }
