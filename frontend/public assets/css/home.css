@@ -1,315 +1,1154 @@
 /* =========================================
-   FOOD BY K - HOME PAGE
+   FOOD BY K
+   HOME PAGE
    ========================================= */
 
-/* ---------- Hero ---------- */
 
-.hero {
-    min-height: calc(100vh - 72px);
-    background-color: #111111;
-    color: #FFFFFF;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 70px 7%;
-    gap: 50px;
-}
-
-.hero-content {
-    max-width: 600px;
-}
-
-.hero-tag,
-.section-tag {
-    color: #FFC928;
-    font-size: 13px;
-    font-weight: 800;
-    letter-spacing: 2px;
-    margin-bottom: 15px;
-}
-
-.hero h1 {
-    font-size: clamp(42px, 6vw, 72px);
-    line-height: 1.05;
-    margin-bottom: 25px;
-}
-
-.hero h1 span {
-    color: #D71920;
-    display: block;
-}
-
-.hero-text {
-    max-width: 500px;
-    color: #E2E2E2;
-    font-size: 18px;
-    margin-bottom: 35px;
-}
-
-.hero-buttons {
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-}
-
-/* ---------- Hero Visual ---------- */
-
-.hero-visual {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 350px;
-}
-
-.food-circle {
-    width: 320px;
-    height: 320px;
-    border-radius: 50%;
-    background-color: #D71920;
-    border: 15px solid #FFC928;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    transform: rotate(-5deg);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-}
-
-.food-circle span {
-    font-size: 24px;
-    font-weight: 800;
-    color: #FFFFFF;
-    letter-spacing: 3px;
-}
-
-.food-circle strong {
-    font-size: 48px;
-    color: #FFC928;
-    letter-spacing: 3px;
-}
-
-/* ---------- Navigation Register ---------- */
+/* =========================================
+   1. NAVIGATION REGISTER BUTTON
+   ========================================= */
 
 .nav-register {
-    background-color: #D71920;
-    padding: 9px 16px;
-    border-radius: 5px;
+    background-color: var(--food-red);
+    color: var(--food-white) !important;
+
+    padding: 10px 18px;
+
+    font-size: 12px !important;
+    font-weight: 800 !important;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
 }
 
 .nav-register:hover {
-    background-color: #A90F15;
-    color: #FFFFFF !important;
+    background-color: var(--food-red-dark);
+    color: var(--food-white) !important;
+
+    transform: translateY(-1px);
 }
 
-/* ---------- Featured Section ---------- */
+
+/* =========================================
+   2. HERO
+   ========================================= */
+
+.hero {
+    position: relative;
+
+    min-height: calc(100vh - 72px);
+
+    background-color: var(--food-black);
+    color: var(--food-white);
+
+    display: grid;
+
+    grid-template-columns: 0.9fr 1.1fr;
+
+    align-items: stretch;
+
+    padding: 0;
+
+    overflow: hidden;
+}
+
+
+/* =========================================
+   3. HERO CONTENT
+   ========================================= */
+
+.hero-content {
+    position: relative;
+
+    z-index: 2;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: center;
+
+    padding: 80px 8%;
+
+    max-width: 700px;
+}
+
+
+/* =========================================
+   4. HERO TAG
+   ========================================= */
+
+.hero-tag {
+    position: relative;
+
+    color: var(--food-yellow);
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: 0.2em;
+
+    text-transform: uppercase;
+
+    margin-bottom: 25px;
+
+    padding-left: 45px;
+}
+
+
+/* Red line before tag */
+
+.hero-tag::before {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+
+    top: 50%;
+
+    width: 32px;
+
+    height: 2px;
+
+    background-color: var(--food-red);
+
+    transform: translateY(-50%);
+}
+
+
+/* =========================================
+   5. HERO HEADING
+   ========================================= */
+
+.hero h1 {
+    max-width: 650px;
+
+    margin-bottom: 30px;
+
+    color: var(--food-white);
+
+    font-size: clamp(3.5rem, 7vw, 7.5rem);
+
+    font-weight: 900;
+
+    line-height: 0.88;
+
+    letter-spacing: -0.07em;
+
+    text-transform: uppercase;
+}
+
+.hero h1 span {
+    display: block;
+
+    color: var(--food-red);
+}
+
+
+/* =========================================
+   6. HERO DESCRIPTION
+   ========================================= */
+
+.hero-text {
+    max-width: 480px;
+
+    margin-bottom: 35px;
+
+    color: rgba(255, 255, 255, 0.7);
+
+    font-size: 16px;
+
+    line-height: 1.7;
+}
+
+
+/* =========================================
+   7. HERO BUTTONS
+   ========================================= */
+
+.hero-buttons {
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+
+    flex-wrap: wrap;
+}
+
+
+/* =========================================
+   8. HERO IMAGE
+   ========================================= */
+
+.hero-visual {
+    position: relative;
+
+    min-width: 0;
+
+    min-height: 700px;
+
+    overflow: hidden;
+}
+
+
+/* Main food image */
+
+.hero-visual::before {
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background-image:
+        linear-gradient(
+            to right,
+            rgba(17, 17, 17, 0.35),
+            rgba(17, 17, 17, 0.02)
+        ),
+        url("../images/foodbyk.png");
+
+    background-size: cover;
+
+    background-position: center;
+
+    transform: scale(1.02);
+
+    transition: transform 0.8s ease;
+}
+
+
+/* Image zoom */
+
+.hero:hover .hero-visual::before {
+    transform: scale(1.05);
+}
+
+
+/* =========================================
+   9. HERO RED ACCENT
+   ========================================= */
+
+.hero-visual::after {
+    content: "";
+
+    position: absolute;
+
+    right: 0;
+
+    bottom: 0;
+
+    width: 45%;
+
+    height: 8px;
+
+    background-color: var(--food-red);
+}
+
+
+/* =========================================
+   10. HERO YELLOW DETAIL
+   ========================================= */
+
+.hero::after {
+    content: "";
+
+    position: absolute;
+
+    right: 0;
+
+    bottom: 8px;
+
+    width: 13%;
+
+    height: 5px;
+
+    background-color: var(--food-yellow);
+
+    z-index: 3;
+}
+
+
+/* =========================================
+   11. HERO TRANSPARENT OVERLAY
+   ========================================= */
+
+.hero-overlay {
+    position: absolute;
+
+    right: 8%;
+
+    bottom: 10%;
+
+    z-index: 5;
+
+    width: min(380px, 75%);
+
+    padding: 30px;
+
+    background: rgba(17, 17, 17, 0.72);
+
+    border-left: 3px solid var(--food-red);
+
+    backdrop-filter: blur(5px);
+
+    color: var(--food-white);
+}
+
+
+/* Overlay small label */
+
+.hero-overlay p {
+    margin-bottom: 10px;
+
+    color: var(--food-yellow);
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    letter-spacing: 0.2em;
+
+    text-transform: uppercase;
+}
+
+
+/* Overlay heading */
+
+.hero-overlay h2 {
+    margin-bottom: 3px;
+
+    color: var(--food-white);
+
+    font-size: 28px;
+
+    font-weight: 900;
+
+    line-height: 1;
+
+    letter-spacing: -0.03em;
+
+    text-transform: uppercase;
+}
+
+
+/* Overlay supporting text */
+
+.hero-overlay span {
+    display: block;
+
+    margin-bottom: 22px;
+
+    color: rgba(255, 255, 255, 0.65);
+
+    font-size: 14px;
+}
+
+
+/* Overlay link */
+
+.hero-overlay-link {
+    display: inline-block;
+
+    color: var(--food-white);
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: 0.12em;
+
+    text-transform: uppercase;
+
+    border-bottom: 1px solid var(--food-yellow);
+
+    padding-bottom: 5px;
+
+    transition:
+        color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.hero-overlay-link:hover {
+    color: var(--food-yellow);
+
+    border-color: var(--food-red);
+}
+
+
+/* =========================================
+   12. FEATURED SECTION
+   ========================================= */
 
 .featured {
-    padding: 90px 7%;
-    background-color: #F7F7F7;
+    position: relative;
+
+    padding: 120px 7%;
+
+    background-color: var(--food-light);
+
+    overflow: hidden;
 }
 
+
+/* =========================================
+   13. FEATURED HEADING
+   ========================================= */
+
 .section-heading {
-    max-width: 650px;
-    margin: 0 auto 50px;
+    max-width: 850px;
+
+    margin: 0 auto 65px;
+
     text-align: center;
+}
+
+.section-tag {
+    display: inline-block;
+
+    margin-bottom: 18px;
+
+    color: var(--food-red);
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: 0.2em;
+
+    text-transform: uppercase;
 }
 
 .section-heading h2,
 .home-about h2 {
-    color: #111111;
-    font-size: 38px;
-    line-height: 1.2;
-    margin-bottom: 15px;
+    color: var(--food-black);
+
+    font-size: clamp(2.5rem, 5vw, 5rem);
+
+    font-weight: 900;
+
+    line-height: 0.95;
+
+    letter-spacing: -0.05em;
+
+    text-transform: uppercase;
+
+    margin-bottom: 20px;
 }
 
 .section-heading h2 span,
 .home-about h2 span {
-    color: #D71920;
+    color: var(--food-red);
 }
 
 .section-heading > p:last-child {
-    color: #6B6B6B;
+    max-width: 600px;
+
+    margin: 0 auto;
+
+    color: var(--food-grey);
+
+    font-size: 15px;
+
+    line-height: 1.7;
 }
 
-/* ---------- Feature Cards ---------- */
+
+/* =========================================
+   14. FEATURE GRID
+   ========================================= */
 
 .feature-grid {
     display: grid;
+
     grid-template-columns: repeat(3, 1fr);
-    gap: 25px;
-    max-width: 1100px;
+
+    gap: 2px;
+
+    max-width: 1200px;
+
     margin: 0 auto;
+
+    background-color: var(--food-black);
 }
 
+
+/* =========================================
+   15. FEATURE CARDS
+   ========================================= */
+
 .feature-card {
-    background-color: #FFFFFF;
-    padding: 35px 25px;
-    text-align: center;
-    border-radius: 10px;
-    border-top: 5px solid #D71920;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
-    transition: transform 0.2s ease;
+    position: relative;
+
+    min-height: 280px;
+
+    padding: 45px 35px;
+
+    background-color: var(--food-white);
+
+    border: none;
+
+    border-radius: 0;
+
+    box-shadow: none;
+
+    text-align: left;
+
+    transition:
+        background-color 0.25s ease,
+        transform 0.25s ease;
 }
 
 .feature-card:hover {
+    background-color: var(--food-black);
+
     transform: translateY(-5px);
+
+    z-index: 2;
 }
+
+
+/* =========================================
+   16. FEATURE ICON
+   ========================================= */
 
 .feature-icon {
-    font-size: 45px;
-    margin-bottom: 15px;
+    width: 55px;
+
+    height: 55px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    margin-bottom: 45px;
+
+    background-color: var(--food-red);
+
+    color: var(--food-white);
+
+    font-size: 25px;
+
+    border-radius: 0;
 }
 
+.feature-card:hover .feature-icon {
+    background-color: var(--food-yellow);
+
+    color: var(--food-black);
+}
+
+
+/* =========================================
+   17. FEATURE CARD TEXT
+   ========================================= */
+
 .feature-card h3 {
-    color: #111111;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+
+    color: var(--food-black);
+
+    font-size: 20px;
+
+    font-weight: 900;
+
+    text-transform: uppercase;
+
+    letter-spacing: -0.02em;
 }
 
 .feature-card p {
-    color: #6B6B6B;
+    color: var(--food-grey);
+
+    font-size: 14px;
+
+    line-height: 1.7;
 }
 
-/* ---------- About Section ---------- */
+.feature-card:hover h3 {
+    color: var(--food-white);
+}
+
+.feature-card:hover p {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+
+/* =========================================
+   18. ABOUT SECTION
+   ========================================= */
 
 .home-about {
-    padding: 90px 7%;
-    background-color: #FFFFFF;
-    display: flex;
+    position: relative;
+
+    display: grid;
+
+    grid-template-columns: 1fr 0.9fr;
+
     align-items: center;
-    justify-content: space-between;
-    gap: 60px;
+
+    gap: 80px;
+
+    padding: 130px 7%;
+
+    background-color: var(--food-white);
+
+    overflow: hidden;
 }
 
+
+/* =========================================
+   19. ABOUT CONTENT
+   ========================================= */
+
 .about-content {
-    max-width: 600px;
+    max-width: 650px;
 }
 
 .about-content > p:not(.section-tag) {
-    color: #6B6B6B;
-    margin-bottom: 25px;
+    max-width: 570px;
+
+    margin-bottom: 30px;
+
+    color: var(--food-grey);
+
+    font-size: 16px;
+
+    line-height: 1.8;
 }
 
+
+/* =========================================
+   20. ABOUT IMAGE
+   ========================================= */
+
 .about-highlight {
-    width: 300px;
-    height: 300px;
-    background-color: #111111;
-    border: 12px solid #FFC928;
-    border-radius: 50%;
+    position: relative;
+
+    width: 100%;
+
+    min-height: 500px;
+
+    background-color: var(--food-black);
+
+    border: none;
+
+    border-radius: 0;
+
+    overflow: hidden;
+
     display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+
+    align-items: flex-end;
+
+    justify-content: flex-start;
+
+    padding: 40px;
+
+    text-align: left;
+}
+
+
+/* About image */
+
+.about-highlight::before {
+    content: "";
+
+    position: absolute;
+
+    inset: 0;
+
+    background-image:
+        linear-gradient(
+            to top,
+            rgba(17, 17, 17, 0.9),
+            rgba(17, 17, 17, 0.05)
+        ),
+        url("../images/foodbyk.png");
+
+    background-size: cover;
+
+    background-position: center;
+
+    transition: transform 0.8s ease;
+}
+
+.about-highlight:hover::before {
+    transform: scale(1.04);
+}
+
+
+/* About image text */
+
+.about-highlight strong,
+.about-highlight span {
+    position: relative;
+
+    z-index: 2;
+
+    display: block;
 }
 
 .about-highlight strong {
-    display: block;
-    color: #D71920;
-    font-size: 28px;
+    color: var(--food-white);
+
+    font-size: clamp(2rem, 4vw, 3.5rem);
+
+    font-weight: 900;
+
+    line-height: 0.95;
+
+    letter-spacing: -0.04em;
+
+    text-transform: uppercase;
 }
 
 .about-highlight span {
-    display: block;
-    color: #FFC928;
-    font-size: 20px;
-    font-weight: 700;
+    margin-top: 10px;
+
+    color: var(--food-yellow);
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    letter-spacing: 0.15em;
+
+    text-transform: uppercase;
 }
 
-/* ---------- Call To Action ---------- */
+
+/* =========================================
+   21. CTA SECTION
+   ========================================= */
 
 .home-cta {
-    padding: 80px 7%;
-    background-color: #D71920;
-    color: #FFFFFF;
+    position: relative;
+
+    padding: 110px 7%;
+
+    background-color: var(--food-red);
+
+    color: var(--food-white);
+
     text-align: center;
+
+    overflow: hidden;
+}
+
+
+/* Decorative Food By K watermark */
+
+.home-cta::before {
+    content: "FOOD BY K";
+
+    position: absolute;
+
+    left: 50%;
+
+    top: 50%;
+
+    transform:
+        translate(-50%, -50%)
+        rotate(-8deg);
+
+    color: rgba(0, 0, 0, 0.08);
+
+    font-size: clamp(5rem, 15vw, 15rem);
+
+    font-weight: 900;
+
+    line-height: 1;
+
+    white-space: nowrap;
+
+    pointer-events: none;
 }
 
 .home-cta .section-tag {
-    color: #FFC928;
+    position: relative;
+
+    z-index: 1;
+
+    color: var(--food-yellow);
 }
 
 .home-cta h2 {
-    font-size: 40px;
-    margin-bottom: 15px;
+    position: relative;
+
+    z-index: 1;
+
+    max-width: 850px;
+
+    margin: 0 auto 20px;
+
+    color: var(--food-white);
+
+    font-size: clamp(2.5rem, 5vw, 5rem);
+
+    font-weight: 900;
+
+    line-height: 0.95;
+
+    letter-spacing: -0.05em;
+
+    text-transform: uppercase;
 }
 
 .home-cta p {
-    margin-bottom: 25px;
+    position: relative;
+
+    z-index: 1;
+
+    max-width: 550px;
+
+    margin: 0 auto 35px;
+
+    color: rgba(255, 255, 255, 0.8);
+
+    line-height: 1.7;
 }
 
 .home-cta .btn {
-    background-color: #FFC928;
-    color: #111111;
+    position: relative;
+
+    z-index: 1;
+
+    background-color: var(--food-black);
+
+    color: var(--food-white);
+
+    border: 2px solid var(--food-black);
 }
 
-/* ---------- Mobile ---------- */
+.home-cta .btn:hover {
+    background-color: var(--food-yellow);
 
-@media (max-width: 768px) {
+    border-color: var(--food-yellow);
 
-    .navbar {
-        padding: 18px 5%;
-    }
+    color: var(--food-black);
+}
+
+
+/* =========================================
+   22. FOOTER
+   ========================================= */
+
+footer {
+    position: relative;
+
+    display: grid;
+
+    grid-template-columns: 1.5fr 1fr 1fr;
+
+    gap: 50px;
+
+    padding: 65px 7% 25px;
+
+    background-color: var(--food-black);
+
+    color: var(--food-white);
+
+    text-align: left;
+
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+
+/* Red accent line */
+
+footer::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+
+    left: 7%;
+
+    width: 60px;
+
+    height: 4px;
+
+    background-color: var(--food-red);
+}
+
+
+/* Footer brand */
+
+.footer-brand a {
+    color: var(--food-white);
+
+    font-size: 32px;
+
+    font-weight: 900;
+
+    letter-spacing: -0.04em;
+}
+
+
+/* Red BY K */
+
+.footer-brand a span {
+    color: var(--food-red);
+}
+
+.footer-brand p {
+    margin-top: 10px;
+
+    color: rgba(255, 255, 255, 0.5);
+
+    font-size: 13px;
+}
+
+
+/* Footer links */
+
+.footer-links,
+.footer-socials {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 12px;
+}
+
+.footer-links a,
+.footer-socials a {
+    width: fit-content;
+
+    color: rgba(255, 255, 255, 0.65);
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    letter-spacing: 0.08em;
+
+    text-transform: uppercase;
+
+    transition: color 0.2s ease;
+}
+
+.footer-links a:hover,
+.footer-socials a:hover {
+    color: var(--food-yellow);
+}
+
+
+/* Copyright */
+
+.footer-bottom {
+    grid-column: 1 / -1;
+
+    margin-top: 30px;
+
+    padding-top: 20px;
+
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-bottom p {
+    color: rgba(255, 255, 255, 0.4);
+
+    font-size: 11px;
+}
+
+
+/* =========================================
+   23. TABLET
+   ========================================= */
+
+@media (max-width: 900px) {
 
     .hero {
-        min-height: auto;
-        flex-direction: column;
-        text-align: center;
-        padding: 60px 5%;
+        grid-template-columns: 1fr;
     }
 
-    .hero-text {
-        margin-left: auto;
-        margin-right: auto;
-    }
+    .hero-content {
+        min-height: 550px;
 
-    .hero-buttons {
-        justify-content: center;
+        padding: 80px 7%;
     }
 
     .hero-visual {
-        min-width: 0;
-    }
-
-    .food-circle {
-        width: 250px;
-        height: 250px;
-    }
-
-    .food-circle strong {
-        font-size: 38px;
+        min-height: 500px;
     }
 
     .feature-grid {
         grid-template-columns: 1fr;
     }
 
+    .feature-card {
+        min-height: auto;
+    }
+
     .home-about {
-        flex-direction: column;
-        text-align: center;
+        grid-template-columns: 1fr;
+
+        gap: 50px;
+
+        padding-top: 90px;
+
+        padding-bottom: 90px;
     }
 
     .about-highlight {
-        width: 250px;
-        height: 250px;
+        min-height: 450px;
     }
-
-    .home-cta h2 {
-        font-size: 30px;
-    }
-
 }
 
-@media (max-width: 480px) {
+
+/* =========================================
+   24. MOBILE
+   ========================================= */
+
+@media (max-width: 700px) {
+
+    footer {
+        grid-template-columns: 1fr;
+
+        gap: 30px;
+
+        padding: 55px 6% 25px;
+    }
+
+    .footer-bottom {
+        grid-column: auto;
+
+        margin-top: 10px;
+    }
+}
+
+
+@media (max-width: 600px) {
+
+    .hero-content {
+        min-height: 500px;
+
+        padding: 65px 6%;
+    }
 
     .hero h1 {
-        font-size: 40px;
+        font-size: clamp(3rem, 14vw, 4.5rem);
+    }
+
+    .hero-text {
+        font-size: 15px;
     }
 
     .hero-buttons {
+        width: 100%;
+
         flex-direction: column;
+
+        align-items: stretch;
     }
 
     .hero-buttons .btn {
         width: 100%;
+    }
+
+    .hero-visual {
+        min-height: 400px;
+    }
+
+    .hero-overlay {
+        right: 5%;
+
+        bottom: 7%;
+
+        width: 85%;
+
+        padding: 25px;
+    }
+
+    .hero-overlay h2 {
+        font-size: 24px;
+    }
+
+    .featured {
+        padding: 80px 6%;
+    }
+
+    .section-heading {
+        margin-bottom: 45px;
+    }
+
+    .section-heading h2,
+    .home-about h2 {
+        font-size: 2.8rem;
+    }
+
+    .feature-card {
+        padding: 35px 25px;
+    }
+
+    .home-about {
+        padding: 80px 6%;
+    }
+
+    .about-highlight {
+        min-height: 380px;
+
+        padding: 30px;
+    }
+
+    .home-cta {
+        padding: 85px 6%;
+    }
+
+    .home-cta h2 {
+        font-size: 2.8rem;
+    }
+}
+
+
+/* =========================================
+   25. VERY SMALL SCREENS
+   ========================================= */
+
+@media (max-width: 400px) {
+
+    .hero-content {
+        padding-left: 5%;
+
+        padding-right: 5%;
+    }
+
+    .hero h1 {
+        font-size: 2.8rem;
+    }
+
+    .hero-visual {
+        min-height: 330px;
+    }
+
+    .featured {
+        padding-left: 5%;
+
+        padding-right: 5%;
+    }
+
+    .home-about {
+        padding-left: 5%;
+
+        padding-right: 5%;
+    }
+
+    .hero-overlay {
+        width: 90%;
+
+        padding: 20px;
     }
 
 }

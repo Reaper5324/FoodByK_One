@@ -1,9 +1,13 @@
 /* =========================================
-   FOOD BY K - P1
-   LOGIN / AUTHENTICATION STYLES
+   FOOD BY K
+   AUTHENTICATION STYLES
+   Editorial Food Brand Design
    ========================================= */
 
-/* ---------- Entire Page ---------- */
+
+/* =========================================
+   1. AUTH PAGE
+   ========================================= */
 
 html,
 body {
@@ -13,312 +17,745 @@ body {
 body.auth-page {
     min-height: 100vh !important;
     margin: 0;
-    background-color: #111111 !important;
-    color: #FFFFFF;
+
+    background-color: var(--food-black) !important;
+    color: var(--food-white);
+
+    overflow-x: hidden;
 }
 
-/* ---------- Login Container ---------- */
+
+/* =========================================
+   2. AUTH LAYOUT
+   ========================================= */
 
 .auth-container {
     width: 100%;
-    max-width: 450px;
+    max-width: 1250px;
+
+    min-height: 100vh;
+
     margin: 0 auto;
-    padding: 40px 20px;
+    padding: 50px 5%;
+
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+
+    align-items: center;
+    gap: 70px;
 }
 
-/* ---------- Food by K Logo ---------- */
+
+/* =========================================
+   3. BRAND / FOOD IMAGE SIDE
+   ========================================= */
+
+/*
+   The visual side uses the Food By K food
+   image as the main brand moment.
+*/
 
 .auth-brand {
-    text-align: center;
-    margin-bottom: 25px;
+    position: relative;
+
+    min-height: 650px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    padding: 20px;
+
+    overflow: hidden;
 }
+
+
+/* Food image */
+
+.auth-brand::before {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    background-image:
+        linear-gradient(
+            to right,
+            rgba(17, 17, 17, 0.12),
+            rgba(17, 17, 17, 0.35)
+        ),
+        url("../images/foodbyk.png");
+
+    background-size: cover;
+    background-position: center;
+
+    z-index: 0;
+
+    transition: transform 0.8s ease;
+}
+
+
+/* Subtle image zoom */
+
+.auth-brand:hover::before {
+    transform: scale(1.03);
+}
+
+
+/* Dark overlay */
+
+.auth-brand::after {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    background:
+        linear-gradient(
+            to top,
+            rgba(17, 17, 17, 0.85),
+            rgba(17, 17, 17, 0.05) 65%
+        );
+
+    z-index: 1;
+}
+
+
+/* =========================================
+   4. BRAND TEXT
+   ========================================= */
 
 .auth-brand a {
-    color: #FFFFFF !important;
-    font-size: 32px;
-    font-weight: 800;
-    letter-spacing: 2px;
+    position: relative;
+    z-index: 2;
+
+    display: block;
+
+    color: var(--food-white) !important;
+
+    font-size: clamp(2.8rem, 6vw, 6rem);
+
+    font-weight: 900;
+
+    line-height: 0.85;
+
+    letter-spacing: -0.06em;
+
+    text-transform: uppercase;
+
+    margin-top: auto;
 }
+
+
+/* Brand accent */
 
 .auth-brand span {
-    color: #FFC928 !important;
+    color: var(--food-red) !important;
 }
 
-/* ---------- Login Card ---------- */
+
+/* =========================================
+   5. BRAND TAGLINE
+   ========================================= */
+
+/*
+   This is optional if the HTML already
+   contains supporting text.
+*/
+
+.auth-brand p {
+    position: relative;
+    z-index: 2;
+
+    max-width: 420px;
+
+    margin-top: 25px;
+
+    color: rgba(255, 255, 255, 0.85);
+
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+
+/* =========================================
+   6. SMALL YELLOW ACCENT
+   ========================================= */
+
+.auth-brand::marker {
+    color: var(--food-yellow);
+}
+
+
+/* =========================================
+   7. LOGIN CARD
+   ========================================= */
 
 .auth-card {
+    position: relative;
+
     width: 100%;
-    background-color: #FFFFFF !important;
-    border-top: 8px solid #D71920 !important;
-    border-radius: 10px;
-    padding: 40px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+
+    background-color: var(--food-light) !important;
+
+    color: var(--food-black);
+
+    border: none !important;
+    border-radius: 0 !important;
+
+    border-top: 4px solid var(--food-red) !important;
+
+    padding: 50px;
+
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
 
-/* ---------- Heading ---------- */
+
+/* Small yellow accent */
+
+.auth-card::before {
+    content: "";
+
+    position: absolute;
+
+    top: -4px;
+    right: 35px;
+
+    width: 35px;
+    height: 4px;
+
+    background-color: var(--food-yellow);
+}
+
+
+/* =========================================
+   8. LOGIN HEADING
+   ========================================= */
 
 .auth-card h1 {
-    color: #111111 !important;
-    font-size: 28px;
-    text-align: center;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+
+    color: var(--food-black) !important;
+
+    font-size: clamp(2rem, 4vw, 3rem);
+
+    font-weight: 900;
+
+    line-height: 0.95;
+
+    letter-spacing: -0.04em;
+
+    text-align: left;
+
+    text-transform: uppercase;
 }
 
-/* ---------- Subtitle ---------- */
+
+/* =========================================
+   9. SUBTITLE
+   ========================================= */
 
 .auth-subtitle {
-    color: #6B6B6B !important;
-    text-align: center;
-    font-size: 15px;
-    margin-bottom: 30px;
+    margin-bottom: 35px;
+
+    color: var(--food-grey) !important;
+
+    font-size: 14px;
+
+    line-height: 1.6;
+
+    text-align: left;
 }
 
-/* ---------- Form ---------- */
+
+/* =========================================
+   10. FORM GROUP
+   ========================================= */
 
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 23px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 7px;
-    color: #111111 !important;
-    font-weight: 700;
-    font-size: 14px;
+
+    margin-bottom: 8px;
+
+    color: var(--food-black) !important;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: 0.12em;
+
+    text-transform: uppercase;
 }
 
-/* ---------- Inputs ---------- */
+
+/* =========================================
+   11. INPUTS
+   ========================================= */
 
 .form-group input[type="email"],
 .form-group input[type="password"] {
     width: 100%;
-    padding: 13px 14px;
-    border: 2px solid #E2E2E2;
-    border-radius: 6px;
-    background-color: #FFFFFF !important;
-    color: #111111 !important;
-    font-size: 15px;
+
+    padding: 15px 14px;
+
+    border: 1px solid #CCCCCC;
+
+    border-radius: 0;
+
+    background-color: var(--food-white) !important;
+
+    color: var(--food-black) !important;
+
+    font-size: 14px;
+
     outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
 }
+
 
 .form-group input[type="email"]:focus,
 .form-group input[type="password"]:focus {
-    border-color: #D71920;
-    box-shadow: 0 0 0 3px rgba(215, 25, 32, 0.15);
+    border-color: var(--food-red);
+
+    box-shadow:
+        0 0 0 2px rgba(215, 25, 32, 0.1);
 }
 
-/* ---------- Remember Me ---------- */
+
+/* =========================================
+   12. REMEMBER / FORGOT
+   ========================================= */
 
 .form-options {
     display: flex;
+
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 25px;
-    font-size: 14px;
+
+    gap: 20px;
+
+    margin-bottom: 30px;
+
+    font-size: 12px;
 }
+
+
+/* Remember me */
 
 .remember-me {
     display: flex;
+
     align-items: center;
-    gap: 7px;
-    color: #6B6B6B !important;
+
+    gap: 8px;
+
+    color: var(--food-grey) !important;
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    letter-spacing: 0.08em;
+
+    text-transform: uppercase;
 }
+
 
 .remember-me input {
-    accent-color: #D71920;
+    width: 15px;
+    height: 15px;
+
+    accent-color: var(--food-red);
+
+    cursor: pointer;
 }
 
-/* ---------- Links ---------- */
+
+/* Forgot password */
 
 .form-options a,
 .auth-footer a {
-    color: #D71920 !important;
-    font-weight: 700;
+    color: var(--food-red) !important;
+
+    font-weight: 800;
+
+    transition: color 0.2s ease;
 }
+
 
 .form-options a:hover,
 .auth-footer a:hover {
-    color: #A90F15 !important;
+    color: var(--food-red-dark) !important;
+
     text-decoration: underline;
 }
 
-/* ---------- Login Button ---------- */
+
+/* =========================================
+   13. LOGIN BUTTON
+   ========================================= */
 
 .auth-btn {
     width: 100%;
-    background-color: #D71920 !important;
-    color: #FFFFFF !important;
-    border: none;
+
+    min-height: 52px;
+
+    background-color: var(--food-red) !important;
+
+    color: var(--food-white) !important;
+
+    border: 2px solid var(--food-red);
+
+    border-radius: 0;
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    letter-spacing: 0.12em;
+
+    text-transform: uppercase;
+
+    transition:
+        background-color 0.25s ease,
+        border-color 0.25s ease,
+        transform 0.25s ease;
 }
+
 
 .auth-btn:hover {
-    background-color: #A90F15 !important;
+    background-color: var(--food-black) !important;
+
+    border-color: var(--food-black);
+
+    transform: translateY(-2px);
 }
 
-/* ---------- Registration ---------- */
+
+/* =========================================
+   14. REGISTRATION FOOTER
+   ========================================= */
 
 .auth-footer {
     margin-top: 25px;
+
+    color: var(--food-grey) !important;
+
+    font-size: 13px;
+
+    line-height: 1.6;
+
     text-align: center;
-    color: #6B6B6B !important;
-    font-size: 14px;
 }
 
-/* ---------- Messages ---------- */
+
+/* =========================================
+   15. VALIDATION MESSAGES
+   ========================================= */
 
 #message {
     margin-bottom: 20px;
 }
 
-/* ---------- Mobile ---------- */
-
-@media (max-width: 480px) {
-
-    .auth-container {
-        padding: 30px 15px;
-    }
-
-    .auth-card {
-        padding: 30px 20px;
-    }
-
-    .auth-brand a {
-        font-size: 27px;
-    }
-
-    .auth-card h1 {
-        font-size: 24px;
-    }
-
-    .form-options {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-}
-/* ---------- Validation Messages ---------- */
 
 .message {
     padding: 12px 15px;
+
     margin-bottom: 20px;
-    border-radius: 6px;
-    font-size: 14px;
+
+    border-radius: 0;
+
+    font-size: 13px;
+
     font-weight: 600;
 }
 
+
 .message.error {
     background-color: #FDECEC;
-    color: #D71920;
-    border: 1px solid #D71920;
+
+    color: var(--food-red);
+
+    border: 1px solid var(--food-red);
+
+    border-left: 4px solid var(--food-red);
 }
+
 
 .message.success {
     background-color: #FFF8D6;
-    color: #111111;
-    border: 1px solid #FFC928;
+
+    color: var(--food-black);
+
+    border: 1px solid var(--food-yellow);
+
+    border-left: 4px solid var(--food-yellow);
 }
+
+
 /* =========================================
-   ACCOUNT PAGE
+   16. ACCOUNT PAGE
    ========================================= */
 
 .account-page {
     min-height: 100vh;
-    padding: 60px 7%;
+
+    padding: 80px 7%;
+
     background-color: var(--food-light);
 }
 
+
 .account-container {
     width: 100%;
-    max-width: 850px;
+    max-width: 1000px;
+
     margin: 0 auto;
 }
 
+
 .account-header {
-    margin-bottom: 30px;
+    margin-bottom: 40px;
 }
 
+
 .account-header h1 {
-    font-size: 36px;
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+
     color: var(--food-black);
-    margin-bottom: 8px;
+
+    margin-bottom: 10px;
+
+    text-transform: uppercase;
 }
+
 
 .account-header p {
     color: var(--food-grey);
-    font-size: 16px;
+
+    font-size: 15px;
 }
+
 
 .account-card {
     background-color: var(--food-white);
+
     border: 1px solid var(--food-border);
-    border-radius: 10px;
-    padding: 35px;
+
+    border-radius: 0;
+
+    padding: 40px;
+
+    box-shadow: none;
 }
+
 
 .account-card h2 {
     margin-bottom: 25px;
+
     font-size: 22px;
+
+    text-transform: uppercase;
 }
+
 
 .account-info {
     display: flex;
+
     flex-direction: column;
+
     gap: 18px;
 }
 
+
 .account-field {
     display: flex;
+
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 15px;
+
+    padding-bottom: 18px;
+
     border-bottom: 1px solid var(--food-border);
 }
 
+
 .account-label {
-    font-weight: 700;
     color: var(--food-black);
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    letter-spacing: 0.08em;
+
+    text-transform: uppercase;
 }
+
 
 .account-value {
     color: var(--food-grey);
+
+    font-size: 14px;
 }
+
 
 .account-actions {
     display: flex;
+
     gap: 15px;
+
     margin-top: 30px;
 }
 
 
-/* ---------- Responsive Account Page ---------- */
+/* =========================================
+   17. ACCOUNT RESPONSIVE
+   ========================================= */
+
+@media (max-width: 900px) {
+
+    .auth-container {
+        grid-template-columns: 1fr;
+
+        max-width: 650px;
+
+        gap: 30px;
+
+        padding-top: 40px;
+        padding-bottom: 40px;
+    }
+
+
+    .auth-brand {
+        min-height: 300px;
+
+        padding: 30px;
+    }
+
+
+    .auth-brand a {
+        font-size: clamp(3rem, 12vw, 5rem);
+    }
+
+
+    .auth-card {
+        padding: 40px;
+    }
+}
+
+
+/* =========================================
+   18. MOBILE
+   ========================================= */
 
 @media (max-width: 600px) {
 
-    .account-page {
-        padding: 40px 5%;
+    .auth-container {
+        width: 100%;
+
+        padding: 25px 18px;
+
+        gap: 20px;
     }
 
-    .account-header h1 {
-        font-size: 30px;
+
+    .auth-brand {
+        min-height: 250px;
+
+        padding: 25px;
     }
+
+
+    .auth-brand a {
+        font-size: 3rem;
+    }
+
+
+    .auth-card {
+        padding: 30px 25px;
+    }
+
+
+    .auth-card h1 {
+        font-size: 2rem;
+    }
+
+
+    .form-options {
+        align-items: flex-start;
+    }
+
+
+    .account-page {
+        padding: 50px 5%;
+    }
+
+
+    .account-header h1 {
+        font-size: 2.7rem;
+    }
+
 
     .account-card {
         padding: 25px;
     }
 
+
     .account-field {
         flex-direction: column;
+
         align-items: flex-start;
-        gap: 5px;
+
+        gap: 6px;
     }
+
 
     .account-actions {
         flex-direction: column;
     }
 
+
     .account-actions .btn {
         width: 100%;
     }
+}
 
+
+/* =========================================
+   19. VERY SMALL SCREENS
+   ========================================= */
+
+@media (max-width: 400px) {
+
+    .auth-card {
+        padding: 25px 20px;
+    }
+
+
+    .auth-brand {
+        min-height: 220px;
+    }
+
+
+    .auth-brand a {
+        font-size: 2.5rem;
+    }
+
+
+    .form-options {
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 12px;
+    }
 }
