@@ -24,29 +24,50 @@
 <body class="auth-page">
 
 
-<!-- Login Container -->
-
 <main class="auth-container">
 
 
-    <!-- Food by K Logo -->
+    <!-- =========================================
+         FOOD BY K BRAND / IMAGE
+         ========================================= -->
 
     <div class="auth-brand">
 
-        <a href="../../index.html">
+        <a href="../../src/index.html">
             FOOD<span>BY K</span>
         </a>
+
+        <p>
+            Good food. Good mood.
+        </p>
 
     </div>
 
 
-    <!-- Login Card -->
+    <!-- =========================================
+         LOGIN CARD
+         ========================================= -->
 
     <section class="auth-card">
 
+
+        <!-- Small editorial label -->
+
+        <p class="auth-tag">
+            ACCOUNT ACCESS
+        </p>
+
+
+        <!-- Heading -->
+
         <h1>
-            Welcome Back
+            Welcome
+            <br>
+            Back
         </h1>
+
+
+        <!-- Supporting text -->
 
         <p class="auth-subtitle">
             Log in to your Food by K account
@@ -54,12 +75,16 @@
         </p>
 
 
-        <!-- Error / Success Messages -->
+        <!-- =========================================
+             ERROR / SUCCESS MESSAGES
+             ========================================= -->
 
         <div id="message"></div>
 
 
-        <!-- Login Form -->
+        <!-- =========================================
+             LOGIN FORM
+             ========================================= -->
 
         <form id="loginForm">
 
@@ -104,9 +129,12 @@
             </div>
 
 
-            <!-- Remember Me + Forgot Password -->
+            <!-- =========================================
+                 REMEMBER ME / FORGOT PASSWORD
+                 ========================================= -->
 
             <div class="form-options">
+
 
                 <label class="remember-me">
 
@@ -124,10 +152,13 @@
                     Forgot Password?
                 </a>
 
+
             </div>
 
 
-            <!-- Login Button -->
+            <!-- =========================================
+                 LOGIN BUTTON
+                 ========================================= -->
 
             <button
                     type="submit"
@@ -140,17 +171,20 @@
         </form>
 
 
-        <!-- Registration Link -->
+        <!-- =========================================
+             REGISTRATION LINK
+             ========================================= -->
 
-        <p class="auth-footer">
+        <div class="auth-footer">
 
-            Don't have an account?
+            <p>
+                Don't have an account?
+                <a href="register.html">
+                    Create an account
+                </a>
+            </p>
 
-            <a href="register.html">
-                Create an account
-            </a>
-
-        </p>
+        </div>
 
 
     </section>
@@ -159,19 +193,23 @@
 </main>
 
 
-<!-- Authentication JavaScript -->
+<!-- =========================================
+     AUTHENTICATION JAVASCRIPT
+     ========================================= -->
 
 <!-- API Configuration -->
-<script src="../../public%20assets/js/config.js"></script>
+<script src="../../public assets/js/config.js"></script>
 
 <!-- Central API Client -->
-<script src="../../public%20assets/js/api/api.js"></script>
+<script src="../../public assets/js/api/api.js"></script>
 
 <!-- Authentication API Service -->
-<script src="../../public%20assets/js/api/auth.js"></script>
+<script src="../../public assets/js/api/auth.js"></script>
 
 <!-- Authentication Page Logic -->
 <script src="../../public assets/js/auth.js"></script>
+
+
 </body>
 
 </html>
