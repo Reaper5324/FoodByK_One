@@ -37,7 +37,7 @@ class Promotion extends Model {
         }
 
         $when ??= new DateTimeImmutable('now');
-        $date = $when->format('Y-m-d H:i:s');
+        $date = $when->format('Y-m-d');
 
         return ($this->start_date === null || $date >= $this->start_date)
             && ($this->end_date === null || $date <= $this->end_date);

@@ -64,6 +64,7 @@ CREATE TABLE products (
     created_at    TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES categories(id),
+    CONSTRAINT chk_products_price_nonnegative CHECK (price >= 0),
     INDEX idx_products_category (category_id),
     INDEX idx_products_status (status),
     FULLTEXT INDEX ft_products_search (name, description)
@@ -81,6 +82,9 @@ CREATE TABLE addresses (
     is_default    TINYINT(1)     NOT NULL DEFAULT 0,
     created_at    TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_addresses_customer FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT chk_addresses_coordinate_pair CHECK ((latitude IS NULL AND longitude IS NULL) OR (latitude IS NOT NULL AND longitude IS NOT NULL)),
+    CONSTRAINT chk_addresses_latitude CHECK (latitude IS NULL OR latitude BETWEEN -90 AND 90),
+    CONSTRAINT chk_addresses_longitude CHECK (longitude IS NULL OR longitude BETWEEN -180 AND 180),
     INDEX idx_addresses_customer (customer_id)
 ) ENGINE=InnoDB;
 
@@ -91,6 +95,8 @@ CREATE TABLE cart_items (
     quantity      INT       UNSIGNED NOT NULL DEFAULT 1,
     unit_price    DECIMAL(8,2) DEFAULT NULL,
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_cart_quantity_positive CHECK (quantity > 0),
+    CONSTRAINT chk_cart_unit_price_nonnegative CHECK (unit_price IS NULL OR unit_price >= 0),
     CONSTRAINT fk_cart_customer FOREIGN KEY (customer_id) REFERENCES users(id)    ON DELETE CASCADE,
     CONSTRAINT fk_cart_product  FOREIGN KEY (product_id)  REFERENCES products(id) ON DELETE CASCADE,
     UNIQUE KEY uq_cart_item (customer_id, product_id)
@@ -116,6 +122,8 @@ CREATE TABLE promotions (
     is_active       TINYINT(1)     NOT NULL DEFAULT 1,
     created_at      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT chk_promotions_discount_nonnegative CHECK (discount_value >= 0),
+    CONSTRAINT chk_promotions_date_range CHECK (start_date IS NULL OR end_date IS NULL OR end_date >= start_date),
     INDEX idx_promotions_active (is_active, start_date, end_date)
 ) ENGINE=InnoDB;
 
@@ -147,6 +155,10 @@ CREATE TABLE orders (
     CONSTRAINT fk_orders_staff      FOREIGN KEY (staff_id)     REFERENCES users(id),
     CONSTRAINT fk_orders_address    FOREIGN KEY (address_id)   REFERENCES addresses(id),
     CONSTRAINT fk_orders_promotion  FOREIGN KEY (promotion_id) REFERENCES promotions(id),
+    CONSTRAINT chk_orders_requested_window CHECK (requested_window_end > requested_window_start),
+    CONSTRAINT chk_orders_confirmed_window CHECK (confirmed_window_start IS NULL OR confirmed_window_end IS NULL OR confirmed_window_end > confirmed_window_start),
+    CONSTRAINT chk_orders_amounts_nonnegative CHECK (subtotal >= 0 AND locked_discount >= 0 AND delivery_fee >= 0),
+    CONSTRAINT chk_orders_distance_nonnegative CHECK (distance_km >= 0),
     CONSTRAINT chk_orders_delivery_address CHECK (
         (fulfilment_type = 'delivery' AND address_id IS NOT NULL) OR
         (fulfilment_type = 'collection' AND address_id IS NULL)
@@ -166,6 +178,8 @@ CREATE TABLE order_items (
     unit_price    DECIMAL(8,2)   NOT NULL,
     CONSTRAINT fk_items_order   FOREIGN KEY (order_id)   REFERENCES orders(id)   ON DELETE CASCADE,
     CONSTRAINT fk_items_product FOREIGN KEY (product_id) REFERENCES products(id),
+    CONSTRAINT chk_order_items_quantity_positive CHECK (quantity > 0),
+    CONSTRAINT chk_order_items_price_nonnegative CHECK (unit_price >= 0),
     INDEX idx_items_order (order_id)
 ) ENGINE=InnoDB;
 
@@ -173,13 +187,14 @@ CREATE TABLE payments (
     id                 INT            UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     order_id           INT            UNSIGNED NOT NULL UNIQUE,
     gateway            VARCHAR(30)    NOT NULL DEFAULT 'payfast',
-    gateway_token      VARCHAR(255)   DEFAULT NULL,
+    gateway_token      VARCHAR(512)   DEFAULT NULL,
     gateway_reference  VARCHAR(255)   DEFAULT NULL,
     amount             DECIMAL(10,2)  NOT NULL,
     status             ENUM('tokenized','charge_pending','success','failed','voided') NOT NULL DEFAULT 'tokenized',
     created_at         TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     charged_at         TIMESTAMP      DEFAULT NULL,
     CONSTRAINT fk_payments_order FOREIGN KEY (order_id) REFERENCES orders(id),
+    CONSTRAINT chk_payments_amount_nonnegative CHECK (amount >= 0),
     INDEX idx_payments_status (status),
     INDEX idx_payments_gateway_ref (gateway_reference)
 ) ENGINE=InnoDB;
@@ -201,5 +216,6 @@ CREATE TABLE login_attempts (
     id           INT       UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     identifier   VARCHAR(100) NOT NULL,
     attempted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_attempts_identifier_time (identifier, attempted_at)
+    INDEX idx_attempts_identifier_time (identifier, attempted_at),
+    INDEX idx_login_attempts_time (attempted_at)
 ) ENGINE=InnoDB;

@@ -1,13 +1,13 @@
 <?php
 
-/**
- * AddressService - Manage customer delivery addresses.
- * 
- * Handles:
- * - CRUD operations for customer addresses
- * - Address validation and geocoding
- * - Delivery eligibility checking
- * - Default address management
+/*
+  AddressService - Manage customer delivery addresses.
+  
+  Handles:
+  - CRUD operations for customer addresses
+  - Address validation and geocoding
+  - Delivery eligibility checking
+  - Default address management
  */
 class AddressService {
 
@@ -16,14 +16,7 @@ class AddressService {
     private const MAX_POSTAL_CODE_LENGTH = 20;
     private const MAX_LABEL_LENGTH = 50;
 
-    /**
-     * List all addresses for a customer.
-     * Optionally filtered to only delivery-eligible addresses.
-     * 
-     * @param int $customerId
-     * @param bool $onlyEligible (check delivery eligibility)
-     * @return array ['success' => bool, 'data' => Address[], 'error' => ?string]
-     */
+   //list all addresess forr customer
     public function listForCustomer(int $customerId, bool $onlyEligible = false): array {
         $addresses = Address::findBy('customer_id', $customerId);
 
@@ -44,13 +37,7 @@ class AddressService {
         return $this->success(array_values($addresses));
     }
 
-    /**
-     * Get a single address by ID (with delivery eligibility check).
-     * 
-     * @param int $addressId
-     * @param int $customerId (for ownership verification)
-     * @return array ['success' => bool, 'data' => [...], 'error' => ?string]
-     */
+   //get one address by ID
     public function getById(int $addressId, int $customerId): array {
         $address = Address::findById($addressId);
         if (!$address || $address->customer_id !== $customerId) {
@@ -71,14 +58,7 @@ class AddressService {
         return $this->success($data);
     }
 
-    /**
-     * Create a new address for a customer.
-     * Attempts to geocode immediately.
-     * 
-     * @param int $customerId
-     * @param array $input ['raw_address', 'label', 'is_default']
-     * @return array ['success' => bool, 'data' => Address, 'error' => ?string]
-     */
+    //create an address for the customer
     public function create(int $customerId, array $input): array {
         $validated = $this->validateInput($input);
         if (!$validated['success']) {
@@ -101,7 +81,7 @@ class AddressService {
         $geocodeSuccess = $deliveryService->geocodeAddress($address);
         if (!$geocodeSuccess) {
             // Non-fatal: address created but not yet geocoded
-            error_log("Failed to geocode address {$address->id}: {$address->raw_address}");
+            error_log("Failed to geocode address {$address->id}.");
         }
 
         // If this is the default, unset all other defaults
@@ -112,15 +92,8 @@ class AddressService {
         return $this->success($address);
     }
 
-    /**
-     * Update an existing address.
-     * Re-geocodes if raw_address changed.
-     * 
-     * @param int $addressId
-     * @param int $customerId
-     * @param array $input
-     * @return array ['success' => bool, 'data' => Address, 'error' => ?string]
-     */
+    // we update an existing address 
+
     public function update(int $addressId, int $customerId, array $input): array {
         $address = Address::findById($addressId);
         if (!$address || $address->customer_id !== $customerId) {
@@ -146,7 +119,7 @@ class AddressService {
             $deliveryService = new DeliveryService();
             $geocodeSuccess = $deliveryService->geocodeAddress($address);
             if (!$geocodeSuccess) {
-                error_log("Failed to re-geocode address {$address->id}: {$address->raw_address}");
+                error_log("Failed to re-geocode address {$address->id}.");
             }
         }
 

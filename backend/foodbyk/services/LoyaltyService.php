@@ -1,33 +1,13 @@
 <?php
 
-/**
- * LoyaltyService - Manage customer loyalty points.
- * 
- * Handles:
- * - Accruing points from orders
- * - Redeeming points for discounts
- * - Checking point balance
- * - Loyalty tier calculation (future extensibility)
- * - Point expiry rules (future)
- * 
- * FR-19: Loyalty/rewards tracked against account
- * 
- * NOTE: Current schema only has users.loyalty_points (integer total).
- * A full implementation might add a loyalty_transactions ledger for
- * detailed history, expiry tracking, etc. See DOMAIN.md §9 for scope.
- */
+
 class LoyaltyService {
 
     // Configurable via business_settings (future)
     private const POINTS_PER_RAND = 1.0; // 1 point per R1 spent
     private const RAND_PER_POINT = 1.0;  // 1 point = R1 discount (1:1 ratio)
 
-    /**
-     * Get loyalty balance for a customer.
-     * 
-     * @param int $customerId
-     * @return array ['success' => bool, 'data' => ['points' => int, 'estimated_value' => float], 'error' => ?string]
-     */
+   
     public function getBalance(int $customerId): array {
         $customer = Customer::findCustomerById($customerId);
         if (!$customer) {
@@ -66,11 +46,13 @@ class LoyaltyService {
             return $this->success(['points_awarded' => 0, 'new_balance' => $customer->loyalty_points]);
         }
 
-        $customer->loyalty_points = ($customer->loyalty_points ?? 0) + $pointsToAward;
-
-        if (!$customer->save()) {
+        $db = Database::getConnection();
+        $stmt = $db->prepare('UPDATE users SET loyalty_points = loyalty_points + ? WHERE id = ?');
+        $stmt->execute([$pointsToAward, $customerId]);
+        if ($stmt->rowCount() !== 1) {
             return $this->failure('Unable to award loyalty points.');
         }
+        $customer = Customer::findCustomerById($customerId);
 
         error_log("Awarded {$pointsToAward} loyalty points to customer {$customerId} for order {$orderId}");
 
@@ -80,14 +62,8 @@ class LoyaltyService {
         ]);
     }
 
-    /**
-     * Redeem a specific amount of points for a discount.
-     * Called during checkout if customer wants to use points.
-     * 
-     * @param int $customerId
-     * @param int $pointsToRedeem
-     * @return array ['success' => bool, 'data' => ['discount' => float], 'error' => ?string]
-     */
+    //Redeem a specific num of points
+
     public function redeemPoints(int $customerId, int $pointsToRedeem): array {
         $customer = Customer::findCustomerById($customerId);
         if (!$customer) {
@@ -98,20 +74,15 @@ class LoyaltyService {
             return $this->failure('Invalid points amount.');
         }
 
-        $balance = $customer->loyalty_points ?? 0;
-        if ($balance < $pointsToRedeem) {
-            return $this->failure(
-                "Insufficient points. You have {$balance} points, attempted to redeem {$pointsToRedeem}."
-            );
-        }
-
         $discount = $pointsToRedeem * self::RAND_PER_POINT;
-
-        // Deduct points
-        $customer->loyalty_points = $balance - $pointsToRedeem;
-        if (!$customer->save()) {
-            return $this->failure('Unable to redeem points.');
+        $db = Database::getConnection();
+        $stmt = $db->prepare('UPDATE users SET loyalty_points = loyalty_points - ? WHERE id = ? AND loyalty_points >= ?');
+        $stmt->execute([$pointsToRedeem, $customerId, $pointsToRedeem]);
+        if ($stmt->rowCount() !== 1) {
+            $balance = Customer::findCustomerById($customerId)?->loyalty_points ?? 0;
+            return $this->failure("Insufficient points. You have {$balance} points, attempted to redeem {$pointsToRedeem}.");
         }
+        $customer = Customer::findCustomerById($customerId);
 
         error_log("Redeemed {$pointsToRedeem} loyalty points from customer {$customerId} for R{$discount} discount");
 
@@ -122,14 +93,7 @@ class LoyaltyService {
         ]);
     }
 
-    /**
-     * Refund points if an order is cancelled/refunded.
-     * Reverses the awardPointsForOrder() call.
-     * 
-     * @param int $customerId
-     * @param int $pointsToRefund
-     * @return array ['success' => bool, 'data' => ['new_balance' => int], 'error' => ?string]
-     */
+    
     public function refundPoints(int $customerId, int $pointsToRefund): array {
         $customer = Customer::findCustomerById($customerId);
         if (!$customer) {
@@ -140,11 +104,13 @@ class LoyaltyService {
             return $this->failure('Invalid refund amount.');
         }
 
-        $customer->loyalty_points = ($customer->loyalty_points ?? 0) + $pointsToRefund;
-
-        if (!$customer->save()) {
+        $db = Database::getConnection();
+        $stmt = $db->prepare('UPDATE users SET loyalty_points = loyalty_points + ? WHERE id = ?');
+        $stmt->execute([$pointsToRefund, $customerId]);
+        if ($stmt->rowCount() !== 1) {
             return $this->failure('Unable to refund loyalty points.');
         }
+        $customer = Customer::findCustomerById($customerId);
 
         error_log("Refunded {$pointsToRefund} loyalty points to customer {$customerId}");
 
@@ -153,13 +119,7 @@ class LoyaltyService {
         ]);
     }
 
-    /**
-     * Get estimated discount for a given number of points.
-     * This is a read-only calculation, not a redemption.
-     * 
-     * @param int $points
-     * @return array ['success' => bool, 'data' => ['discount' => float], 'error' => ?string]
-     */
+   // get estimated discount 
     public function estimateDiscount(int $points): array {
         if ($points < 0) {
             return $this->failure('Points cannot be negative.');
@@ -174,13 +134,7 @@ class LoyaltyService {
         ]);
     }
 
-    /**
-     * Calculate earned points for an order amount (estimate).
-     * This is a read-only calculation, not an award.
-     * 
-     * @param float $orderTotal
-     * @return array ['success' => bool, 'data' => ['points' => int], 'error' => ?string]
-     */
+    //calculate earned points
     public function estimateEarnings(float $orderTotal): array {
         if ($orderTotal < 0) {
             return $this->failure('Order total cannot be negative.');
@@ -195,12 +149,7 @@ class LoyaltyService {
         ]);
     }
 
-    /**
-     * Get top loyalty customers (admin reporting).
-     * 
-     * @param int $limit (default 10)
-     * @return array ['success' => bool, 'data' => Customer[], 'error' => ?string]
-     */
+    //get top loyalty customer
     public function getTopCustomers(int $limit = 10): array {
         $limit = max(1, min($limit, 100));
 
@@ -220,15 +169,7 @@ class LoyaltyService {
         return $this->success($rows);
     }
 
-    /**
-     * Bulk award points to multiple customers (admin promotion).
-     * Use with caution - admin-only operation.
-     * 
-     * @param array $customerIds
-     * @param int $pointsPerCustomer
-     * @param string $reason (audit trail)
-     * @return array ['success' => bool, 'data' => ['awarded_count' => int, 'total_points' => int], 'error' => ?string]
-     */
+    //Admin
     public function bulkAwardPoints(array $customerIds, int $pointsPerCustomer, string $reason): array {
         if ($pointsPerCustomer <= 0) {
             return $this->failure('Points per customer must be positive.');

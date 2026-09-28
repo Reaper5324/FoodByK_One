@@ -42,4 +42,20 @@ class AdminController extends Controller {
     public function updateSettings(Request $request): Response {
         return $this->respond((new AdminSettingsService())->updateSettings($request->body));
     }
+
+    public function categories(Request $request): Response {
+        return $this->respond((new CategoryService())->listAll());
+    }
+
+    public function addCategory(Request $request): Response {
+        return $this->respond((new CategoryService())->create($request->body), 201);
+    }
+
+    public function updateCategory(Request $request, array $params): Response {
+        return $this->respond((new CategoryService())->update((int) $this->param($params, 'id'), $request->body));
+    }
+
+    public function removeCategory(Request $request, array $params): Response {
+        return $this->respond((new CategoryService())->delete((int) $this->param($params, 'id')));
+    }
 }

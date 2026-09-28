@@ -21,12 +21,8 @@ class AuthController extends Controller {
     }
 
     public function me(Request $request): Response {
-        $user = (new AuthService())->getCurrentUser();
-        if (!$user) {
-            return Response::error('Not authenticated.', 401);
-        }
-        $role = Role::findById($user->role_id);
-        return Response::success(['id' => $user->id, 'full_name' => $user->full_name, 'email' => $user->email, 'role' => $role?->role_name]);
+        $result = (new AuthService())->getCurrentUserDetails($request->user());
+        return $this->respond($result, 200, 401);
     }
 
     public function requestPasswordReset(Request $request): Response {

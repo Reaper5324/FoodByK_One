@@ -133,10 +133,10 @@ class SmsNotifier implements OrderNotifier {
     }
 }
 
-// Subject in the Observer pattern. OrderService calls notifyOrderEvent()
-// without knowing or caring which channels are registered - add a new
-// channel by writing a class and registering it in bootstrap, not by
-// editing this class.
+/* Subject in the Observer pattern. OrderService calls notifyOrderEvent()
+ without knowing or caring which channels are registered - add a new
+ channel by writing a class and registering it in bootstrap, not by editing this class.
+*/ 
 
 interface OrderNotifier {
     public function notify(Order $order, string $event, string $audience): void;

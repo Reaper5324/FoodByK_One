@@ -1,34 +1,46 @@
 <?php
+if (!defined('API_BASE_URL')) {
+    define('API_BASE_URL', rtrim(getenv('API_BASE_URL') ?: 'http://localhost:8000', '/'));
+}
+
+function checkoutApiRequest($path, $payload = null) {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    $headers = [
+        'Content-Type: application/json',
+        'Cookie: ' . session_name() . '=' . session_id(),
+    ];
+    if (!empty($_SESSION['csrf_token'])) {
+        $headers[] = 'X-CSRF-Token: ' . $_SESSION['csrf_token'];
+    }
+
+    $options = [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => $headers,
+    ];
+    if ($payload !== null) {
+        $options[CURLOPT_POST] = true;
+        $options[CURLOPT_POSTFIELDS] = json_encode($payload);
+    }
+
+    $ch = curl_init(API_BASE_URL . $path);
+    curl_setopt_array($ch, $options);
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    return is_string($response) ? json_decode($response, true) : null;
+}
+
 function previewCheckout($type, $addressId = null, $promo = null) {
-    $url = API_BASE_URL . "/checkout/preview";
-    $payload = json_encode([
+    return checkoutApiRequest('/checkout/preview', [
         "fulfilment_type" => $type,
         "address_id" => $addressId,
         "promotion_code" => $promo
     ]);
-
-    $ch = curl_init($url);
-    curl_set opt_array($ch, [
-        CURL OPT_RETURN TRANSFER => true,
-        CURL OPT_POST => true,
-        CURL OPT_OUTFIELDS => $payload,
-        CURL OPT_HTTPHEADER => ["Content-Type: application/json"]
-    ]);
-    $response = curl_exec($ch);
-    curl_close($ch);
-    return json_decode($response, true);
 }
 
 function submitCheckout($data) {
-    $url = API_BASE_URL . "/checkout/submit";
-    $ch = curl_init($url);
-    curl_set opt_array($ch, [
-        CURL OPT_RETURN TRANSFER => true,
-        CURL OPT_POST => true,
-        CURL OPT_OUTFIELDS => json_encode($data),
-        CURL OPT_HTTPHEADER => ["Content-Type: application/json"]
-    ]);
-    $response = curl_exec($ch);
-    curl_close($ch);
-    return json_decode($response, true);
+    return checkoutApiRequest('/checkout/submit', $data);
 }

@@ -18,20 +18,19 @@ class CartService {
             return $this->failure('This item is not available.');
         }
 
-        $existing = array_values(array_filter(
-            CartItem::findBy('customer_id', $customerId),
-            fn(CartItem $item) => $item->product_id === $productId
-        ));
-
-        if ($existing) {
-            $item = $existing[0];
-            return $item->increaseQuantity($quantity)
-                ? $this->success($item)
-                : $this->failure('Unable to update cart.');
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'INSERT INTO cart_items (customer_id, product_id, quantity) VALUES (?, ?, ?) '
+            . 'ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)'
+        );
+        if (!$stmt->execute([$customerId, $productId, $quantity])) {
+            return $this->failure('Unable to add item to cart.');
         }
-
-        $item = new CartItem(customer_id: $customerId, product_id: $productId, quantity: $quantity);
-        return $item->save() ? $this->success($item) : $this->failure('Unable to add item to cart.');
+        $item = array_values(array_filter(
+            CartItem::findBy('customer_id', $customerId),
+            fn(CartItem $cartItem) => $cartItem->product_id === $productId
+        ))[0] ?? null;
+        return $item ? $this->success($item) : $this->failure('Unable to load cart item.');
     }
 
     public function updateQuantity(int $customerId, int $cartItemId, int $quantity): array {
@@ -70,7 +69,7 @@ class CartService {
 
     public function clear(int $customerId): array {
         foreach (CartItem::findBy('customer_id', $customerId) as $item) {
-            $item->delete();
+            if (!$item->delete()) return $this->failure('Unable to clear cart.');
         }
         return $this->success(null);
     }

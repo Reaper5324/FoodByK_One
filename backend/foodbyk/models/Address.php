@@ -9,7 +9,7 @@ public function __construct(
     public string $raw_address = '',
     public ?float $latitude    = null,
     public ?string $street = null,
-    public ?int $postal_code = null,
+    public ?string $postal_code = null,
     public ?string $city = null,
     public ?float $longitude   = null,
     public bool   $is_default  = false
@@ -45,7 +45,7 @@ public function hasCoordinates(): bool {
         $a->customer_id = (int)  $row['customer_id'];
         $a->raw_address =        $row['raw_address'];
         $a->street      =        $row['street'] ?? null;
-        $a->postal_code = isset($row['postal_code']) ? (int) $row['postal_code'] : null;
+        $a->postal_code = $row['postal_code'] ?? null;
         $a->city        =        $row['city'] ?? null;
         $a->latitude    = isset($row['latitude'])  ? (float) $row['latitude']  : null;
         $a->longitude   = isset($row['longitude']) ? (float) $row['longitude'] : null;

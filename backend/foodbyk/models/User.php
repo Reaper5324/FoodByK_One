@@ -2,7 +2,7 @@
 
 //Registered Accounts
 
-class User extends Model{
+class User extends Model implements JsonSerializable {
 
 protected static string $table = 'users';
 
@@ -97,6 +97,22 @@ protected static string $table = 'users';
             'city' => $this->city,
             'province' => $this->province,
             'is_active'=> (int) $this->is_active, //1 0
+        ];
+    }
+
+    public function jsonSerialize(): array {
+        return [
+            'id' => $this->id,
+            'full_name' => $this->full_name,
+            'email' => $this->email,
+            'role' => $this->role,
+            'profile_picture' => $this->profile_picture,
+            'phone' => $this->phone,
+            'address' => $this->address,
+            'city' => $this->city,
+            'province' => $this->province,
+            'is_active' => $this->is_active,
+            'created_at' => $this->created_at,
         ];
     }
 

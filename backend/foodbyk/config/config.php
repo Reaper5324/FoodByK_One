@@ -1,8 +1,12 @@
 <?php
+define('APP_ENV', getenv('APP_ENV') ?: 'development');
 define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_NAME', getenv('DB_NAME') ?: '');
-define('DB_USER', getenv('DB_USER') ?: '');
-define('DB_PASS', getenv('DB_PASS') ?: '');
+define('DB_PORT', getenv('DB_PORT') ?: '3306');
+define('DB_NAME', getenv('DB_NAME') ?: (APP_ENV === 'production' ? '' : 'foodbyk'));
+define('DB_USER', getenv('DB_USER') ?: (APP_ENV === 'production' ? '' : 'root'));
+define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
+define('DB_SSL_CA', getenv('DB_SSL_CA') ?: '');
+define('PAYMENT_TOKEN_ENCRYPTION_KEY', getenv('PAYMENT_TOKEN_ENCRYPTION_KEY') ?: '');
 define('PAYFAST_MERCHANT_ID', getenv('PAYFAST_MERCHANT_ID') ?: '');
 define('PAYFAST_MERCHANT_KEY', getenv('PAYFAST_MERCHANT_KEY') ?: '');
 define('PAYFAST_RETURN_URL', getenv('PAYFAST_RETURN_URL') ?: '');

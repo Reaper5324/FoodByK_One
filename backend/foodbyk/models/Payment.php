@@ -1,6 +1,6 @@
 <?php
 
-class Payment extends Model {
+class Payment extends Model implements JsonSerializable {
 
 protected static string $table = 'payments';
 
@@ -63,7 +63,7 @@ protected function toArray(): array {
     return [
         'order_id'          => $this->order_id,
         'gateway'           => $this->gateway,
-        'gateway_token'     => $this->gateway_token,
+        'gateway_token'     => self::encryptGatewayToken($this->gateway_token),
         'gateway_reference' => $this->gateway_reference,
         'amount'            => $this->amount,
         'status'            => $this->status,
@@ -76,13 +76,53 @@ protected static function fromRow(array $row): static {
     $p->id                = (int)   $row['id'];
     $p->order_id          = (int)   $row['order_id'];
     $p->gateway           =         $row['gateway'] ?? 'payfast';
-    $p->gateway_token     =         $row['gateway_token'] ?? null;
+    $p->gateway_token     = self::decryptGatewayToken($row['gateway_token'] ?? null);
     $p->gateway_reference =         $row['gateway_reference'] ?? null;
     $p->amount            = (float) $row['amount'];
     $p->status            =         $row['status'];
     $p->created_at        =         $row['created_at'] ?? null;
     $p->charged_at        =         $row['charged_at'] ?? null;
     return $p;
+}
+
+public function jsonSerialize(): array {
+    return [
+        'id' => $this->id,
+        'order_id' => $this->order_id,
+        'gateway' => $this->gateway,
+        'gateway_reference' => $this->gateway_reference,
+        'amount' => $this->amount,
+        'status' => $this->status,
+        'created_at' => $this->created_at,
+        'charged_at' => $this->charged_at,
+    ];
+}
+
+private static function encryptGatewayToken(?string $token): ?string {
+    if ($token === null || $token === '') return null;
+    if (PAYMENT_TOKEN_ENCRYPTION_KEY === '') throw new RuntimeException('Payment token encryption key is not configured.');
+    $key = base64_decode(PAYMENT_TOKEN_ENCRYPTION_KEY, true);
+    if ($key === false || strlen($key) !== 32) {
+        throw new RuntimeException('Payment token encryption key must be a base64-encoded 32-byte key.');
+    }
+    $nonce = random_bytes(12);
+    $tag = '';
+    $ciphertext = openssl_encrypt($token, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $nonce, $tag);
+    if ($ciphertext === false) throw new RuntimeException('Unable to encrypt payment token.');
+    return 'enc:v1:' . base64_encode($nonce . $tag . $ciphertext);
+}
+
+private static function decryptGatewayToken(?string $stored): ?string {
+    if ($stored === null || $stored === '' || !str_starts_with($stored, 'enc:v1:')) return $stored;
+    $key = base64_decode(PAYMENT_TOKEN_ENCRYPTION_KEY, true);
+    if ($key === false || strlen($key) !== 32) {
+        throw new RuntimeException('Payment token encryption key is missing or invalid.');
+    }
+    $payload = base64_decode(substr($stored, 7), true);
+    if ($payload === false || strlen($payload) < 29) throw new RuntimeException('Stored payment token is invalid.');
+    $token = openssl_decrypt(substr($payload, 28), 'aes-256-gcm', $key, OPENSSL_RAW_DATA, substr($payload, 0, 12), substr($payload, 12, 16));
+    if ($token === false) throw new RuntimeException('Unable to decrypt payment token. Verify the encryption key.');
+    return $token;
 }
 
 }

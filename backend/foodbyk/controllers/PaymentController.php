@@ -2,13 +2,13 @@
 
 class PaymentController extends Controller {
 
-    // Server-to-server ITN webhooks - no session/CSRF, verified by signature.
+    // Server-to-server ITN webhooks - no session/CSRF, validated by PaymentService.
     public function tokenWebhook(Request $request): Response {
-        return $this->respond((new PaymentService())->handleTokenSetupWebhook($request->body));
+        return $this->respond((new PaymentService())->handleWebhook($request->body, $_SERVER['REMOTE_ADDR'] ?? null));
     }
 
     public function chargeWebhook(Request $request): Response {
-        return $this->respond((new PaymentService())->handleChargeWebhook($request->body));
+        return $this->respond((new PaymentService())->handleChargeWebhook($request->body, $_SERVER['REMOTE_ADDR'] ?? null));
     }
 
     // The browser itself lands here after PayFast's tokenization redirect
@@ -18,11 +18,11 @@ class PaymentController extends Controller {
     // just sends the customer back to a frontend page reflecting that.
     public function returnFromPayFast(Request $request): Response {
         $orderId = (int) ($request->query['order_id'] ?? 0);
-        return $this->redirect(FRONTEND_URL . "/checkout/pending?order_id={$orderId}");
+        return $this->redirect(rtrim(FRONTEND_URL, '/') . "/src/index.html?payment=pending&order_id={$orderId}");
     }
 
     public function cancelFromPayFast(Request $request): Response {
         $orderId = (int) ($request->query['order_id'] ?? 0);
-        return $this->redirect(FRONTEND_URL . "/checkout/cancelled?order_id={$orderId}");
+        return $this->redirect(rtrim(FRONTEND_URL, '/') . "/src/index.html?payment=cancelled&order_id={$orderId}");
     }
 }

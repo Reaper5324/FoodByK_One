@@ -22,6 +22,13 @@ class OrderService {
     }
 
     public function confirmOrder(int $orderId, int $staffId, ?string $confirmedStart = null, ?string $confirmedEnd = null): array {
+        if (($confirmedStart === null) !== ($confirmedEnd === null)) {
+            return $this->failure('Both confirmed window start and end are required.');
+        }
+        if ($confirmedStart !== null) {
+            $slot = (new SlotService())->isValidSlot($confirmedStart, $confirmedEnd);
+            if (!$slot['success']) return $this->failure($slot['error']);
+        }
         $result = $this->transactional(function () use ($orderId, $staffId, $confirmedStart, $confirmedEnd) {
             $order = Order::lockById($orderId);
             if (!$order) throw new \Exception("Order {$orderId} not found.");
@@ -30,7 +37,7 @@ class OrderService {
             }
 
             $payment = $order->getPayment();
-            if (!$payment || $payment->status !== Payment::STATUS_TOKENIZED) {
+            if (!$payment || $payment->status !== Payment::STATUS_TOKENIZED || !$payment->gateway_token) {
                 // Confirming without a valid held token would mean charging
                 // is impossible later - fail loudly rather than confirming
                 // an order that can never actually be paid.
@@ -51,14 +58,16 @@ class OrderService {
             return $order;
         });
 
-        if ($result['success']) {
-            (new NotificationService())->notifyOrderEvent($result['data'], 'confirmed', 'customer');
-        }
-
-        return $result;
+        if (!$result['success']) return $result;
+        (new NotificationService())->notifyOrderEvent($result['data'], 'confirmed', 'customer');
+        return (new PaymentService())->chargeToken($result['data']);
     }
 
-    public function declineOrder(int $orderId, int $staffId, string $reason): array {
+    public function declineOrder(int $orderId, int $staffId, mixed $reason): array {
+        if (!is_string($reason) || trim($reason) === '' || strlen(trim($reason)) > 255) {
+            return $this->failure('A decline reason of 1 to 255 characters is required.');
+        }
+        $reason = trim($reason);
         $result = $this->transactional(function () use ($orderId, $staffId, $reason) {
             $order = Order::lockById($orderId);
             if (!$order) throw new \Exception("Order {$orderId} not found.");
@@ -82,14 +91,16 @@ class OrderService {
         });
 
         if ($result['success']) {
+            (new PaymentService())->releaseToken($result['data']);
             (new NotificationService())->notifyOrderEvent($result['data'], 'declined', 'customer');
         }
 
         return $result;
     }
 
-    public function cancelOrder(int $orderId, ?int $customerId, ?int $staffId, string $reason): array {
-        return $this->transactional(function () use ($orderId, $customerId, $staffId, $reason) {
+    public function cancelOrder(int $orderId, ?int $customerId, ?int $staffId, mixed $reason): array {
+        $reason = is_string($reason) ? trim($reason) : '';
+        $result = $this->transactional(function () use ($orderId, $customerId, $staffId, $reason) {
             $order = Order::lockById($orderId);
             if (!$order) throw new \Exception("Order {$orderId} not found.");
             if ($staffId === null && $customerId !== null && $order->customer_id !== $customerId) {
@@ -116,6 +127,8 @@ class OrderService {
 
             return $order;
         });
+        if ($result['success']) (new PaymentService())->releaseToken($result['data']);
+        return $result;
     }
 
     public function advanceFulfilment(int $orderId, int $staffId, string $newStatus): array {
@@ -267,9 +280,14 @@ class OrderService {
                 throw new \Exception($capacity['error']);
             }
 
-            // Save order
+            // Save the order and create its single payment row before
+            // returning PayFast tokenization fields to the customer.
             if (!$order->save()) {
                 throw new \Exception('Unable to create order.');
+            }
+            $payment = new Payment(order_id: $order->id, amount: $order->total());
+            if (!$payment->save()) {
+                throw new \Exception('Unable to create payment record.');
             }
 
             // Create OrderItem rows from cart
@@ -294,16 +312,19 @@ class OrderService {
             }
 
             // Clear the cart
-            (new CartService())->clear($customerId);
+            $clearResult = (new CartService())->clear($customerId);
+            if (!$clearResult['success']) throw new \Exception($clearResult['error']);
 
             // Log the submission
-            $this->logTransition($order->id, null, Order::STATUS_SUBMITTED, $customerId);
+            // The schema requires from_status to be non-null; an empty
+            // string represents the initial state before submission.
+            $this->logTransition($order->id, '', Order::STATUS_SUBMITTED, $customerId);
 
-            return $order;
+            return ['order' => $order, 'payment_setup' => $setupResult['data']];
         });
 
         if ($result['success']) {
-            (new NotificationService())->notifyOrderEvent($result['data'], 'submitted', 'staff');
+            (new NotificationService())->notifyOrderEvent($result['data']['order'], 'submitted', 'staff');
         }
 
         return $result;
@@ -312,9 +333,9 @@ class OrderService {
     /**
      * Retrieve a single order by ID with full details (items, payment, history).
      */
-    public function getOrderById(int $orderId): array {
+    public function getOrderById(int $orderId, ?int $customerId = null): array {
         $order = Order::findById($orderId);
-        if (!$order) {
+        if (!$order || ($customerId !== null && $order->customer_id !== $customerId)) {
             return $this->failure('Order not found.');
         }
 
@@ -381,7 +402,17 @@ class OrderService {
         ?string $newWindowStart = null,
         ?string $newWindowEnd = null
     ): array {
-        return $this->transactional(function () use ($orderId, $staffId, $adjustedItems, $newWindowStart, $newWindowEnd) {
+        if (($newWindowStart === null) !== ($newWindowEnd === null)) {
+            return $this->failure('Both confirmed window start and end are required.');
+        }
+        if ($newWindowStart !== null) {
+            $slot = (new SlotService())->isValidSlot($newWindowStart, $newWindowEnd);
+            if (!$slot['success']) return $this->failure($slot['error']);
+        }
+        if ($adjustedItems === null && $newWindowStart === null) {
+            return $this->failure('Provide adjusted items or a confirmed time window.');
+        }
+        $result = $this->transactional(function () use ($orderId, $staffId, $adjustedItems, $newWindowStart, $newWindowEnd) {
             $order = Order::lockById($orderId);
             if (!$order) {
                 throw new \Exception("Order {$orderId} not found.");
@@ -389,6 +420,10 @@ class OrderService {
 
             if (!in_array($order->status, [Order::STATUS_SUBMITTED, Order::STATUS_ADJUSTED], true)) {
                 throw new \Exception("Cannot adjust order in status '{$order->status}'.");
+            }
+            $payment = $order->getPayment();
+            if (!$payment || $payment->status !== Payment::STATUS_TOKENIZED || !$payment->gateway_token) {
+                throw new \Exception('Order cannot be adjusted until its payment token is ready.');
             }
 
             $oldSubtotal = $order->subtotal;
@@ -469,6 +504,10 @@ class OrderService {
 
             return $order;
         });
+        if ($result['success'] && $result['data']->status === Order::STATUS_ADJUSTED) {
+            return (new PaymentService())->chargeToken($result['data']);
+        }
+        return $result;
     }
 
     private function success(mixed $data): array {

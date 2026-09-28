@@ -129,7 +129,7 @@ class CategoryService {
 
     /**
      * Delete a category (hard delete - admin-only, use with caution).
-     * Products in this category are NOT deleted, but will be orphaned.
+     * Categories with assigned products cannot be deleted.
      * 
      * @param int $categoryId
      * @return array ['success' => bool, 'error' => ?string]
@@ -138,6 +138,10 @@ class CategoryService {
         $category = Category::findById($categoryId);
         if (!$category) {
             return $this->failure('Category not found.');
+        }
+
+        if ($category->getProducts() !== []) {
+            return $this->failure("Move or remove this category's products before deleting it.");
         }
 
         return $category->delete()

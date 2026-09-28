@@ -31,9 +31,9 @@ class AdminSettingsService {
     public function addPromotion(array $input): array {
         $code = trim((string) ($input['code'] ?? ''));
         $type = (string) ($input['discount_type'] ?? '');
-        $value = (float) ($input['discount_value'] ?? 0);
-        $start = (string) ($input['start_date'] ?? '');
-        $end   = (string) ($input['end_date'] ?? '');
+        $value = $input['discount_value'] ?? null;
+        $start = $input['start_date'] ?? null;
+        $end   = $input['end_date'] ?? null;
 
         if ($code === '' || strlen($code) > 40) {
             return $this->failure('Promotion code must be between 1 and 40 characters.');
@@ -41,14 +41,23 @@ class AdminSettingsService {
         if (!in_array($type, [Promotion::TYPE_PERCENTAGE, Promotion::TYPE_FIXED_AMOUNT, Promotion::TYPE_BUY_ONE_GET_ONE, Promotion::TYPE_FREE_DELIVERY], true)) {
             return $this->failure('Invalid discount type.');
         }
-        if ($value < 0) {
-            return $this->failure('Discount value cannot be negative.');
+        if (!is_numeric($value) || (float) $value < 0 || ($type === Promotion::TYPE_PERCENTAGE && (float) $value > 100)) {
+            return $this->failure('Invalid discount value.');
+        }
+        if ($type === Promotion::TYPE_FIXED_AMOUNT && (float) $value <= 0) {
+            return $this->failure('Fixed discount value must be greater than zero.');
+        }
+        if (($start !== null && !$this->isValidDate($start)) || ($end !== null && !$this->isValidDate($end))) {
+            return $this->failure('Promotion dates must use YYYY-MM-DD format.');
+        }
+        if ($start !== null && $end !== null && $start > $end) {
+            return $this->failure('Promotion end date must be on or after its start date.');
         }
         if (Promotion::findByCode($code) !== null) {
             return $this->failure('A promotion with this code already exists.');
         }
 
-        $promo = new Promotion(code: $code, discount_type: $type, discount_value: $value, start_date: $start, end_date: $end);
+        $promo = new Promotion(code: $code, discount_type: $type, discount_value: (float) $value, start_date: $start, end_date: $end);
         return $promo->save() ? $this->success($promo, 201) : $this->failure('Unable to create promotion.');
     }
 
@@ -132,14 +141,15 @@ class AdminSettingsService {
             'max_orders_per_slot'   => (is_numeric($value) && $value >= 1) ? null : 'Max orders per slot must be at least 1.',
             'trading_hours_start', 'trading_hours_end' =>
                 (preg_match('/^\d{2}:\d{2}(:\d{2})?$/', (string) $value) === 1) ? null : "Invalid time format for {$field}.",
-            'delivery_enabled', 'collection_enabled' => null, // any truthy/falsy value is fine, cast below
+            'delivery_enabled', 'collection_enabled' => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== null
+                ? null : 'Invalid boolean value.',
             default => 'Unknown field.',
         };
     }
 
     private function castField(string $field, mixed $value): mixed {
         return match ($field) {
-            'delivery_enabled', 'collection_enabled' => (bool) $value,
+            'delivery_enabled', 'collection_enabled' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
             'slot_duration_minutes', 'max_orders_per_slot' => (int) $value,
             'trading_hours_start', 'trading_hours_end' => (string) $value,
             default => (float) $value,

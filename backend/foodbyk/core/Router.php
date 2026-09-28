@@ -14,30 +14,29 @@ class Router {
     }
 
     public function dispatch(Request $request): Response {
-        [$route, $params] = $this->match($request->method, $request->path);
-
-        if (!$route) {
-            return Response::error('Not found.', 404);
-        }
-
-        // Chain of Responsibility - each middleware runs in order; the
-        // first one to return a Response stops the chain right there.
-        foreach ($route['middleware'] as $middleware) {
-            $result = $middleware->handle($request);
-            if ($result !== null) {
-                return $result;
-            }
-        }
-
-        [$controllerClass, $method] = $route['action'];
-
         try {
+            [$route, $params] = $this->match($request->method, $request->path);
+
+            if (!$route) {
+                return Response::error('Not found.', 404);
+            }
+
+            // Middleware errors, including DB connection errors, use the same
+            // safe response and logging path as controller errors.
+            foreach ($route['middleware'] as $middleware) {
+                $result = $middleware->handle($request);
+                if ($result !== null) {
+                    return $result;
+                }
+            }
+
+            [$controllerClass, $method] = $route['action'];
+
             $controller = new $controllerClass();
             return $controller->$method($request, $params);
         } catch (\Throwable $e) {
-            error_log($e->getMessage());
-            // Never leak internals to the client - see AGENTS.md §6 on display_errors.
-            return Response::error('An unexpected error occurred.', 500);
+            error_log(sprintf('Unhandled request error: %s in %s:%d', $e->getMessage(), $e->getFile(), $e->getLine()));
+            return Response::error('An unexpected server error occurred.', 500);
         }
     }
 

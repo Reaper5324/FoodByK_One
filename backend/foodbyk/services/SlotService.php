@@ -12,6 +12,7 @@ class SlotService {
 
         $slotStart = $date->setTime($startH, $startM, $startS);
         $dayEnd    = $date->setTime($endH, $endM, $endS);
+        $now = new \DateTimeImmutable('now', $date->getTimezone());
 
         $slots = [];
         while (true) {
@@ -19,7 +20,7 @@ class SlotService {
             if ($slotEnd > $dayEnd) break;
 
             $taken = Order::countActiveForSlot($slotStart->format('Y-m-d H:i:s'));
-            $slots[] = [
+            if ($slotStart > $now) $slots[] = [
                 'start'     => $slotStart->format('Y-m-d\TH:i:s'),
                 'end'       => $slotEnd->format('Y-m-d\TH:i:s'),
                 'remaining' => max(0, $settings->max_orders_per_slot - $taken),
@@ -41,6 +42,10 @@ class SlotService {
 
         $settings = BusinessSettings::current();
         $duration = $settings->slot_duration_minutes;
+
+        if ($start <= new \DateTimeImmutable('now', $start->getTimezone())) {
+            return ['success' => false, 'error' => 'Selected slot is in the past.'];
+        }
 
         if ($end->getTimestamp() - $start->getTimestamp() !== $duration * 60) {
             return ['success' => false, 'error' => 'Selected window does not match a valid slot length.'];

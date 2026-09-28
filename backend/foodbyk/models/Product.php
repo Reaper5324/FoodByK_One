@@ -77,17 +77,6 @@ public static function search(string $keyword): array {
         return array_map(fn($row) => static::fromRow($row), $stmt->fetchAll());
     }
 
-    public function getReviews(): array {
-        return Review::findBy('product_id', $this->id);
-    }
-
-    public function getAverageRating(): float {
-        $db   = Database::getConnection();
-        $stmt = $db->prepare('SELECT AVG(rating) FROM reviews WHERE product_id = ?');
-        $stmt->execute([$this->id]);
-        return round((float) $stmt->fetchColumn(), 1);
-    }
-
 protected function toArray(): array {
     return [
         'category_id'  => $this->category_id,

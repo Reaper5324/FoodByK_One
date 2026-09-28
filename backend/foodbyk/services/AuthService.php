@@ -56,15 +56,18 @@ class AuthService {
     public function login(string $email, string $password): array {
         $email = $this->normaliseEmail($email);
         if ($email === '' || $password === '') {
+            RateLimitMiddleware::recordLoginFailure($email);
             return $this->failure('Invalid email or password.');
         }
 
         $user = User::findByEmail($email);
         if ($user === null) {
             password_verify($password, self::DUMMY_PASSWORD_HASH);
+            RateLimitMiddleware::recordLoginFailure($email);
             return $this->failure('Invalid email or password.');
         }
         if (!$user->is_active || !$user->verifyPassword($password)) {
+            RateLimitMiddleware::recordLoginFailure($email);
             return $this->failure('Invalid email or password.');
         }
 
@@ -126,7 +129,14 @@ class AuthService {
 
         $invite = PasswordReset::create($user->id, 72); // 72h invite window, wider than the 1h forgot-password window
         if ($invite['success']) {
-            error_log("Staff/admin invite link for {$email}: /set-password?token={$invite['token']}");
+            if (!$this->sendAccountLink($email, $name, $invite['token'], true)) {
+                PasswordReset::deleteForUser($user->id);
+                $user->delete();
+                return $this->failure('Unable to send the account setup email.');
+            }
+        } else {
+            $user->delete();
+            return $this->failure('Unable to create the account setup link.');
         }
 
         return $this->success(['id' => $user->id, 'full_name' => $user->full_name, 'email' => $user->email, 'role' => $role]);
@@ -279,6 +289,19 @@ class AuthService {
         return $user;
     }
 
+    public function getCurrentUserDetails(?User $user = null): array {
+        $user ??= $this->getCurrentUser();
+        if ($user === null) return $this->failure('Not authenticated.');
+
+        $role = Role::findById($user->role_id);
+        return $this->success([
+            'id' => $user->id,
+            'full_name' => $user->full_name,
+            'email' => $user->email,
+            'role' => $role?->role_name,
+        ]);
+    }
+
     private function destroySession(): void {
         $_SESSION = [];
         if (ini_get('session.use_cookies')) {
@@ -295,8 +318,10 @@ class AuthService {
         if($user == null){return $this->success(null);}
 
         $result = PasswordReset::create($user->id, 1);
-        if($result['success']){
-            error_log("Password reset link for {$email}: /reset-password?token={$result['token']}");
+        if ($result['success'] && !$this->sendAccountLink($email, $user->full_name, $result['token'], false)) {
+            // Keep the public response generic to avoid revealing account
+            // existence; never put the bearer token in application logs.
+            error_log('Password reset email delivery failed for user ' . $user->id . '.');
         }
 
         return $this->success(null);
@@ -305,6 +330,7 @@ class AuthService {
      public function resetPassword(string $rawToken, string $newPassword): array {
         $reset = PasswordReset::findByToken($rawToken); // already filters expires_at > NOW()
         if ($reset === null) {
+            RateLimitMiddleware::recordResetFailure();
             return $this->failure('This reset link is invalid or has expired.');
         }
 
@@ -332,6 +358,31 @@ class AuthService {
 
     private function normaliseEmail(string $email): string {
         return strtolower(trim($email));
+    }
+
+    private function sendAccountLink(string $email, string $name, string $token, bool $invite): bool {
+        if (!defined('RESEND_API_KEY') || RESEND_API_KEY === '' || !defined('FRONTEND_URL') || FRONTEND_URL === '') {
+            return false;
+        }
+        $link = rtrim(FRONTEND_URL, '/') . '/pages/auth/reset-password.html?token=' . rawurlencode($token);
+        $subject = $invite ? 'Set up your Food by K account' : 'Reset your Food by K password';
+        $action = $invite ? 'set your password' : 'reset your password';
+        $payload = [
+            'from' => 'Food by K <orders@foodbyk.co.za>',
+            'to' => [$email],
+            'subject' => $subject,
+            'text' => "Hi {$name},\n\nUse this link to {$action}: {$link}\n\nIf you did not request this, you can ignore this email.",
+        ];
+        $context = stream_context_create(['http' => [
+            'method' => 'POST',
+            'header' => "Authorization: Bearer " . RESEND_API_KEY . "\r\nContent-Type: application/json\r\n",
+            'content' => json_encode($payload),
+            'timeout' => 8,
+            'ignore_errors' => true,
+        ]]);
+        $response = @file_get_contents('https://api.resend.com/emails', false, $context);
+        $status = $http_response_header[0] ?? '';
+        return $response !== false && preg_match('/\s2\d\d\s/', $status) === 1;
     }
 
     private function stringLength(string $value): int {

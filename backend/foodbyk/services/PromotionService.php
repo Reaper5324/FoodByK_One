@@ -2,6 +2,11 @@
 
 class PromotionService {
 
+    public function listActive(): array {
+        $promotions = array_values(array_filter(Promotion::findAll(), fn(Promotion $promotion) => $promotion->isActiveAt()));
+        return $this->success($promotions);
+    }
+
     // Called once at order submission (FR-18). lineItems is required now -
     // BOGO can't be calculated from a subtotal alone. The returned discount
     // is meant to be written onto Order.locked_discount and never

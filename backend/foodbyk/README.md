@@ -94,10 +94,14 @@ Payment is a two-stage PayFast tokenization workflow:
 Environment variables consumed by `backend/foodbyk/config/config.php`:
 
 ```text
-DB_HOST=localhost
+APP_ENV=development
+DB_HOST=127.0.0.1
+DB_PORT=3306
 DB_NAME=foodbyk
-DB_USER=...
-DB_PASS=...
+DB_USER=root
+DB_PASS=
+DB_SSL_CA=
+PAYMENT_TOKEN_ENCRYPTION_KEY= # base64-encoded 32-byte key; required for token storage
 RESEND_API_KEY=...
 TWILIO_SID=...
 TWILIO_AUTH_TOKEN=...
@@ -110,6 +114,12 @@ TWILIO_TEMPLATE_CUSTOMER_PAYMENT_FAILED=HX...
 ```
 
 Twilio WhatsApp sends use approved Content Template Builder templates. Configure each template SID only after approval; templates must use `{{1}}` for the order ID, and `{{2}}` for fulfillment type, confirmed time, or decline reason where applicable. SMS does not use template SIDs. Configure a verified Resend sender domain before sending email. `DOMAIN.md` additionally defines PayFast and geocoding configuration.
+
+### Database setup and production
+
+For a new database, run `database/migration.sql`. Existing databases should be backed up and then upgraded once with `database/harden_existing_schema.sql`; the upgrade fails if current rows violate the new checks, so inspect and correct offending rows first. Set `APP_ENV=production`, provide explicit database credentials for a dedicated non-root MySQL user, and configure `DB_SSL_CA` when the database requires TLS.
+
+Payment tokens are encrypted by the `Payment` model using AES-256-GCM. Generate `PAYMENT_TOKEN_ENCRYPTION_KEY` with `php -r "echo base64_encode(random_bytes(32)), PHP_EOL;"`; store it in the deployment secret manager and keep a protected backup. Existing plaintext tokens are encrypted when their payment rows are next saved. `Payment` JSON omits the token.
 
 ## Local Checks
 
