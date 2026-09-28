@@ -52,6 +52,76 @@ class AdminSettingsService {
         return $promo->save() ? $this->success($promo, 201) : $this->failure('Unable to create promotion.');
     }
 
+    public function updatePromotion(int $promotionId, array $input): array {
+        $promotion = Promotion::findById($promotionId);
+        if ($promotion === null) {
+            return $this->failure('Promotion not found.');
+        }
+
+        $code = strtoupper(trim((string) ($input['code'] ?? $promotion->code)));
+        $type = (string) ($input['discount_type'] ?? $promotion->discount_type);
+        $value = $input['discount_value'] ?? $promotion->discount_value;
+        $start = array_key_exists('start_date', $input) ? $input['start_date'] : $promotion->start_date;
+        $end = array_key_exists('end_date', $input) ? $input['end_date'] : $promotion->end_date;
+        $active = $promotion->is_active;
+
+        if ($code === '' || strlen($code) > 40) {
+            return $this->failure('Promotion code must be between 1 and 40 characters.');
+        }
+        $duplicate = Promotion::findByCode($code);
+        if ($duplicate !== null && $duplicate->id !== $promotion->id) {
+            return $this->failure('A promotion with this code already exists.');
+        }
+        if (!in_array($type, Promotion::SUPPORTED_TYPES, true)) {
+            return $this->failure('Invalid discount type.');
+        }
+        if (!is_numeric($value) || (float) $value < 0 || ($type === Promotion::TYPE_PERCENTAGE && (float) $value > 100)) {
+            return $this->failure('Invalid discount value.');
+        }
+        if ($type === Promotion::TYPE_FIXED_AMOUNT && (float) $value <= 0) {
+            return $this->failure('Fixed discount value must be greater than zero.');
+        }
+        if (($start !== null && !$this->isValidDate($start)) || ($end !== null && !$this->isValidDate($end))) {
+            return $this->failure('Promotion dates must use YYYY-MM-DD format.');
+        }
+        if ($start !== null && $end !== null && $start > $end) {
+            return $this->failure('Promotion end date must be on or after its start date.');
+        }
+        if (array_key_exists('is_active', $input)) {
+            $active = filter_var($input['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($active === null) {
+                return $this->failure('Invalid promotion status.');
+            }
+        }
+
+        $promotion->code = $code;
+        $promotion->discount_type = $type;
+        $promotion->discount_value = (float) $value;
+        $promotion->start_date = $start;
+        $promotion->end_date = $end;
+        $promotion->is_active = $active;
+
+        return $promotion->save() ? $this->success($promotion) : $this->failure('Unable to update promotion.');
+    }
+
+    public function deactivatePromotion(int $promotionId): array {
+        $promotion = Promotion::findById($promotionId);
+        if ($promotion === null) {
+            return $this->failure('Promotion not found.');
+        }
+
+        $promotion->is_active = false;
+        return $promotion->save() ? $this->success($promotion) : $this->failure('Unable to deactivate promotion.');
+    }
+
+    private function isValidDate(mixed $value): bool {
+        if (!is_string($value)) {
+            return false;
+        }
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        return $date !== false && $date->format('Y-m-d') === $value;
+    }
+
     private function validateField(string $field, mixed $value): ?string {
         return match ($field) {
             'business_lat'          => (is_numeric($value) && $value >= -90 && $value <= 90) ? null : 'Invalid latitude.',

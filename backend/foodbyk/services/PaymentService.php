@@ -119,13 +119,16 @@ class PaymentService {
         $wasAlreadySuccessful = ($payment->status === Payment::STATUS_SUCCESS);
 
         if (($itn['payment_status'] ?? '') === 'COMPLETE') {
-            $payment->markSuccessful($itn['pf_payment_id'] ?? '');
+            $markedSuccessful = $payment->markSuccessful($itn['pf_payment_id'] ?? '');
 
-            if (!$wasAlreadySuccessful) {
+            if (!$wasAlreadySuccessful && $markedSuccessful) {
                 (new LoyaltyService())->awardPointsForOrder($order->customer_id, $order->id, $order->total());
+                (new NotificationService())->notifyOrderEvent($order, 'paid', 'customer');
             }
         } else {
-            $payment->markFailed();
+            if ($payment->markFailed()) {
+                (new NotificationService())->notifyOrderEvent($order, 'payment_failed', 'customer');
+            }
         }
 
         return ['success' => true];

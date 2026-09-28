@@ -22,7 +22,7 @@ class OrderService {
     }
 
     public function confirmOrder(int $orderId, int $staffId, ?string $confirmedStart = null, ?string $confirmedEnd = null): array {
-        return $this->transactional(function () use ($orderId, $staffId, $confirmedStart, $confirmedEnd) {
+        $result = $this->transactional(function () use ($orderId, $staffId, $confirmedStart, $confirmedEnd) {
             $order = Order::lockById($orderId);
             if (!$order) throw new \Exception("Order {$orderId} not found.");
             if (!$order->canTransitionTo(Order::STATUS_ACCEPTED)) {
@@ -50,10 +50,16 @@ class OrderService {
 
             return $order;
         });
+
+        if ($result['success']) {
+            (new NotificationService())->notifyOrderEvent($result['data'], 'confirmed', 'customer');
+        }
+
+        return $result;
     }
 
     public function declineOrder(int $orderId, int $staffId, string $reason): array {
-        return $this->transactional(function () use ($orderId, $staffId, $reason) {
+        $result = $this->transactional(function () use ($orderId, $staffId, $reason) {
             $order = Order::lockById($orderId);
             if (!$order) throw new \Exception("Order {$orderId} not found.");
             if (!$order->canTransitionTo(Order::STATUS_DECLINED)) {
@@ -74,6 +80,12 @@ class OrderService {
 
             return $order;
         });
+
+        if ($result['success']) {
+            (new NotificationService())->notifyOrderEvent($result['data'], 'declined', 'customer');
+        }
+
+        return $result;
     }
 
     public function cancelOrder(int $orderId, ?int $customerId, ?int $staffId, string $reason): array {
@@ -166,7 +178,7 @@ class OrderService {
         string $requestedWindowEnd,
         ?string $promotionCode = null
     ): array {
-        return $this->transactional(function () use (
+        $result = $this->transactional(function () use (
             $customerId, $fulfilmentType, $addressId,
             $requestedWindowStart, $requestedWindowEnd, $promotionCode
         ) {
@@ -289,6 +301,12 @@ class OrderService {
 
             return $order;
         });
+
+        if ($result['success']) {
+            (new NotificationService())->notifyOrderEvent($result['data'], 'submitted', 'staff');
+        }
+
+        return $result;
     }
 
     /**

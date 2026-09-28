@@ -53,9 +53,14 @@ function registerRoutes(Router $router): void {
     $router->post('/orders/{id}/cancel', [OrderController::class, 'cancel'], $customer);
 
     $router->post('/admin/staff', [AdminController::class, 'addStaff'], $admin);
+    $router->put('/admin/staff/{id}', [AdminController::class, 'updateStaff'], $admin);
+    $router->delete('/admin/staff/{id}', [AdminController::class, 'removeStaff'], $admin);
     $router->post('/admin/products', [AdminController::class, 'addProduct'], $admin);
+    $router->put('/admin/products/{id}', [AdminController::class, 'updateProduct'], $admin);
     $router->delete('/admin/products/{id}', [AdminController::class, 'removeProduct'], $admin);
     $router->post('/admin/promotions', [AdminController::class, 'addPromotion'], $admin);
+    $router->put('/admin/promotions/{id}', [AdminController::class, 'updatePromotion'], $admin);
+    $router->delete('/admin/promotions/{id}', [AdminController::class, 'removePromotion'], $admin);
     $router->put('/admin/settings', [AdminController::class, 'updateSettings'], $admin);
         
 }

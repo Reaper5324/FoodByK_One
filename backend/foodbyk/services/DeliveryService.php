@@ -33,13 +33,25 @@ interface Geocoder {
 // User-Agent and caps requests at ~1/sec - fine for MVP volume, swap for
 // a paid provider (Google Geocoding) later by implementing Geocoder again.
 class NominatimGeocoder implements Geocoder {
+
+    // Nominatim's policy caps this at 1 req/sec absolute. This throttle
+    // only protects within a single PHP process - once this handles real
+    // concurrent traffic, move the timestamp to a shared store (DB/Redis).
+    private static ?float $lastRequestTime = null;
+
     public function geocode(string $rawAddress): ?array {
+        $this->throttle();
+
         $url = 'https://nominatim.openstreetmap.org/search?' . http_build_query([
-            'q' => $rawAddress, 'format' => 'json', 'limit' => 1,
+            'q'              => $rawAddress,
+            'format'         => 'json',
+            'limit'          => 1,
+            'countrycodes'   => 'za', // restrict to South Africa
+            'addressdetails' => 0,
         ]);
 
         $context = stream_context_create(['http' => [
-            'header' => "User-Agent: FoodByK-Backend/1.0 (contact: admin@foodbyk.co.za)\r\n",
+            'header'  => "User-Agent: FoodByK-Backend/1.0 (contact: admin@foodbyk.co.za)\r\n",
             'timeout' => 5,
         ]]);
 
@@ -49,7 +61,20 @@ class NominatimGeocoder implements Geocoder {
         $results = json_decode($response, true);
         if (empty($results)) return null;
 
+        // Reject low-confidence matches rather than trusting the top
+        // result blindly. 0.3 is a starting heuristic, not an authoritative
+        // threshold - worth tuning once you see real address data.
+        if ((float) ($results[0]['importance'] ?? 0) < 0.3) return null;
+
         return ['lat' => (float) $results[0]['lat'], 'lng' => (float) $results[0]['lon']];
+    }
+
+    private function throttle(): void {
+        if (self::$lastRequestTime !== null) {
+            $elapsed = microtime(true) - self::$lastRequestTime;
+            if ($elapsed < 1.0) usleep((int) ((1.0 - $elapsed) * 1_000_000));
+        }
+        self::$lastRequestTime = microtime(true);
     }
 }
 

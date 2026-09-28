@@ -131,6 +131,65 @@ class AuthService {
 
         return $this->success(['id' => $user->id, 'full_name' => $user->full_name, 'email' => $user->email, 'role' => $role]);
     }
+
+    public function updateStaffAccount(int $userId, array $input): array {
+        $user = User::findById($userId);
+        if ($user === null || $user->getRole()?->role_name !== Role::STAFF) {
+            return $this->failure('Staff account not found.');
+        }
+
+        $name = trim((string) ($input['full_name'] ?? $user->full_name));
+        $email = $this->normaliseEmail((string) ($input['email'] ?? $user->email));
+        $phone = array_key_exists('phone', $input)
+            ? $this->normalisePhone($input['phone'] === null ? null : (string) $input['phone'])
+            : $user->phone;
+
+        if ($name === '' || $this->stringLength($name) > self::MAX_NAME_LENGTH || preg_match('/[\p{C}]/u', $name) === 1) {
+            return $this->failure('Enter a valid full name.');
+        }
+        if ($email === '' || strlen($email) > self::MAX_EMAIL_LENGTH || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return $this->failure('Enter a valid email address.');
+        }
+        if ($phone !== null && preg_match('/^\+[1-9][0-9]{7,14}$/', $phone) !== 1) {
+            return $this->failure('Enter a valid phone number.');
+        }
+        $existing = User::findByEmail($email);
+        if ($existing !== null && $existing->id !== $user->id) {
+            return $this->failure('An account with this email already exists.');
+        }
+
+        if (array_key_exists('is_active', $input)) {
+            $active = filter_var($input['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($active === null) {
+                return $this->failure('Invalid staff account status.');
+            }
+            $user->is_active = $active;
+        }
+
+        $user->full_name = $name;
+        $user->email = $email;
+        $user->phone = $phone;
+
+        return $user->save()
+            ? $this->success(['id' => $user->id, 'full_name' => $user->full_name, 'email' => $user->email, 'phone' => $user->phone, 'role' => Role::STAFF, 'is_active' => $user->is_active])
+            : $this->failure('Unable to update staff account.');
+    }
+
+    public function deactivateStaffAccount(int $userId): array {
+        $user = User::findById($userId);
+        if ($user === null || $user->getRole()?->role_name !== Role::STAFF) {
+            return $this->failure('Staff account not found.');
+        }
+        if (!$user->is_active) {
+            return $this->success(['id' => $user->id, 'is_active' => false]);
+        }
+
+        $user->is_active = false;
+        return $user->save()
+            ? $this->success(['id' => $user->id, 'is_active' => false])
+            : $this->failure('Unable to deactivate staff account.');
+    }
+
     public function changePassword(User $user, string $currentPassword, string $newPassword): array {
         if ($user->id === null || !$user->is_active || !$user->verifyPassword($currentPassword)) {
             return $this->failure('Unable to change password.');
