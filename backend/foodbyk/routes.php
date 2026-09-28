@@ -12,7 +12,9 @@ function registerRoutes(Router $router): void {
     $router->get('/products/search', [ProductController::class, 'search']);
     $router->get('/products/{id}', [ProductController::class, 'show']);
     $router->get('/categories', [CategoryController::class, 'index']);
+    $router->get('/categories/{id}', [CategoryController::class, 'show']);
     $router->get('/categories/{id}/products', [CategoryController::class, 'products']);
+    $router->get('/products/category/{id}', [ProductController::class, 'byCategory']);
     $router->get('/promotions/active', [PromotionController::class, 'active']);
 
     $customer = [new AuthMiddleware(), RoleMiddleware::customer(), new CsrfMiddleware()];
@@ -30,7 +32,14 @@ function registerRoutes(Router $router): void {
     $router->delete('/cart', [CartController::class, 'clear'], $customer);
 
     $router->post('/checkout/preview', [CheckoutController::class, 'preview'], $customer);
+    $router->get('/checkout/slots', [CheckoutController::class, 'slots'], [new AuthMiddleware(), RoleMiddleware::customer()]);
     $router->post('/checkout/submit', [CheckoutController::class, 'submit'], $customer);
+
+    $router->get('/addresses', [AddressController::class, 'index'], [new AuthMiddleware(), RoleMiddleware::customer()]);
+    $router->post('/addresses', [AddressController::class, 'create'], $customer);
+    $router->put('/addresses/{id}', [AddressController::class, 'update'], $customer);
+    $router->delete('/addresses/{id}', [AddressController::class, 'remove'], $customer);
+    $router->post('/addresses/{id}/default', [AddressController::class, 'setDefault'], $customer);
 
     $router->post('/payments/token-webhook', [PaymentController::class, 'tokenWebhook']);
     $router->post('/payments/charge-webhook', [PaymentController::class, 'chargeWebhook']);
@@ -46,5 +55,7 @@ function registerRoutes(Router $router): void {
     $router->post('/admin/staff', [AdminController::class, 'addStaff'], $admin);
     $router->post('/admin/products', [AdminController::class, 'addProduct'], $admin);
     $router->delete('/admin/products/{id}', [AdminController::class, 'removeProduct'], $admin);
+    $router->post('/admin/promotions', [AdminController::class, 'addPromotion'], $admin);
+    $router->put('/admin/settings', [AdminController::class, 'updateSettings'], $admin);
         
 }

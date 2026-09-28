@@ -222,10 +222,11 @@ if (registerForm) {
             }
 
 
-            if (password.length < 8) {
+            if (password.length < 12 || /\s/.test(password) || !/[a-z]/.test(password)
+                || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
 
                 showMessage(
-                    "Password must be at least 8 characters long.",
+                    "Password must be 12-128 characters and include upper-case, lower-case, number, and symbol characters, with no spaces.",
                     "error"
                 );
 
@@ -249,8 +250,7 @@ if (registerForm) {
 
                 const userData = {
 
-                    first_name: firstName,
-                    last_name: lastName,
+                    name: `${firstName} ${lastName}`,
                     email: email,
                     password: password
 
@@ -264,8 +264,13 @@ if (registerForm) {
 
                 if (result.success) {
 
+                    localStorage.setItem(
+                        "foodByKUser",
+                        JSON.stringify(result.data)
+                    );
+
                     showMessage(
-                        "Account created successfully! Redirecting to login...",
+                        "Account created successfully! Redirecting...",
                         "success"
                     );
 
@@ -273,7 +278,7 @@ if (registerForm) {
                     setTimeout(function () {
 
                         window.location.href =
-                            "login.html";
+                            "../../src/index.html";
 
                     }, 1500);
 

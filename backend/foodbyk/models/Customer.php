@@ -33,6 +33,14 @@ class Customer extends User {
         return $this->save();
     }
 
+    public function subtractLoyaltyPoints(int $points): bool {
+        if ($points < 0 || $this->id === null || $this->loyalty_points < $points) {
+            return false;
+        }
+
+        $this->loyalty_points -= $points;
+        return $this->save();
+    }
     protected function toArray(): array {
         return  array_merge(parent::toArray(), ['loyalty_points' => $this->loyalty_points]);
 

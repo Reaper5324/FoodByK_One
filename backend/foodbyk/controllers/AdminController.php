@@ -18,6 +18,9 @@ class AdminController extends Controller {
     public function addPromotion(Request $request): Response {
         return $this->respond((new AdminSettingsService())->addPromotion($request->body), 201);
     }
+    
+    //soft delete promotion
+    
 
     public function updateSettings(Request $request): Response {
         return $this->respond((new AdminSettingsService())->updateSettings($request->body));
