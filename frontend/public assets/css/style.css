@@ -1,23 +1,42 @@
 /* =========================================
-   FOOD BY K - P1
+   FOOD BY K
    SHARED WEBSITE STYLES
    ========================================= */
 
-/* ---------- Brand Colours ---------- */
+
+/* =========================================
+   1. BRAND COLOURS
+   ========================================= */
 
 :root {
     --food-red: #D71920;
     --food-red-dark: #A90F15;
+
+    /* Yellow is an ACCENT only */
     --food-yellow: #FFC928;
+
     --food-black: #111111;
     --food-dark: #1C1C1C;
+
     --food-white: #FFFFFF;
     --food-light: #F7F7F7;
+
     --food-grey: #6B6B6B;
-    --food-border: #E2E2E2;
+    --food-border: #D9D9D9;
+
+    /* Shadows */
+    --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.08);
+    --shadow-dark: 0 12px 35px rgba(0, 0, 0, 0.18);
+
+    /* Layout */
+    --page-padding: 6%;
+    --content-width: 1400px;
 }
 
-/* ---------- Reset ---------- */
+
+/* =========================================
+   2. RESET
+   ========================================= */
 
 * {
     margin: 0;
@@ -34,28 +53,133 @@ body {
     background-color: var(--food-light);
     color: var(--food-black);
     line-height: 1.6;
+    overflow-x: hidden;
 }
 
-/* ---------- Links ---------- */
+
+/* =========================================
+   3. GLOBAL ELEMENTS
+   ========================================= */
+
+img {
+    max-width: 100%;
+    display: block;
+}
+
+button,
+input,
+textarea,
+select {
+    font-family: inherit;
+}
+
+button {
+    cursor: pointer;
+}
 
 a {
     color: inherit;
     text-decoration: none;
 }
 
-/* ---------- Buttons ---------- */
+
+/* =========================================
+   4. TYPOGRAPHY
+   ========================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+p {
+    color: var(--food-grey);
+}
+
+
+/* Large editorial heading */
+
+.display-heading {
+    font-size: clamp(3rem, 7vw, 7rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    line-height: 0.9;
+    letter-spacing: -0.05em;
+}
+
+
+/* Section heading */
+
+.section-title {
+    font-size: clamp(2.2rem, 5vw, 4.5rem);
+    text-transform: uppercase;
+    font-weight: 900;
+    line-height: 0.95;
+}
+
+
+/* Small label */
+
+.eyebrow {
+    display: inline-block;
+    margin-bottom: 15px;
+
+    color: var(--food-red);
+
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+
+/* =========================================
+   5. SHARED CONTAINER
+   ========================================= */
+
+.container {
+    width: min(var(--content-width), 88%);
+    margin: 0 auto;
+}
+
+
+/* =========================================
+   6. BUTTONS
+   ========================================= */
 
 .btn {
-    display: inline-block;
-    padding: 13px 24px;
-    border: none;
-    border-radius: 6px;
-    font-size: 15px;
-    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 48px;
+    padding: 13px 26px;
+
+    border: 2px solid transparent;
+    border-radius: 0;
+
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+
     cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: center;
+
+    transition:
+        background-color 0.25s ease,
+        color 0.25s ease,
+        border-color 0.25s ease,
+        transform 0.25s ease;
 }
+
+
+/* Primary = RED */
 
 .btn-primary {
     background-color: var(--food-red);
@@ -64,110 +188,503 @@ a {
 
 .btn-primary:hover {
     background-color: var(--food-red-dark);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
 }
 
+
+/* Secondary = BLACK */
+
 .btn-secondary {
+    background-color: var(--food-black);
+    color: var(--food-white);
+}
+
+.btn-secondary:hover {
+    background-color: var(--food-red);
+    transform: translateY(-2px);
+}
+
+
+/* Outline */
+
+.btn-outline {
+    background-color: transparent;
+    border-color: var(--food-black);
+    color: var(--food-black);
+}
+
+.btn-outline:hover {
+    background-color: var(--food-black);
+    color: var(--food-white);
+}
+
+
+/* Yellow should be used sparingly */
+
+.btn-accent {
     background-color: var(--food-yellow);
     color: var(--food-black);
 }
 
-.btn-secondary:hover {
+.btn-accent:hover {
     background-color: #E5AE00;
-    transform: translateY(-1px);
+    transform: translateY(-2px);
 }
 
-/* ---------- Shared Navigation ---------- */
+
+/* =========================================
+   7. SHARED NAVIGATION
+   ========================================= */
 
 .navbar {
+    position: relative;
+    z-index: 1000;
+
     width: 100%;
-    min-height: 72px;
-    padding: 0 7%;
+    min-height: 82px;
+
+    padding: 0 var(--page-padding);
+
     background-color: var(--food-black);
+
     display: flex;
     align-items: center;
     justify-content: space-between;
+
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
+
+
+/* Logo */
 
 .logo a {
     color: var(--food-white);
-    font-size: 24px;
-    font-weight: 800;
-    letter-spacing: 1px;
+
+    font-size: 25px;
+    font-weight: 900;
+
+    letter-spacing: -0.04em;
+    text-transform: uppercase;
 }
 
 .logo span {
-    color: var(--food-yellow);
+    color: var(--food-red);
 }
+
+
+/* Navigation */
 
 .navbar nav {
     display: flex;
     align-items: center;
-    gap: 25px;
+    gap: 34px;
 }
 
 .navbar nav a {
+    position: relative;
+
     color: var(--food-white);
-    font-size: 14px;
-    font-weight: 600;
-    transition: color 0.2s ease;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+
+    transition: color 0.25s ease;
 }
+
+
+/* Navigation hover */
 
 .navbar nav a:hover {
     color: var(--food-yellow);
 }
 
+
+/* Active page */
+
 .navbar nav a.active {
-    color: var(--food-yellow);
+    color: var(--food-red);
 }
 
-/* ---------- Hidden Elements ---------- */
 
-.hidden {
-    display: none !important;
+/* Small red underline */
+
+.navbar nav a.active::after {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    bottom: -8px;
+
+    width: 100%;
+    height: 2px;
+
+    background-color: var(--food-red);
 }
 
-/* ---------- Logout Button ---------- */
+
+/* =========================================
+   8. LOGOUT BUTTON
+   ========================================= */
 
 .logout-nav {
     background: none;
     border: none;
+
     padding: 0;
+
     color: var(--food-white);
+
     font-family: inherit;
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
+
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+
     cursor: pointer;
+
+    transition: color 0.25s ease;
 }
 
 .logout-nav:hover {
     color: var(--food-yellow);
 }
 
-/* ---------- Footer ---------- */
 
-footer {
-    padding: 25px;
+/* =========================================
+   9. IMAGE TREATMENTS
+   ========================================= */
+
+
+/* General editorial image */
+
+.editorial-image {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+
+    transition: transform 0.6s ease;
+}
+
+
+/* Image hover */
+
+.image-wrapper {
+    overflow: hidden;
+}
+
+.image-wrapper:hover .editorial-image {
+    transform: scale(1.04);
+}
+
+
+/* =========================================
+   10. RED ACCENT LINE
+   ========================================= */
+
+.red-line {
+    width: 55px;
+    height: 4px;
+
+    background-color: var(--food-red);
+
+    margin: 20px 0;
+}
+
+
+/* Small yellow decorative line */
+
+.yellow-line {
+    width: 35px;
+    height: 3px;
+
+    background-color: var(--food-yellow);
+
+    margin: 15px 0;
+}
+
+
+/* =========================================
+   11. DARK SECTION
+   ========================================= */
+
+.dark-section {
     background-color: var(--food-black);
     color: var(--food-white);
-    text-align: center;
+}
+
+.dark-section p {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+
+/* =========================================
+   12. LIGHT SECTION
+   ========================================= */
+
+.light-section {
+    background-color: var(--food-light);
+    color: var(--food-black);
+}
+
+
+/* =========================================
+   13. RED SECTION
+   ========================================= */
+
+.red-section {
+    background-color: var(--food-red);
+    color: var(--food-white);
+}
+
+.red-section p {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+
+/* =========================================
+   14. CARDS
+   ========================================= */
+
+.card {
+    background-color: var(--food-white);
+
+    border: 1px solid var(--food-border);
+
+    border-radius: 0;
+
+    box-shadow: none;
+
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-soft);
+}
+
+
+/* =========================================
+   15. FORM ELEMENTS
+   ========================================= */
+
+input,
+textarea,
+select {
+    width: 100%;
+
+    padding: 14px 15px;
+
+    border: 1px solid var(--food-border);
+    border-radius: 0;
+
+    background-color: var(--food-white);
+    color: var(--food-black);
+
+    font-size: 15px;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--food-red);
+
+    box-shadow: 0 0 0 2px rgba(215, 25, 32, 0.12);
+}
+
+
+/* =========================================
+   16. FORM LABELS
+   ========================================= */
+
+label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: var(--food-black);
+
+    font-size: 12px;
+    font-weight: 800;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+
+/* =========================================
+   17. STATUS / MESSAGE STYLES
+   ========================================= */
+
+.message {
+    padding: 12px 15px;
+
+    border-left: 4px solid var(--food-red);
+
+    background-color: var(--food-light);
+
     font-size: 14px;
 }
 
-/* ---------- Responsive Navigation ---------- */
+.message.success {
+    border-left-color: #218739;
+}
+
+.message.error {
+    border-left-color: var(--food-red);
+}
+
+
+/* =========================================
+   18. HIDDEN ELEMENTS
+   ========================================= */
+
+.hidden {
+    display: none !important;
+}
+
+
+/* =========================================
+   19. FOOTER
+   ========================================= */
+
+footer {
+    padding: 55px var(--page-padding);
+
+    background-color: var(--food-black);
+
+    color: var(--food-white);
+
+    text-align: center;
+
+    border-top: 3px solid var(--food-red);
+}
+
+footer p {
+    color: rgba(255, 255, 255, 0.65);
+
+    font-size: 13px;
+}
+
+
+/* =========================================
+   20. SMALL YELLOW DETAILS
+   ========================================= */
+
+/*
+   IMPORTANT:
+   Yellow is an accent colour.
+   Do NOT use it as a large page background.
+*/
+
+.highlight {
+    color: var(--food-yellow);
+}
+
+.highlight-bg {
+    display: inline-block;
+
+    padding: 2px 6px;
+
+    background-color: var(--food-yellow);
+    color: var(--food-black);
+
+    font-weight: 800;
+}
+
+
+/* =========================================
+   21. RESPONSIVE
+   ========================================= */
+
+@media (max-width: 900px) {
+
+    :root {
+        --page-padding: 5%;
+    }
+
+    .navbar {
+        min-height: 75px;
+    }
+
+    .navbar nav {
+        gap: 20px;
+    }
+
+    .navbar nav a {
+        font-size: 11px;
+    }
+
+}
+
 
 @media (max-width: 768px) {
 
     .navbar {
         padding: 18px 5%;
+
         flex-direction: column;
-        gap: 15px;
+        gap: 18px;
+    }
+
+    .logo a {
+        font-size: 23px;
     }
 
     .navbar nav {
+        width: 100%;
+
         flex-wrap: wrap;
         justify-content: center;
-        gap: 15px;
+
+        gap: 14px 20px;
+    }
+
+    .navbar nav a {
+        font-size: 10px;
+    }
+
+    .navbar nav a.active::after {
+        bottom: -5px;
+    }
+
+    .display-heading {
+        font-size: clamp(2.8rem, 13vw, 5rem);
+    }
+
+    .section-title {
+        font-size: clamp(2rem, 10vw, 3.5rem);
+    }
+
+}
+
+
+@media (max-width: 480px) {
+
+    .navbar {
+        padding: 16px 5%;
+    }
+
+    .navbar nav {
+        gap: 12px 15px;
+    }
+
+    .btn {
+        width: 100%;
     }
 
 }
