@@ -84,7 +84,7 @@ body.auth-page {
             rgba(17, 17, 17, 0.12),
             rgba(17, 17, 17, 0.35)
         ),
-        url("../images/foodbyk.png");
+        url("../../images/foodbyk.png");
 
     background-size: cover;
     background-position: center;
@@ -226,7 +226,23 @@ body.auth-page {
 
     background-color: var(--food-yellow);
 }
+/* =========================================================
+   FORGOT PASSWORD TAG
+========================================================= */
 
+.auth-tag {
+    margin-bottom: 18px;
+
+    color: var(--food-red);
+
+    font-size: 11px;
+
+    font-weight: 900;
+
+    letter-spacing: 0.18em;
+
+    text-transform: uppercase;
+}
 
 /* =========================================
    8. LOGIN HEADING
