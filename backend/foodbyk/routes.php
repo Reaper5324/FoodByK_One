@@ -27,7 +27,7 @@ function registerRoutes(Router $router): void {
     $router->post('/auth/change-password', [AuthController::class, 'changePassword'], $authenticated);
 
     $router->post('/cart/items', [CartController::class, 'add'], $customer);
-    $router->get('/cart', [CartController::class, 'view'], [new AuthMiddleware(), RoleMiddleware::customer()]);
+    $router->get('/cart', [CartController::class, 'view'], [new AuthMiddleware(), RoleMiddleware::customer(), new CsrfMiddleware()]);
     $router->put('/cart/items/{id}', [CartController::class, 'updateQuantity'], $customer);
     $router->delete('/cart/items/{id}', [CartController::class, 'removeItem'], $customer);
     $router->delete('/cart', [CartController::class, 'clear'], $customer);

@@ -42,7 +42,7 @@ if (session_status() === PHP_SESSION_NONE) {
         'path' => '/',
         'secure' => APP_ENV === 'production' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
         'httponly' => true,
-        'samesite' => 'Lax',
+        'samesite' => APP_ENV === 'production' ? 'None' : 'Lax',
     ]);
 }
 

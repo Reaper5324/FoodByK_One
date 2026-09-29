@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Cart | Food by K</title>
+  <link rel="stylesheet" href="../../public%20assets/css/style.css">
+  <style>
+    .cart-page { max-width: 900px; margin: 0 auto; padding: 32px 7%; }
+    .cart-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 18px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--food-border); }
+    .cart-row input { width: 72px; padding: 8px; }
+    .cart-total { margin: 24px 0; text-align: right; font-size: 1.2rem; font-weight: 700; }
+    .cart-message { padding: 16px; margin: 18px 0; background: var(--food-white); border: 1px solid var(--food-border); border-radius: 6px; }
+    @media (max-width: 600px) { .cart-row { grid-template-columns: 1fr auto; } }
+  </style>
+</head>
+<body>
+<header class="navbar">
+  <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
+  <nav>
+    <a href="menu.html">Menu</a>
+    <a href="cart.html" class="active">Cart</a>
+    <a href="../auth/login.html">Account</a>
+  </nav>
+</header>
+
+<main class="cart-page">
+  <h1>Your Cart</h1>
+  <div id="cartMessage" class="cart-message" role="status">Loading your cart…</div>
+  <section id="cartItems" aria-live="polite"></section>
+  <p id="cartTotal" class="cart-total" hidden></p>
+  <a id="continueShopping" class="btn btn-secondary" href="menu.html">Continue shopping</a>
+  <a id="checkoutLink" class="btn btn-primary" href="checkout.php" hidden>Proceed to checkout</a>
+</main>
+
+<script src="../../public%20assets/js/config.js"></script>
+<script src="../../public%20assets/js/api/api.js"></script>
+<script src="../../public%20assets/js/cart.js"></script>
+</body>
+</html>

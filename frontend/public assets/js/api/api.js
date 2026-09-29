@@ -5,6 +5,7 @@
 async function apiRequest(endpoint, options = {}) {
 
     const url = API_BASE_URL + endpoint;
+    const method = (options.method || "GET").toUpperCase();
 
     const defaultOptions = {
         headers: {
@@ -19,13 +20,29 @@ async function apiRequest(endpoint, options = {}) {
 
         headers: {
             ...defaultOptions.headers,
-            ...(options.headers || {})
+            ...(options.headers || {}),
+            ...(method !== "GET" && method !== "HEAD" && window.foodByKCsrfToken
+                ? { "X-CSRF-Token": window.foodByKCsrfToken }
+                : {})
         }
     };
 
     try {
 
+        const csrfExempt = ["/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password"];
+        if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS"
+            && !csrfExempt.includes(endpoint.split("?")[0])
+            && !window.foodByKCsrfToken) {
+            const csrfResponse = await fetch(API_BASE_URL + "/auth/me", {
+                method: "GET",
+                credentials: "include"
+            });
+            window.foodByKCsrfToken = csrfResponse.headers.get("X-CSRF-Token");
+        }
+
         const response = await fetch(url, requestOptions);
+        const csrfToken = response.headers.get("X-CSRF-Token");
+        if (csrfToken) window.foodByKCsrfToken = csrfToken;
 
         const result = await response.json();
 

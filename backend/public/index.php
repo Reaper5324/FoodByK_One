@@ -21,6 +21,7 @@ if (in_array($origin, $allowedOrigins, true)) {
 	header('Access-Control-Allow-Credentials: true');
 	header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
 	header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+	header('Access-Control-Expose-Headers: X-CSRF-Token');
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
