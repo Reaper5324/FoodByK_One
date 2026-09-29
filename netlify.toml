@@ -1,0 +1,14 @@
+[build]
+base = "frontend"
+command = "true"
+publish = "."
+
+[[redirects]]
+from = "/"
+to = "/src/index.html"
+status = 200
+
+[[redirects]]
+from = "/index.html"
+to = "/src/index.html"
+status = 200
