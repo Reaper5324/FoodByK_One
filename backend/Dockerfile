@@ -5,11 +5,14 @@ RUN a2enmod rewrite headers
 
 WORKDIR /var/www/html
 
+# Silences the 'Could not reliably determine the server's fully qualified domain name' warning
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
 # Cache-friendly script installation
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-# Target the directories inside the backend context
+# Core directory transfers
 COPY ./foodbyk/ ./foodbyk/
 COPY ./public/ ./public/
 
@@ -27,5 +30,4 @@ RUN mkdir -p /var/www/html/public/uploads/products \
 
 EXPOSE 80
 
-# Hand off execution securely to the script
 ENTRYPOINT ["/start.sh"]
