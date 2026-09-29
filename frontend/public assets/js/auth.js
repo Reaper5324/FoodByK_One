@@ -69,50 +69,100 @@ if (loginForm) {
 
             try {
 
-                // Call login API
-                const result =
+                /* ---------- Login ---------- */
+
+                const loginResult =
                     await loginUser(
                         email,
                         password
                     );
 
 
-                if (result.success) {
-
-                    // Store user information for frontend UI
-                    localStorage.setItem(
-                        "foodByKUser",
-                        JSON.stringify(result.data)
-                    );
-
+                if (!loginResult.success) {
 
                     showMessage(
-                        "Login successful! Redirecting...",
-                        "success"
-                    );
-
-
-                    // Send each account to the page for its role.
-                    const roleDestinations = {
-                        admin: "/admin/dashboard.html",
-                        staff: "/admin/orders.html",
-                        customer: "/pages/customer/menu.html"
-                    };
-                    const destination = roleDestinations[result.data?.role] || "/src/index.html";
-
-                    setTimeout(function () {
-                        window.location.href = destination;
-                    }, 1000);
-
-                } else {
-
-                    showMessage(
-                        result.error ||
+                        loginResult.error ||
                         "Login failed. Please try again.",
                         "error"
                     );
 
+                    return;
                 }
+
+
+                /* ---------- Get Current User ---------- */
+
+                const userResult =
+                    await getCurrentUser();
+
+
+                if (!userResult.success) {
+
+                    showMessage(
+                        userResult.error ||
+                        "Login succeeded, but we could not retrieve your account details.",
+                        "error"
+                    );
+
+                    return;
+                }
+
+
+                /* ---------- Store User Information ---------- */
+
+                const user =
+                    userResult.data;
+
+                localStorage.setItem(
+                    "foodByKUser",
+                    JSON.stringify(user)
+                );
+
+
+                showMessage(
+                    "Login successful! Redirecting...",
+                    "success"
+                );
+
+
+                /* ---------- Role-Based Redirect ---------- */
+
+                const roleDestinations = {
+
+                    admin:
+                        "../admin/dashboard.html",
+
+                    staff:
+                        "../admin/orders.html",
+
+                    customer:
+                        "../customer/menu.html"
+
+                };
+
+
+                const destination =
+                    roleDestinations[user?.role];
+
+
+                if (!destination) {
+
+                    showMessage(
+                        "Your account role could not be recognised.",
+                        "error"
+                    );
+
+                    return;
+                }
+
+
+                setTimeout(function () {
+
+                    window.location.href =
+                        destination;
+
+                }, 1000);
+
 
             } catch (error) {
 
@@ -226,8 +276,15 @@ if (registerForm) {
             }
 
 
-            if (password.length < 12 || /\s/.test(password) || !/[a-z]/.test(password)
-                || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+            if (
+                password.length < 12 ||
+                password.length > 128 ||
+                /\s/.test(password) ||
+                !/[a-z]/.test(password) ||
+                !/[A-Z]/.test(password) ||
+                !/\d/.test(password) ||
+                !/[^A-Za-z0-9]/.test(password)
+            ) {
 
                 showMessage(
                     "Password must be 12-128 characters and include upper-case, lower-case, number, and symbol characters, with no spaces.",
@@ -453,14 +510,12 @@ if (resetPasswordForm) {
             const newPassword =
                 document
                     .getElementById("newPassword")
-                    .value
-                    .trim();
+                    .value;
 
             const confirmPassword =
                 document
                     .getElementById("confirmPassword")
-                    .value
-                    .trim();
+                    .value;
 
 
             // Clear previous messages
@@ -486,11 +541,19 @@ if (resetPasswordForm) {
             }
 
 
-            // Password length
-            if (newPassword.length < 8) {
+            // Password requirements
+            if (
+                newPassword.length < 12 ||
+                newPassword.length > 128 ||
+                /\s/.test(newPassword) ||
+                !/[a-z]/.test(newPassword) ||
+                !/[A-Z]/.test(newPassword) ||
+                !/\d/.test(newPassword) ||
+                !/[^A-Za-z0-9]/.test(newPassword)
+            ) {
 
                 showMessage(
-                    "Password must be at least 8 characters long.",
+                    "Password must be 12-128 characters and include upper-case, lower-case, number, and symbol characters, with no spaces.",
                     "error"
                 );
 
@@ -626,19 +689,47 @@ if (
     accountEmail
 ) {
 
-    // Get user information stored after login
-    const storedUser =
-        localStorage.getItem("foodByKUser");
-
-
-    if (storedUser) {
+    async function loadAccountInformation() {
 
         try {
 
+            // Get the currently logged-in user
+            const result =
+                await getCurrentUser();
+
+
+            if (!result.success) {
+
+                accountFirstName.textContent =
+                    "Not available";
+
+                accountLastName.textContent =
+                    "Not available";
+
+                accountEmail.textContent =
+                    "Not available";
+
+                console.error(
+                    "Account Error:",
+                    result.error
+                );
+
+                return;
+            }
+
+
             const user =
-                JSON.parse(storedUser);
+                result.data;
 
 
+            // Update local storage with the latest user data
+            localStorage.setItem(
+                "foodByKUser",
+                JSON.stringify(user)
+            );
+
+
+            // Display user information
             accountFirstName.textContent =
                 user.first_name ||
                 user.firstName ||
@@ -654,6 +745,7 @@ if (
             accountEmail.textContent =
                 user.email ||
                 "Not available";
+
 
         } catch (error) {
 
@@ -673,19 +765,10 @@ if (
 
         }
 
-    } else {
-
-        // No user data stored
-        accountFirstName.textContent =
-            "Not logged in";
-
-        accountLastName.textContent =
-            "Not logged in";
-
-        accountEmail.textContent =
-            "Not logged in";
-
     }
+
+
+    loadAccountInformation();
 
 }
 
