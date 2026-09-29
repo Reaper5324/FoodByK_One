@@ -1,18 +1,15 @@
 FROM php:8.3-apache
 
 RUN docker-php-ext-install pdo pdo_mysql
-
 RUN a2enmod rewrite headers
-
-RUN php -v && php -m | grep -i pdo
 
 WORKDIR /var/www/html
 
-# Move these lines up here to break the Docker build cache
+# Cache-friendly script installation
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-# FIXED: Explicitly use the relative current directory paths
+# Target the directories inside the backend context
 COPY ./foodbyk/ ./foodbyk/
 COPY ./public/ ./public/
 
@@ -30,5 +27,5 @@ RUN mkdir -p /var/www/html/public/uploads/products \
 
 EXPOSE 80
 
-# CRITICAL: Triggers your port binding script when Railway starts the container
+# Hand off execution securely to the script
 ENTRYPOINT ["/start.sh"]
