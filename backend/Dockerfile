@@ -12,8 +12,9 @@ WORKDIR /var/www/html
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-COPY foodbyk/ ./foodbyk/
-COPY public/ ./public/
+# FIXED: Explicitly use the relative current directory paths
+COPY ./foodbyk/ ./foodbyk/
+COPY ./public/ ./public/
 
 RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' \
     /etc/apache2/sites-available/000-default.conf
@@ -28,3 +29,6 @@ RUN mkdir -p /var/www/html/public/uploads/products \
     && chmod 775 /var/www/html/public
 
 EXPOSE 80
+
+# CRITICAL: Triggers your port binding script when Railway starts the container
+ENTRYPOINT ["/start.sh"]
