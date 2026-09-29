@@ -38,6 +38,9 @@ async function apiRequest(endpoint, options = {}) {
                 credentials: "include"
             });
             window.foodByKCsrfToken = csrfResponse.headers.get("X-CSRF-Token");
+            if (window.foodByKCsrfToken) {
+                requestOptions.headers["X-CSRF-Token"] = window.foodByKCsrfToken;
+            }
         }
 
         const response = await fetch(url, requestOptions);
