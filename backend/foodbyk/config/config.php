@@ -6,6 +6,11 @@ define('DB_NAME', getenv('DB_NAME') ?: (getenv('MYSQLDATABASE') ?: (APP_ENV === 
 define('DB_USER', getenv('DB_USER') ?: (getenv('MYSQLUSER') ?: (APP_ENV === 'production' ? '' : 'root')));
 define('DB_PASS', getenv('DB_PASS') ?: (getenv('MYSQLPASSWORD') ?: ''));
 define('DB_SSL_CA', getenv('DB_SSL_CA') ?: '');
+define('AWS_ENDPOINT_URL', getenv('AWS_ENDPOINT_URL') ?: '');
+define('AWS_DEFAULT_REGION', getenv('AWS_DEFAULT_REGION') ?: 'auto');
+define('AWS_S3_BUCKET_NAME', getenv('AWS_S3_BUCKET_NAME') ?: '');
+define('AWS_ACCESS_KEY_ID', getenv('AWS_ACCESS_KEY_ID') ?: '');
+define('AWS_SECRET_ACCESS_KEY', getenv('AWS_SECRET_ACCESS_KEY') ?: '');
 define('PAYMENT_TOKEN_ENCRYPTION_KEY', getenv('PAYMENT_TOKEN_ENCRYPTION_KEY') ?: '');
 define('PAYFAST_MERCHANT_ID', getenv('PAYFAST_MERCHANT_ID') ?: '');
 define('PAYFAST_MERCHANT_KEY', getenv('PAYFAST_MERCHANT_KEY') ?: '');

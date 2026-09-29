@@ -12,6 +12,11 @@ RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
+# Install the S3-compatible client used to create temporary private-image URLs.
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY ./foodbyk/composer.json ./foodbyk/composer.json
+RUN composer install --working-dir=/var/www/html/foodbyk --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
 # Core directory transfers
 COPY ./foodbyk/ ./foodbyk/
 COPY ./public/ ./public/

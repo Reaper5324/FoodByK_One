@@ -3,12 +3,13 @@
 class ProductService {
     private const MAX_NAME_LENGTH = 150;
     private const MAX_DESCRIPTION_LENGTH = 2000;
+    private ?object $imageStorageClient = null;
 
     public function listAvailable(): array {
-        return $this->success(array_values(array_filter(
+        return $this->success($this->withImageUrls(array_values(array_filter(
             Product::findAvailable(),
             fn(Product $product) => $this->isPubliclyAvailable($product)
-        )));
+        ))));
     }
 
     public function listByCategory(int $categoryId): array {
@@ -16,10 +17,10 @@ class ProductService {
             return $this->failure('Invalid category.');
         }
 
-        return $this->success(array_values(array_filter(
+        return $this->success($this->withImageUrls(array_values(array_filter(
             Product::findByCategory($categoryId),
             fn(Product $product) => $this->isPubliclyAvailable($product)
-        )));
+        ))));
     }
 
     public function findAvailableById(int $productId): array {
@@ -29,7 +30,7 @@ class ProductService {
 
         $product = Product::findById($productId);
         return $product !== null && $this->isPubliclyAvailable($product)
-            ? $this->success($product)
+            ? $this->success($this->withImageUrl($product))
             : $this->failure('Product not found.');
     }
 
@@ -39,10 +40,10 @@ class ProductService {
             return $this->failure('Enter a search term between 1 and 100 characters.');
         }
 
-        return $this->success(array_values(array_filter(
+        return $this->success($this->withImageUrls(array_values(array_filter(
             Product::search($query),
             fn(Product $product) => $this->isPubliclyAvailable($product)
-        )));
+        ))));
     }
 
     public function create(array $input): array {
@@ -124,7 +125,8 @@ class ProductService {
         if (!is_numeric($price) || (float) $price < 0.0 || (float) $price > 100000.0) {
             return $this->failure('Invalid product price.');
         }
-        if ($imageUrl !== null && $imageUrl !== '' && filter_var($imageUrl, FILTER_VALIDATE_URL) === false) {
+        if ($imageUrl !== null && $imageUrl !== '' && filter_var($imageUrl, FILTER_VALIDATE_URL) === false
+            && !$this->isValidBucketKey((string) $imageUrl)) {
             return $this->failure('Invalid product image URL.');
         }
         if (!is_bool($isAvailable) && !in_array($isAvailable, [0, 1, '0', '1'], true)) {
@@ -147,6 +149,64 @@ class ProductService {
 
     private function isPubliclyAvailable(Product $product): bool {
         return $product->status === Product::STATUS_ACTIVE && $product->is_available;
+    }
+
+    private function withImageUrls(array $products): array {
+        foreach ($products as $product) {
+            if ($product instanceof Product) {
+                $this->withImageUrl($product);
+            }
+        }
+        return $products;
+    }
+
+    private function withImageUrl(Product $product): Product {
+        $key = trim((string) $product->image_url);
+        if ($key === '' || filter_var($key, FILTER_VALIDATE_URL) !== false) {
+            return $product;
+        }
+
+        // Accept only simple object keys; never allow a database value to
+        // address objects outside the bucket's normal key namespace.
+        if (!$this->isValidBucketKey($key)) {
+            $product->image_url = null;
+            return $product;
+        }
+
+        if (AWS_ENDPOINT_URL === '' || AWS_S3_BUCKET_NAME === ''
+            || AWS_ACCESS_KEY_ID === '' || AWS_SECRET_ACCESS_KEY === '') {
+            $product->image_url = null;
+            return $product;
+        }
+
+        try {
+            $this->imageStorageClient ??= new \Aws\S3\S3Client([
+                    'version' => 'latest',
+                    'region' => AWS_DEFAULT_REGION,
+                    'endpoint' => AWS_ENDPOINT_URL,
+                    'use_path_style_endpoint' => false,
+                    'credentials' => [
+                        'key' => AWS_ACCESS_KEY_ID,
+                        'secret' => AWS_SECRET_ACCESS_KEY,
+                    ],
+                ]);
+            $command = $this->imageStorageClient->getCommand('GetObject', [
+                'Bucket' => AWS_S3_BUCKET_NAME,
+                'Key' => $key,
+            ]);
+            $request = $this->imageStorageClient->createPresignedRequest($command, '+1 hour');
+            $product->image_url = (string) $request->getUri();
+        } catch (Throwable $error) {
+            error_log('Unable to create a signed menu image URL.');
+            $product->image_url = null;
+        }
+
+        return $product;
+    }
+
+    private function isValidBucketKey(string $key): bool {
+        return !str_starts_with($key, '/') && !str_contains($key, '..')
+            && preg_match('/^[A-Za-z0-9][A-Za-z0-9._\/-]{0,254}$/', $key) === 1;
     }
 
     private function stringLength(string $value): int {
