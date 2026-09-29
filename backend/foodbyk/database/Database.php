@@ -9,8 +9,8 @@ class Database {
 
     public static function getConnection(): PDO {
         if (self::$instance === null) {
-            if (APP_ENV === 'production' && (DB_NAME === '' || DB_USER === '' || DB_PASS === '' || DB_USER === 'root')) {
-                throw new RuntimeException('Production requires explicit database credentials and a non-root database user.');
+            if (APP_ENV === 'production' && (DB_NAME === '' || DB_USER === '' || DB_PASS === '')) {
+                throw new RuntimeException('Production requires explicit database credentials.');
             }
             if (APP_ENV === 'production' && PAYMENT_TOKEN_ENCRYPTION_KEY === '') {
                 throw new RuntimeException('Production payment token encryption is not configured.');

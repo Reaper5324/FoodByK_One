@@ -1,6 +1,6 @@
 <?php
 if (!defined('API_BASE_URL')) {
-    define('API_BASE_URL', rtrim(getenv('API_BASE_URL') ?: 'http://localhost:8000', '/'));
+    define('API_BASE_URL', rtrim(getenv('API_BASE_URL') ?: 'https://foodbykone-production.up.railway.app', '/'));
 }
 
 function checkoutApiRequest($path, $payload = null) {
