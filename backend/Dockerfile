@@ -1,21 +1,23 @@
 FROM php:8.3-apache
 
-RUN docker-php-ext-install pdo pdo_mysql
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends unzip git libzip-dev \
+ && docker-php-ext-install pdo pdo_mysql zip \
+ && rm -rf /var/lib/apt/lists/*
 RUN a2enmod rewrite headers
 
 WORKDIR /var/www/html
 
-# Silences the 'Could not reliably determine the server's fully qualified domain name' warning
 RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
-# Cache-friendly script installation
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-# Install the S3-compatible client used to create temporary private-image URLs.
+ENV COMPOSER_ALLOW_SUPERUSER=1
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
-COPY ./foodbyk/composer.json ./foodbyk/composer.json
+COPY ./foodbyk/composer.json ./foodbyk/composer.lock ./foodbyk/
 RUN composer install --working-dir=/var/www/html/foodbyk --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
 
 # Core directory transfers
 COPY ./foodbyk/ ./foodbyk/
