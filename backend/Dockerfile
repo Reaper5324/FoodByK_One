@@ -13,6 +13,7 @@ RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
+#AWS
 ENV COMPOSER_ALLOW_SUPERUSER=1
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 COPY ./foodbyk/composer.json ./foodbyk/composer.lock ./foodbyk/
