@@ -1,9 +1,8 @@
 [build]
-builder = "DOCKERFILE"
+builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "/start.sh"
-healthcheckPath = "/health"
-restartPolicyType = "ON_FAILURE"
+restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
