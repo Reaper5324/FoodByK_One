@@ -92,12 +92,16 @@ if (loginForm) {
                     );
 
 
-                    // Redirect to homepage
+                    // Send each account to the page for its role.
+                    const roleDestinations = {
+                        admin: "/admin/dashboard.html",
+                        staff: "/admin/orders.html",
+                        customer: "/pages/customer/menu.html"
+                    };
+                    const destination = roleDestinations[result.data?.role] || "/src/index.html";
+
                     setTimeout(function () {
-
-                        window.location.href =
-                            "../../src/index.html";
-
+                        window.location.href = destination;
                     }, 1000);
 
                 } else {
