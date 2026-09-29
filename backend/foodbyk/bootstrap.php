@@ -37,12 +37,15 @@ require_once __DIR__ . '/config/config.php';
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
+    $isSecureRequest = APP_ENV === 'production'
+        || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
     session_set_cookie_params([
         'lifetime' => 0,
         'path' => '/',
-        'secure' => APP_ENV === 'production' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'secure' => $isSecureRequest,
         'httponly' => true,
-        'samesite' => APP_ENV === 'production' ? 'None' : 'Lax',
+        'samesite' => $isSecureRequest ? 'None' : 'Lax',
     ]);
 }
 
