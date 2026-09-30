@@ -2,6 +2,78 @@
    MOBILE SIDEBAR
 ======================================== */
 
+const dashboardOrdersBody = document.querySelector("#dashboardIncomingOrders");
+if (dashboardOrdersBody && typeof apiGet === "function") {
+    const pendingCount = document.querySelector("#dashboardPendingCount");
+
+    const addDashboardMessage = (text) => {
+        dashboardOrdersBody.replaceChildren();
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 7;
+        cell.textContent = text;
+        row.appendChild(cell);
+        dashboardOrdersBody.appendChild(row);
+    };
+
+    const loadDashboardOrders = async () => {
+        addDashboardMessage("Loading incoming orders…");
+        const result = await apiGet("/staff/orders/incoming");
+        if (!result.success) {
+            addDashboardMessage(result.error || "Unable to load incoming orders.");
+            if (pendingCount) pendingCount.textContent = "—";
+            return;
+        }
+
+        const orders = Array.isArray(result.data) ? result.data : [];
+        if (pendingCount) pendingCount.textContent = String(orders.length);
+        if (orders.length === 0) {
+            addDashboardMessage("There are no orders awaiting review.");
+            return;
+        }
+
+        dashboardOrdersBody.replaceChildren();
+        orders.slice(0, 5).forEach((order) => {
+            const row = document.createElement("tr");
+            const timeValue = order.confirmed_window_start || order.requested_window_start || "";
+            const timeMatch = String(timeValue).match(/T?(\d{2}:\d{2})/);
+            const total = Number(order.subtotal || 0) - Number(order.locked_discount || 0) + Number(order.delivery_fee || 0);
+            const customerName = String(order.customer_name || "Customer");
+            const cells = [
+                `#${order.id}`,
+                customerName,
+                order.fulfilment_type === "delivery" ? "Delivery" : "Collection",
+                timeMatch ? timeMatch[1] : "—",
+                `R${total.toFixed(2)}`,
+                "Pending"
+            ];
+            cells.forEach((value, index) => {
+                const cell = document.createElement("td");
+                if (index === 5) {
+                    const status = document.createElement("span");
+                    status.className = "status pending";
+                    status.textContent = value;
+                    cell.appendChild(status);
+                } else {
+                    cell.textContent = value;
+                }
+                row.appendChild(cell);
+            });
+
+            const actionCell = document.createElement("td");
+            const link = document.createElement("a");
+            link.className = "action-btn";
+            link.href = "orders.html";
+            link.textContent = "Manage";
+            actionCell.appendChild(link);
+            row.appendChild(actionCell);
+            dashboardOrdersBody.appendChild(row);
+        });
+    };
+
+    loadDashboardOrders();
+}
+
 const sidebarToggle = document.querySelector(".sidebar-toggle");
 const sidebar = document.querySelector(".sidebar");
 

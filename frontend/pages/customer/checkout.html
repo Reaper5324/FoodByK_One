@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout | Food by K</title>
+  <link rel="stylesheet" href="../../public%20assets/css/style.css">
+  <style>
+    .checkout-page { max-width: 760px; margin: 0 auto; padding: 32px 7%; }
+    .checkout-form, .checkout-summary { display: grid; gap: 16px; padding: 20px; margin: 20px 0; background: var(--food-white); border: 1px solid var(--food-border); border-radius: 8px; }
+    .checkout-form label { display: grid; gap: 6px; font-weight: 600; }
+    .checkout-form select, .checkout-form input { width: 100%; padding: 11px; border: 1px solid var(--food-border); border-radius: 6px; }
+    .checkout-summary p { display: flex; justify-content: space-between; margin: 0; }
+    .checkout-message { padding: 14px; margin: 16px 0; border: 1px solid var(--food-border); border-radius: 6px; }
+  </style>
+</head>
+<body>
+<header class="navbar">
+  <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
+  <nav>
+    <a href="menu.html">Menu</a>
+    <a href="cart.html">Cart</a>
+    <a href="../auth/account.html">Account</a>
+  </nav>
+</header>
+
+<main class="checkout-page">
+  <h1>Checkout</h1>
+  <p>Choose collection or delivery, select a fulfilment time, then review your order.</p>
+  <div id="checkoutMessage" class="checkout-message" role="status" hidden></div>
+
+  <form id="checkoutForm" class="checkout-form">
+    <label for="fulfilmentType">Fulfilment
+      <select id="fulfilmentType" required>
+        <option value="collection">Collection</option>
+        <option value="delivery">Delivery</option>
+      </select>
+    </label>
+    <label id="addressField" for="addressId" hidden>Delivery address
+      <select id="addressId"></select>
+    </label>
+    <label for="slotDate">Date
+      <input id="slotDate" type="date" required>
+    </label>
+    <label for="slotSelect">Available time
+      <select id="slotSelect" required><option value="">Choose a date first</option></select>
+    </label>
+    <label for="promotionCode">Promotion code (optional)
+      <input id="promotionCode" type="text" maxlength="50" autocomplete="off">
+    </label>
+    <button id="previewButton" class="btn btn-secondary" type="button">Review total</button>
+    <section id="checkoutSummary" class="checkout-summary" hidden aria-live="polite"></section>
+    <button id="submitButton" class="btn btn-primary" type="submit" hidden>Continue to secure card setup</button>
+  </form>
+</main>
+
+<script src="../../public%20assets/js/config.js"></script>
+<script src="../../public%20assets/js/api/api.js"></script>
+<script src="../../public%20assets/js/checkout.js"></script>
+</body>
+</html>

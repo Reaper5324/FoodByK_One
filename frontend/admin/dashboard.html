@@ -183,8 +183,8 @@
 
                     <div>
                         <p>Pending Orders</p>
-                        <h3>12</h3>
-                        <span class="increase">+3 today</span>
+                        <h3 id="dashboardPendingCount">—</h3>
+                        <span class="increase">Awaiting staff review</span>
                     </div>
 
                 </div>
@@ -198,8 +198,8 @@
 
                     <div>
                         <p>Orders Today</p>
-                        <h3>47</h3>
-                        <span class="increase">+12% from yesterday</span>
+                        <h3>—</h3>
+                        <span>Not available from the current API</span>
                     </div>
 
                 </div>
@@ -213,8 +213,8 @@
 
                     <div>
                         <p>Completed Orders</p>
-                        <h3>35</h3>
-                        <span class="increase">+8 today</span>
+                        <h3>—</h3>
+                        <span>Not available from the current API</span>
                     </div>
 
                 </div>
@@ -228,8 +228,8 @@
 
                     <div>
                         <p>Today's Revenue</p>
-                        <h3>R4,850</h3>
-                        <span class="increase">+15%</span>
+                        <h3>—</h3>
+                        <span>Not available from the current API</span>
                     </div>
 
                 </div>
@@ -248,7 +248,7 @@
                         <h3>Incoming Orders</h3>
                     </div>
 
-                    <a href="#" class="view-all">
+                    <a href="orders.html" class="view-all">
                         VIEW ALL
                         <i class="fa-solid fa-arrow-right"></i>
                     </a>
@@ -273,7 +273,7 @@
                         </thead>
 
 
-                        <tbody>
+                        <tbody id="dashboardIncomingOrders">
 
                             <tr>
 
@@ -522,6 +522,8 @@
 
 
     <!-- JavaScript -->
+    <script src="../public%20assets/js/config.js"></script>
+    <script src="../public%20assets/js/api/api.js"></script>
     <script src="../js/dashboard.js"></script>
 
 </body>

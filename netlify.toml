@@ -4,6 +4,12 @@ command = "true"
 publish = "."
 
 [[redirects]]
+from = "/pages/customer/checkout.php"
+to = "/pages/customer/checkout.html"
+status = 301
+force = true
+
+[[redirects]]
 from = "/"
 to = "/src/index.html"
 status = 200
