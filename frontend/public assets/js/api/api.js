@@ -69,6 +69,18 @@ async function apiRequest(endpoint, options = {}) {
 
     try {
 
+        // A fresh page load has no in-memory CSRF token. Fetch it before the
+        // first authenticated write, as the backend exposes it on GET /auth/me.
+        if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS"
+            && !CSRF_EXEMPT_ENDPOINTS.includes(endpointPath)
+            && !window.foodByKCsrfToken) {
+            const csrfResponse = await fetch(API_BASE_URL + "/auth/me", {
+                method: "GET",
+                credentials: "include"
+            });
+            window.foodByKCsrfToken = csrfResponse.headers.get("X-CSRF-Token");
+        }
+
         /* -----------------------------------------
            Make request
            ----------------------------------------- */

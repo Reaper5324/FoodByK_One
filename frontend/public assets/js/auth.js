@@ -130,10 +130,10 @@ if (loginForm) {
                 const roleDestinations = {
 
                     admin:
-                        "../admin/dashboard.html",
+                        "../../admin/dashboard.html",
 
                     staff:
-                        "../admin/orders.html",
+                        "../../admin/orders.html",
 
                     customer:
                         "../customer/menu.html"

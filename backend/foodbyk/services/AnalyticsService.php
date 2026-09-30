@@ -18,7 +18,6 @@ class AnalyticsService {
                 (SELECT COUNT(*) FROM orders WHERE status = 'completed' AND updated_at >= ? AND updated_at < ?) AS completed_today,
                 (SELECT COUNT(*) FROM payments WHERE status = 'success' AND charged_at >= ? AND charged_at < ?) AS paid_orders_today,
                 (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'success' AND charged_at >= ? AND charged_at < ?) AS revenue_today"
-        
         );
         $stmt->execute([$start, $end, $start, $end, $start, $end, $start, $end]);
         $summary = $stmt->fetch();
