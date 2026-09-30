@@ -48,6 +48,8 @@ function registerRoutes(Router $router): void {
     $router->get('/payments/cancel', [PaymentController::class, 'cancelFromPayFast']);
 
     $router->get('/staff/orders/incoming', [OrderController::class, 'incoming'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
+    $router->get('/staff/orders', [OrderController::class, 'staffIndex'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
+    $router->get('/staff/analytics', [AnalyticsController::class, 'staffSummary'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
     $router->post('/staff/orders/{id}/adjust', [OrderController::class, 'adjust'], $staff);
     $router->post('/staff/orders/{id}/confirm', [OrderController::class, 'confirm'], $staff);
     $router->post('/staff/orders/{id}/decline', [OrderController::class, 'decline'], $staff);
@@ -56,6 +58,13 @@ function registerRoutes(Router $router): void {
     $router->get('/orders/{id}', [OrderController::class, 'show'], [new AuthMiddleware(), RoleMiddleware::customer()]);
     $router->post('/orders/{id}/cancel', [OrderController::class, 'cancel'], $customer);
 
+    $router->get('/admin/analytics', [AnalyticsController::class, 'adminSummary'], [new AuthMiddleware(), RoleMiddleware::admin()]);
+    $router->get('/admin/staff', [AdminController::class, 'staff'], [new AuthMiddleware(), RoleMiddleware::admin()]);
+    $router->get('/admin/products', [AdminController::class, 'products'], [new AuthMiddleware(), RoleMiddleware::admin()]);
+    $router->get('/admin/promotions', [AdminController::class, 'promotions'], [new AuthMiddleware(), RoleMiddleware::admin()]);
+    $router->get('/admin/settings', [AdminController::class, 'settings'], [new AuthMiddleware(), RoleMiddleware::admin()]);
+    $router->get('/admin/customers', [AdminController::class, 'customers'], [new AuthMiddleware(), RoleMiddleware::admin()]);
+    $router->put('/admin/customers/{id}', [AdminController::class, 'updateCustomer'], [new AuthMiddleware(), RoleMiddleware::admin(), new CsrfMiddleware()]);
     $router->post('/admin/staff', [AdminController::class, 'addStaff'], $admin);
     $router->put('/admin/staff/{id}', [AdminController::class, 'updateStaff'], $admin);
     $router->delete('/admin/staff/{id}', [AdminController::class, 'removeStaff'], $admin);

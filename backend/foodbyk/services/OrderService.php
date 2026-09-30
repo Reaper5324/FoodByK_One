@@ -156,11 +156,26 @@ class OrderService {
     public function getPendingOrdersForStaffDashboard(): array {
         $db = Database::getConnection();
         $rows = $db->query(
-            "SELECT o.*, u.full_name AS customer_name, u.email AS customer_email
+            "SELECT o.*, u.name AS customer_name, u.email AS customer_email
              FROM orders o
              JOIN users u ON u.id = o.customer_id
              WHERE o.status = '" . Order::STATUS_SUBMITTED . "'
              ORDER BY o.created_at ASC"
+        )->fetchAll();
+        return ['success' => true, 'data' => $rows, 'error' => null];
+    }
+
+    public function getOrdersForStaffDashboard(): array {
+        $db = Database::getConnection();
+        $rows = $db->query(
+            "SELECT o.*, u.name AS customer_name, u.email AS customer_email,
+                    p.status AS payment_status,
+                    GREATEST(0, o.subtotal - o.locked_discount) + o.delivery_fee AS total
+             FROM orders o
+             JOIN users u ON u.id = o.customer_id
+             LEFT JOIN payments p ON p.order_id = o.id
+             ORDER BY o.created_at DESC
+             LIMIT 200"
         )->fetchAll();
         return ['success' => true, 'data' => $rows, 'error' => null];
     }

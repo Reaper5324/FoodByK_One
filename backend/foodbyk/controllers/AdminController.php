@@ -1,6 +1,14 @@
 <?php
 
 class AdminController extends Controller {
+    public function staff(Request $request): Response { return $this->respond((new AuthService())->listStaffAccounts()); }
+    public function products(Request $request): Response { return $this->respond((new ProductService())->listForAdmin()); }
+    public function promotions(Request $request): Response { return $this->respond((new AdminSettingsService())->listPromotions()); }
+    public function settings(Request $request): Response { return $this->respond((new AdminSettingsService())->getSettings()); }
+    public function customers(Request $request): Response { return $this->respond((new AuthService())->listCustomers()); }
+    public function updateCustomer(Request $request, array $params): Response {
+        return $this->respond((new AuthService())->setCustomerActive((int) $this->param($params, 'id'), $request->input('is_active')));
+    }
 
     public function addStaff(Request $request): Response {
         $result = (new AuthService())->createStaffAccount($request->input('full_name'), $request->input('email'), $request->input('role'), $request->input('phone'));

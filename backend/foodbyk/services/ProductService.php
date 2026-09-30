@@ -12,6 +12,17 @@ class ProductService {
         ))));
     }
 
+    public function listForAdmin(): array {
+        $products = array_values(array_filter(
+            Product::findAll(),
+            fn(Product $product) => $product->status !== Product::STATUS_REMOVED
+        ));
+        foreach ($products as $product) {
+            $product->image_key = $product->image_url;
+        }
+        return $this->success($this->withImageUrls($products));
+    }
+
     public function listByCategory(int $categoryId): array {
         if ($categoryId <= 0) {
             return $this->failure('Invalid category.');

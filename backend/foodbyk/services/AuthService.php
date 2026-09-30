@@ -1,6 +1,47 @@
 <?php
 
 class AuthService {
+
+    public function listStaffAccounts(): array {
+        $db = Database::getConnection();
+        $rows = $db->query(
+            "SELECT u.id, u.name AS full_name, u.email, u.phone, u.is_active,
+                    u.created_at, r.role_name AS role
+             FROM users u JOIN roles r ON r.id = u.role_id
+             WHERE r.role_name IN ('staff', 'admin')
+             ORDER BY r.role_name, u.name"
+        )->fetchAll();
+        return ['success' => true, 'data' => $rows, 'error' => null];
+    }
+
+    public function listCustomers(): array {
+        $db = Database::getConnection();
+        $rows = $db->query(
+            "SELECT u.id, u.name AS full_name, u.email, u.phone, u.is_active, u.created_at,
+                    COUNT(DISTINCT o.id) AS order_count,
+                    COALESCE(SUM(CASE WHEN p.status = 'success' THEN p.amount ELSE 0 END), 0) AS total_spent
+             FROM users u JOIN roles r ON r.id = u.role_id
+             LEFT JOIN orders o ON o.customer_id = u.id
+             LEFT JOIN payments p ON p.order_id = o.id
+             WHERE r.role_name = 'customer'
+             GROUP BY u.id
+             ORDER BY u.created_at DESC"
+        )->fetchAll();
+        return ['success' => true, 'data' => $rows, 'error' => null];
+    }
+
+    public function setCustomerActive(int $customerId, mixed $active): array {
+        $customer = User::findById($customerId);
+        if (!$customer || $customer->getRole()?->role_name !== Role::CUSTOMER) {
+            return $this->failure('Customer account not found.');
+        }
+        $isActive = filter_var($active, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($isActive === null) return $this->failure('Invalid customer account status.');
+        $customer->is_active = $isActive;
+        return $customer->save()
+            ? $this->success(['id' => $customer->id, 'is_active' => $customer->is_active])
+            : $this->failure('Unable to update customer account.');
+    }
     private const MIN_PASSWORD_LENGTH = 12;
     private const MAX_PASSWORD_LENGTH = 128;
     private const MAX_NAME_LENGTH = 120;

@@ -28,6 +28,16 @@ class AdminSettingsService {
         return $settings->save() ? $this->success($settings) : $this->failure('Unable to update settings.');
     }
 
+    public function getSettings(): array {
+        return $this->success(BusinessSettings::current());
+    }
+
+    public function listPromotions(): array {
+        $promotions = Promotion::findAll();
+        usort($promotions, fn(Promotion $a, Promotion $b) => $b->id <=> $a->id);
+        return $this->success($promotions);
+    }
+
     public function addPromotion(array $input): array {
         $code = trim((string) ($input['code'] ?? ''));
         $type = (string) ($input['discount_type'] ?? '');

@@ -2,6 +2,8 @@
 
 class Product extends Model {
 
+public ?string $image_key = null;
+
 protected static string $table = 'products';
 
 const STATUS_ACTIVE   = 'active';
