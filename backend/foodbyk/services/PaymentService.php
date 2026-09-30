@@ -44,6 +44,7 @@ class PaymentService {
 
         if (!$order || !is_string($token) || $token === '' || ($itn['payment_status'] ?? '') !== 'COMPLETE'
             || (string) ($itn['merchant_id'] ?? '') !== (string) PAYFAST_MERCHANT_ID) {
+            error_log('PayFast token ITN rejected: order, token, completion status, or merchant ID is missing or invalid.');
             return ['success' => false, 'error' => 'Order or token missing from ITN.'];
         }
 
@@ -69,6 +70,7 @@ class PaymentService {
             $db->commit();
         } catch (Throwable $e) {
             if ($db->inTransaction()) $db->rollBack();
+            error_log('PayFast token ITN could not be saved: ' . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
         }
 
@@ -263,10 +265,16 @@ class PaymentService {
     }
 
     private function verifyItn(array $itn, ?string $sourceIp): bool {
-        if (!$sourceIp || !$this->isPayFastIp($sourceIp)) return false;
+        if (!$sourceIp || !$this->isPayFastIp($sourceIp)) {
+            error_log('PayFast ITN rejected: source IP is not in the PayFast allowlist.');
+            return false;
+        }
         $receivedSignature = $itn['signature'] ?? '';
         $expectedSignature = $this->generateFormSignature($itn);
-        if (!is_string($receivedSignature) || !hash_equals($expectedSignature, $receivedSignature)) return false;
+        if (!is_string($receivedSignature) || !hash_equals($expectedSignature, $receivedSignature)) {
+            error_log('PayFast ITN rejected: signature mismatch.');
+            return false;
+        }
 
         $host = $this->sandboxEnabled() ? 'sandbox.payfast.co.za' : 'www.payfast.co.za';
         $context = stream_context_create(['http' => [
@@ -277,7 +285,11 @@ class PaymentService {
             'ignore_errors' => true,
         ]]);
         $response = @file_get_contents("https://{$host}/eng/query/validate", false, $context);
-        return trim((string) $response) === 'VALID';
+        if (trim((string) $response) !== 'VALID') {
+            error_log('PayFast ITN rejected: PayFast validation endpoint did not return VALID.');
+            return false;
+        }
+        return true;
     }
 
     private function isPayFastIp(string $ip): bool {
