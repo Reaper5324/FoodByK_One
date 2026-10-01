@@ -270,7 +270,12 @@ class PaymentService {
             return false;
         }
         $receivedSignature = $itn['signature'] ?? '';
-        $expectedSignature = $this->generateFormSignature($itn);
+        // ITN signature fields must retain PayFast's submitted order. Sorting
+        // or rebuilding from a parsed map can change the signed payload.
+        $paramString = $this->itnParameterString($itn);
+        $expectedSignature = md5($paramString . ($this->passphrase() !== ''
+            ? '&passphrase=' . urlencode(trim($this->passphrase()))
+            : ''));
         if (!is_string($receivedSignature) || !hash_equals($expectedSignature, $receivedSignature)) {
             error_log('PayFast ITN rejected: signature mismatch.');
             return false;
@@ -280,7 +285,7 @@ class PaymentService {
         $context = stream_context_create(['http' => [
             'method' => 'POST',
             'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
-            'content' => http_build_query(array_diff_key($itn, ['signature' => true])),
+            'content' => $paramString,
             'timeout' => 10,
             'ignore_errors' => true,
         ]]);
@@ -290,6 +295,21 @@ class PaymentService {
             return false;
         }
         return true;
+    }
+
+    private function itnParameterString(array $itn): string {
+        $pairs = [];
+        foreach ($itn as $key => $value) {
+            if ($key === 'signature') break;
+            if (!is_scalar($value)) return '';
+            $value = stripslashes((string) $value);
+            $pairs[] = $key . '=' . urlencode($value);
+        }
+        return implode('&', $pairs);
+    }
+
+    private function passphrase(): string {
+        return defined('PAYFAST_PASSPHRASE') ? (string) PAYFAST_PASSPHRASE : '';
     }
 
     private function isPayFastIp(string $ip): bool {
