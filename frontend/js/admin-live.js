@@ -1,4 +1,23 @@
+const ADMIN_ONLY_PAGES = new Set([
+    "categories.html",
+    "promotions.html",
+    "customers.html",
+    "staff-users.html",
+    "reports.html",
+    "settings.html"
+]);
+
+const STAFF_ALLOWED_PAGES = new Set([
+    "dashboard.html",
+    "orders.html",
+    "menu-items.html"
+]);
+
+
+
+
 const initializeAdminLive = async () => {
+    const page = location.pathname.split("/").pop();
     const loadScript = (src) => new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src = src;
@@ -17,13 +36,50 @@ const initializeAdminLive = async () => {
         return;
     }
 
-    const page = location.pathname.split("/").pop();
-    const paths = {
-        "Dashboard": "dashboard.html", "Orders": "orders.html", "Menu Items": "menu-items.html",
-        "Categories": "categories.html", "Promotions": "promotions.html", "Customers": "customers.html",
-        "Staff & Users": "staff-users.html", "Reports": "reports.html", "Settings": "settings.html"
+        const authResult = await apiGet("/auth/me");
+
+    if (!authResult.success || !authResult.data) {
+        location.href = "../pages/auth/login.html";
+        return;
+    }
+
+    const role = String(authResult.data.role || "").toLowerCase();
+
+    if (role !== "admin" && role !== "staff") {
+        location.href = "../pages/auth/login.html";
+        return;
+    }
+
+    if (role === "staff" && ADMIN_ONLY_PAGES.has(page)) {
+        location.href = "dashboard.html";
+        return;
+    }
+
+
+    
+        const paths = {
+        "Dashboard": "dashboard.html",
+        "Orders": "orders.html",
+        "Menu Items": "menu-items.html",
+        "Categories": "categories.html",
+        "Promotions": "promotions.html",
+        "Customers": "customers.html",
+        "Staff & Users": "staff-users.html",
+        "Reports": "reports.html",
+        "Settings": "settings.html"
     };
+
+    if (role === "staff") {
+        Object.keys(paths).forEach((label) => {
+            if (ADMIN_ONLY_PAGES.has(paths[label])) {
+                delete paths[label];
+            }
+        });
+    }
+
     const labels = Object.keys(paths);
+
+
     const nav = document.querySelector(".sidebar-menu");
     if (nav) {
         nav.replaceChildren();
