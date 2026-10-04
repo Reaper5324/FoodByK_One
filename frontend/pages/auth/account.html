@@ -5,25 +5,32 @@
 
     <meta charset="UTF-8">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+    >
 
     <title>My Account | Food by K</title>
 
+
     <!-- Shared Website Styling -->
-    <link rel="stylesheet"
-          href="../../public assets/css/style.css">
+    <link
+            rel="stylesheet"
+            href="../../public assets/css/style.css"
+    >
 
     <!-- Authentication Styling -->
-    <link rel="stylesheet"
-          href="../../public assets/css/auth.css">
+    <link
+            rel="stylesheet"
+            href="../../public assets/css/auth.css"
+    >
 
 </head>
+
 
 <body>
 
 <!-- Navigation will be inserted here -->
-
 <header id="navigation"></header>
 
 
@@ -31,7 +38,10 @@
 
     <section class="account-container">
 
-        <!-- Page Heading -->
+
+        <!-- =========================================
+             PAGE HEADING
+             ========================================= -->
 
         <div class="account-header">
 
@@ -46,7 +56,9 @@
         </div>
 
 
-        <!-- Account Details -->
+        <!-- =========================================
+             ACCOUNT INFORMATION
+             ========================================= -->
 
         <section class="account-card">
 
@@ -59,52 +71,54 @@
 
             <div class="account-info">
 
+
                 <div class="account-field">
 
-                    <span class="account-label">
-                        First Name
-                    </span>
+                        <span class="account-label">
+                            First Name
+                        </span>
 
                     <span
                             id="accountFirstName"
                             class="account-value"
                     >
-                        Loading...
-                    </span>
+                            Loading...
+                        </span>
 
                 </div>
 
 
                 <div class="account-field">
 
-                    <span class="account-label">
-                        Last Name
-                    </span>
+                        <span class="account-label">
+                            Last Name
+                        </span>
 
                     <span
                             id="accountLastName"
                             class="account-value"
                     >
-                        Loading...
-                    </span>
+                            Loading...
+                        </span>
 
                 </div>
 
 
                 <div class="account-field">
 
-                    <span class="account-label">
-                        Email Address
-                    </span>
+                        <span class="account-label">
+                            Email Address
+                        </span>
 
                     <span
                             id="accountEmail"
                             class="account-value"
                     >
-                        Loading...
-                    </span>
+                            Loading...
+                        </span>
 
                 </div>
+
 
             </div>
 
@@ -113,14 +127,8 @@
 
             <div class="account-actions">
 
-                <a
-                        href="forgot-password.html"
-                        class="btn btn-secondary"
-                >
-                    Change Password
-                </a>
-
                 <button
+                        type="button"
                         id="logoutButton"
                         class="btn btn-primary"
                 >
@@ -129,35 +137,128 @@
 
             </div>
 
+
         </section>
+
+
+
+        <!-- =========================================
+             CHANGE PASSWORD
+             ========================================= -->
+
+        <section class="account-card">
+
+            <h2>
+                Change Password
+            </h2>
+
+
+            <!-- Password Messages -->
+
+            <div id="passwordMessage"></div>
+
+
+            <form id="changePasswordForm">
+
+
+                <!-- Current Password -->
+
+                <div class="form-group">
+
+                    <label for="currentPassword">
+                        Current Password
+                    </label>
+
+                    <input
+                            type="password"
+                            id="currentPassword"
+                            name="current_password"
+                            placeholder="Enter your current password"
+                            autocomplete="current-password"
+                            required
+                    >
+
+                </div>
+
+
+                <!-- New Password -->
+
+                <div class="form-group">
+
+                    <label for="newPassword">
+                        New Password
+                    </label>
+
+                    <input
+                            type="password"
+                            id="newPassword"
+                            name="new_password"
+                            placeholder="Enter your new password"
+                            autocomplete="new-password"
+                            required
+                    >
+
+                </div>
+
+
+                <!-- Confirm New Password -->
+
+                <div class="form-group">
+
+                    <label for="confirmNewPassword">
+                        Confirm New Password
+                    </label>
+
+                    <input
+                            type="password"
+                            id="confirmNewPassword"
+                            name="confirm_new_password"
+                            placeholder="Confirm your new password"
+                            autocomplete="new-password"
+                            required
+                    >
+
+                </div>
+
+
+                <!-- Submit -->
+
+                <button
+                        type="submit"
+                        class="btn btn-primary"
+                >
+                    Change Password
+                </button>
+
+
+            </form>
+
+        </section>
+
 
     </section>
 
 </main>
 
 
-<!-- API Configuration -->
 
+<!-- =========================================
+     JAVASCRIPT
+     ========================================= -->
+
+<!-- API Configuration -->
 <script src="../../public%20assets/js/config.js"></script>
 
-
 <!-- Central API Client -->
-
 <script src="../../public%20assets/js/api/api.js"></script>
 
-
 <!-- Authentication API Service -->
-
 <script src="../../public%20assets/js/api/auth.js"></script>
 
-
 <!-- Navigation -->
-
 <script src="../../public assets/js/navigation.js"></script>
 
-
 <!-- Authentication Page Logic -->
-
 <script src="../../public assets/js/auth.js"></script>
 
 </body>

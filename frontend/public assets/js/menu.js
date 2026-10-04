@@ -84,16 +84,45 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <button class="btn btn-primary add-to-cart" type="button">Add to cart</button>
                 </div>
             </div>`;
-        card.querySelector(".add-to-cart").addEventListener("click", async (event) => {
-            event.currentTarget.disabled = true;
-            const result = await apiPost("/cart/items", { product_id: product.id, quantity: 1 });
-            if (result.success) {
-                event.currentTarget.textContent = "Added";
-            } else {
-                event.currentTarget.disabled = false;
-                showMessage(result.error || "Please log in before adding items to your cart.", true);
-            }
-        });
+  card.querySelector(".add-to-cart").addEventListener("click", async (event) => {
+
+      // Check if the user is logged in before allowing cart actions
+      const loggedIn = await isUserLoggedIn();
+
+      if (!loggedIn) {
+          showMessage(
+              "Please log in or create an account before adding items to your cart.",
+              true
+          );
+          return;
+      }
+
+      // Existing Person 2 cart functionality
+      event.currentTarget.disabled = true;
+
+      const result = await apiPost(
+          "/cart/items",
+          {
+              product_id: product.id,
+              quantity: 1
+          }
+      );
+
+      if (result.success) {
+
+          event.currentTarget.textContent = "Added";
+
+      } else {
+
+          event.currentTarget.disabled = false;
+
+          showMessage(
+              result.error ||
+              "Unable to add this item to your cart.",
+              true
+          );
+      }
+  });
         menuGrid.appendChild(card);
     };
 
