@@ -78,6 +78,8 @@ if (loginForm) {
                     );
 
 
+                /* ---------- Handle Login Failure ---------- */
+
                 if (!loginResult.success) {
 
                     showMessage(
@@ -276,6 +278,8 @@ if (registerForm) {
             }
 
 
+            /* ---------- Password Requirements ---------- */
+
             if (
                 password.length < 12 ||
                 password.length > 128 ||
@@ -302,6 +306,7 @@ if (registerForm) {
                 );
 
 
+            // Loading state
             registerButton.disabled = true;
             registerButton.textContent =
                 "Creating Account...";
@@ -311,16 +316,23 @@ if (registerForm) {
 
                 const userData = {
 
-                    name: `${firstName} ${lastName}`,
-                    email: email,
-                    password: password
+                    name:
+                        `${firstName} ${lastName}`,
+
+                    email:
+                        email,
+
+                    password:
+                        password
 
                 };
 
 
                 // Call registration API
                 const result =
-                    await registerUser(userData);
+                    await registerUser(
+                        userData
+                    );
 
 
                 if (result.success) {
@@ -329,6 +341,7 @@ if (registerForm) {
                         "foodByKUser",
                         JSON.stringify(result.data)
                     );
+
 
                     showMessage(
                         "Account created successfully! Redirecting...",
@@ -432,6 +445,7 @@ if (forgotPasswordForm) {
                 );
 
 
+            // Loading state
             forgotButton.disabled = true;
             forgotButton.textContent =
                 "Sending...";
@@ -718,11 +732,12 @@ if (
             }
 
 
+            // Get current user data
             const user =
                 result.data;
 
 
-            // Update local storage with the latest user data
+            // Update local storage
             localStorage.setItem(
                 "foodByKUser",
                 JSON.stringify(user)
@@ -774,17 +789,251 @@ if (
 
 
 /* =========================================
-   MESSAGE FUNCTION
+   CHANGE PASSWORD
    ========================================= */
 
-function showMessage(message, type) {
+const changePasswordForm =
+    document.getElementById("changePasswordForm");
+
+if (changePasswordForm) {
+
+    changePasswordForm.addEventListener(
+        "submit",
+        async function (event) {
+
+            // Stop browser reload
+            event.preventDefault();
+
+
+            /* ---------- Get Form Values ---------- */
+
+            const currentPassword =
+                document
+                    .getElementById("currentPassword")
+                    .value;
+
+            const newPassword =
+                document
+                    .getElementById("newPassword")
+                    .value;
+
+            const confirmNewPassword =
+                document
+                    .getElementById("confirmNewPassword")
+                    .value;
+
+
+            /* ---------- Clear Previous Message ---------- */
+
+            const passwordMessage =
+                document.getElementById(
+                    "passwordMessage"
+                );
+
+            if (passwordMessage) {
+                passwordMessage.innerHTML = "";
+            }
+
+
+            /* ---------- Validate Empty Fields ---------- */
+
+            if (
+                !currentPassword ||
+                !newPassword ||
+                !confirmNewPassword
+            ) {
+
+                showPasswordMessage(
+                    "Please complete all password fields.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            /* ---------- Validate Password ---------- */
+
+            if (
+                newPassword.length < 12 ||
+                newPassword.length > 128 ||
+                /\s/.test(newPassword) ||
+                !/[a-z]/.test(newPassword) ||
+                !/[A-Z]/.test(newPassword) ||
+                !/\d/.test(newPassword) ||
+                !/[^A-Za-z0-9]/.test(newPassword)
+            ) {
+
+                showPasswordMessage(
+                    "Password must be 12-128 characters and include upper-case, lower-case, number, and symbol characters, with no spaces.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            /* ---------- Check Password Match ---------- */
+
+            if (
+                newPassword !==
+                confirmNewPassword
+            ) {
+
+                showPasswordMessage(
+                    "New passwords do not match.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            /* ---------- Prevent Same Password ---------- */
+
+            if (
+                currentPassword ===
+                newPassword
+            ) {
+
+                showPasswordMessage(
+                    "Your new password must be different from your current password.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            /* ---------- Get Button ---------- */
+
+            const changePasswordButton =
+                changePasswordForm.querySelector(
+                    'button[type="submit"]'
+                );
+
+
+            /* ---------- Loading State ---------- */
+
+            changePasswordButton.disabled = true;
+
+            changePasswordButton.textContent =
+                "Changing Password...";
+
+
+            try {
+
+                /* ---------- Call API ---------- */
+
+                const result =
+                    await changePassword(
+                        currentPassword,
+                        newPassword
+                    );
+
+
+                /* ---------- Handle Success ---------- */
+
+                if (result.success) {
+
+                    showPasswordMessage(
+                        "Your password has been changed successfully.",
+                        "success"
+                    );
+
+
+                    // Clear form
+                    changePasswordForm.reset();
+
+
+                } else {
+
+                    /* ---------- Handle Failure ---------- */
+
+                    showPasswordMessage(
+                        result.error ||
+                        "Unable to change your password. Please try again.",
+                        "error"
+                    );
+
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "Change Password Error:",
+                    error
+                );
+
+
+                showPasswordMessage(
+                    "Something went wrong. Please try again.",
+                    "error"
+                );
+
+            } finally {
+
+                // Restore button
+                changePasswordButton.disabled =
+                    false;
+
+                changePasswordButton.textContent =
+                    "Change Password";
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================
+   CHANGE PASSWORD MESSAGE
+   ========================================= */
+
+function showPasswordMessage(
+    message,
+    type
+) {
+
+    const passwordMessage =
+        document.getElementById(
+            "passwordMessage"
+        );
+
+
+    if (!passwordMessage) {
+        return;
+    }
+
+
+    passwordMessage.innerHTML = `
+        <div class="message ${type}">
+            ${message}
+        </div>
+    `;
+
+}
+
+
+/* =========================================
+   GENERAL MESSAGE FUNCTION
+   ========================================= */
+
+function showMessage(
+    message,
+    type
+) {
 
     const messageContainer =
         document.getElementById("message");
 
+
     if (!messageContainer) {
         return;
     }
+
 
     messageContainer.innerHTML = `
         <div class="message ${type}">
@@ -792,4 +1041,23 @@ function showMessage(message, type) {
         </div>
     `;
 
+}
+/* =========================================
+   CHECK IF USER IS LOGGED IN
+   ========================================= */
+
+async function isUserLoggedIn() {
+    try {
+        const result = await apiGet("/auth/me");
+
+        return result.success;
+
+    } catch (error) {
+        console.error(
+            "Authentication Check Error:",
+            error
+        );
+
+        return false;
+    }
 }
