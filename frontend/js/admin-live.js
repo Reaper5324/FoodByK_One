@@ -28,7 +28,9 @@ const initializeAdminLive = async () => {
 
     try {
         if (typeof apiGet !== "function") {
-            await loadScript("../public%20assets/js/config.js");
+            if (typeof API_BASE_URL === "undefined") {
+                await loadScript("../public%20assets/js/config.js");
+            }
             await loadScript("../public%20assets/js/api/api.js");
         }
     } catch {

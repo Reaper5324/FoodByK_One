@@ -14,6 +14,29 @@ const CSRF_EXEMPT_ENDPOINTS = [
     "/auth/reset-password"
 ];
 
+let csrfTokenRequest = null;
+
+async function ensureCsrfToken() {
+    if (window.foodByKCsrfToken) return window.foodByKCsrfToken;
+
+    // Share the bootstrap request across simultaneous writes so they all use
+    // the same session token and none proceeds before it has arrived.
+    if (!csrfTokenRequest) {
+        csrfTokenRequest = fetch(API_BASE_URL + "/auth/me", {
+            method: "GET",
+            credentials: "include"
+        }).then((response) => {
+            const token = response.headers.get("X-CSRF-Token");
+            if (token) window.foodByKCsrfToken = token;
+            return token;
+        }).finally(() => {
+            csrfTokenRequest = null;
+        });
+    }
+
+    return csrfTokenRequest;
+}
+
 
 /* =========================================
    2. CENTRAL API REQUEST
@@ -60,25 +83,12 @@ async function apiRequest(endpoint, options = {}) {
         !CSRF_EXEMPT_ENDPOINTS.includes(endpointPath);
 
 
-    if (needsCsrf && window.foodByKCsrfToken) {
-
-        requestOptions.headers["X-CSRF-Token"] =
-            window.foodByKCsrfToken;
-    }
-
-
     try {
-
-        // A fresh page load has no in-memory CSRF token. Fetch it before the
-        // first authenticated write, as the backend exposes it on GET /auth/me.
-        if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS"
-            && !CSRF_EXEMPT_ENDPOINTS.includes(endpointPath)
-            && !window.foodByKCsrfToken) {
-            const csrfResponse = await fetch(API_BASE_URL + "/auth/me", {
-                method: "GET",
-                credentials: "include"
-            });
-            window.foodByKCsrfToken = csrfResponse.headers.get("X-CSRF-Token");
+        if (needsCsrf) {
+            const csrfToken = await ensureCsrfToken();
+            if (csrfToken) {
+                requestOptions.headers["X-CSRF-Token"] = csrfToken;
+            }
         }
 
         /* -----------------------------------------

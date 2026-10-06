@@ -6,6 +6,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     const searchInput = document.getElementById("menuSearch");
     let selectedCategory = null;
 
+    const showCartNotification = (message) => {
+        let notification = document.getElementById("cartNotification");
+        if (!notification) {
+            notification = document.createElement("div");
+            notification.id = "cartNotification";
+            notification.className = "cart-notification";
+            notification.setAttribute("role", "status");
+            notification.setAttribute("aria-live", "polite");
+            document.body.appendChild(notification);
+        }
+
+        notification.textContent = message;
+        notification.classList.add("is-visible");
+        clearTimeout(notification.hideTimer);
+        notification.hideTimer = setTimeout(() => {
+            notification.classList.remove("is-visible");
+        }, 2800);
+    };
+
     const showMessage = (message, isError = false) => {
         menuMessage.hidden = false;
         menuMessage.textContent = message;
@@ -85,43 +104,32 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             </div>`;
   card.querySelector(".add-to-cart").addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
 
-      // Check if the user is logged in before allowing cart actions
-      const loggedIn = await isUserLoggedIn();
+      const result = await apiPost("/cart/items", {
+          product_id: product.id,
+          quantity: 1
+      });
 
-      if (!loggedIn) {
-          showMessage(
-              "Please log in or create an account before adding items to your cart.",
-              true
-          );
+      if (result.success) {
+          const originalLabel = button.textContent;
+          button.textContent = "Added";
+          showCartNotification(`${product.name} added to your cart`);
+          setTimeout(() => {
+              button.textContent = originalLabel;
+              button.disabled = false;
+          }, 900);
           return;
       }
 
-      // Existing Person 2 cart functionality
-      event.currentTarget.disabled = true;
-
-      const result = await apiPost(
-          "/cart/items",
-          {
-              product_id: product.id,
-              quantity: 1
-          }
+      button.disabled = false;
+      showMessage(
+          result.status === 401
+              ? "Please log in or create an account before adding items to your cart."
+              : (result.error || "Unable to add this item to your cart."),
+          true
       );
-
-      if (result.success) {
-
-          event.currentTarget.textContent = "Added";
-
-      } else {
-
-          event.currentTarget.disabled = false;
-
-          showMessage(
-              result.error ||
-              "Unable to add this item to your cart.",
-              true
-          );
-      }
   });
         menuGrid.appendChild(card);
     };

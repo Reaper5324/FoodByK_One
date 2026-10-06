@@ -6,6 +6,9 @@
   <title>Menu | Food by K</title>
   <link rel="stylesheet" href="../../public assets/css/style.css">
   <style>
+    .cart-notification { position: fixed; z-index: 1100; right: 20px; bottom: 20px; max-width: min(calc(100vw - 40px), 360px); padding: 14px 20px; border-radius: 10px; background: #202020; color: #fff; box-shadow: 0 8px 28px rgba(0,0,0,.24); opacity: 0; transform: translateY(16px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
+    .cart-notification.is-visible { opacity: 1; transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) { .cart-notification { transition: none; } }
     .menu-page { max-width: 1180px; margin: 0 auto; padding: 32px 7%; }
     .menu-header { display: flex; justify-content: space-between; gap: 20px; align-items: end; margin-bottom: 24px; }
     .menu-header h1 { margin-bottom: 4px; }
