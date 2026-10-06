@@ -545,4 +545,18 @@ function getHomePage() {
     return "../src/index.html";
 
 }
-```
+/* =========================================
+   LOGOUT BUTTON
+   ========================================= */
+
+const logoutButton =
+    document.querySelector(".nav-logout");
+
+if (logoutButton) {
+
+    logoutButton.addEventListener(
+        "click",
+        handleLogout
+    );
+
+}
