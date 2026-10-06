@@ -1,6 +1,15 @@
 document.addEventListener("DOMContentLoaded", () => {
     loadHomeMeals();
     loadHomePromotions();
+
+    const modal = document.getElementById("latestPromotionModal");
+    modal?.addEventListener("close", () => {
+        rememberDismissedPromotion(modal.dataset.promotionId);
+    });
+
+    document.getElementById("closePromotionModal")?.addEventListener("click", () => {
+        modal?.close();
+    });
 });
 
 const localMealImages = {
@@ -94,10 +103,57 @@ async function loadHomePromotions() {
         if (!result.success || !Array.isArray(result.data)) return;
         if (result.data.length === 0) return;
 
-        list.replaceChildren(...result.data.slice(0, 2).map(createPromotionCard));
+        const promotions = result.data.slice().sort((a, b) => {
+            const dateDifference = new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            return dateDifference || Number(b.id || 0) - Number(a.id || 0);
+        });
+        showLatestPromotion(promotions[0]);
+        list.replaceChildren(...promotions.slice(0, 2).map(createPromotionCard));
     } catch (error) {
         // Keep the inviting empty state if promotions cannot be loaded.
         console.info("Home promotions are using the default message.");
+    }
+}
+
+function showLatestPromotion(promotion) {
+    const modal = document.getElementById("latestPromotionModal");
+    if (!modal || typeof modal.showModal !== "function") return;
+
+    const promotionId = String(promotion.id || promotion.code || "latest");
+    if (isPromotionDismissed(promotionId)) return;
+
+    const value = Number(promotion.discount_value);
+    const type = promotion.discount_type;
+    let title = "Food by K special";
+    if (type === "percentage" && Number.isFinite(value)) title = `${value}% off`;
+    else if (type === "fixed_amount" && Number.isFinite(value)) title = `R${value.toFixed(2).replace(/\.00$/, "")} off`;
+    else if (type === "buy_one_get_one") title = "Buy one, get one";
+    else if (type === "free_delivery") title = "Free delivery";
+
+    document.getElementById("promotionModalTitle").textContent = title;
+    document.getElementById("promotionModalDescription").textContent = "Use this offer when you place your order.";
+    document.getElementById("promotionModalCode").textContent = promotion.code ? `Use code: ${promotion.code}` : "Ask us how to claim this offer.";
+
+    const expiry = document.getElementById("promotionModalExpiry");
+    expiry.textContent = promotion.end_date ? `Available until ${formatPromotionDate(promotion.end_date)}` : "Available for a limited time";
+    modal.dataset.promotionId = promotionId;
+    modal.showModal();
+}
+
+function isPromotionDismissed(promotionId) {
+    try {
+        return sessionStorage.getItem("foodByKDismissedPromotion") === promotionId;
+    } catch (error) {
+        return false;
+    }
+}
+
+function rememberDismissedPromotion(promotionId) {
+    if (!promotionId) return;
+    try {
+        sessionStorage.setItem("foodByKDismissedPromotion", promotionId);
+    } catch (error) {
+        // Closing the dialog still works when browser storage is unavailable.
     }
 }
 

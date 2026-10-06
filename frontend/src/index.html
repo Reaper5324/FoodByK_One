@@ -26,6 +26,19 @@
         </nav>
     </header>
 
+    <dialog class="promotion-modal" id="latestPromotionModal" aria-labelledby="promotionModalTitle" aria-describedby="promotionModalDescription">
+        <button class="promotion-modal-close" id="closePromotionModal" type="button" aria-label="Close promotion">×</button>
+        <div class="promotion-modal-content">
+            <p class="promotion-modal-kicker">A little something extra</p>
+            <p class="promotion-modal-label">Latest Food by K special</p>
+            <h2 id="promotionModalTitle"></h2>
+            <p class="promotion-modal-description" id="promotionModalDescription"></p>
+            <p class="promotion-modal-code" id="promotionModalCode"></p>
+            <p class="promotion-modal-expiry" id="promotionModalExpiry"></p>
+            <a class="btn btn-primary promotion-modal-menu" href="../pages/customer/menu.html">Explore the menu <span aria-hidden="true">→</span></a>
+        </div>
+    </dialog>
+
     <main>
         <section class="hero" aria-labelledby="hero-title">
             <div class="hero-content">
