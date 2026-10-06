@@ -64,7 +64,7 @@
     font-weight: 950;
     line-height: .91;
     letter-spacing: -.075em;
-    text-transform: uppercase;
+    text-transform: none;
 }
 
 .hero h1 span { color: var(--food-red); }
