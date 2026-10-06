@@ -64,7 +64,7 @@ class SlotService {
         return ['success' => true];
     }
 
-    // Must be called inside an existing DB transaction.
+    // Keep the capacity check inside the order submission transaction.
     public function reserveCapacityLocked(string $windowStart): array {
         $settings = BusinessSettings::current();
         $taken = Order::countActiveForSlotLocked($windowStart);

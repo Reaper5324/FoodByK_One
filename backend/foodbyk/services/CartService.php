@@ -11,9 +11,7 @@ class CartService {
         }
 
         $product = Product::findById($productId);
-        // Checks both is_available AND status - a product marked
-        // 'removed'/'inactive' shouldn't be addable even if is_available
-        // was left true by mistake. Matches ProductService's own gate.
+        // Require both flags so inactive or removed products cannot be added.
         if ($product === null || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
             return $this->failure('This item is not available.');
         }

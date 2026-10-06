@@ -11,11 +11,8 @@ class PasswordReset extends Model {
         public ?string  $created_at = null
     ) {}
 
-    /**
-     * Create a new password reset token
-     */
+    /** Create a reset token and store only its hash. */
     public static function create(int $userId, int $expiryHours = 24): array {
-        // Generate random token
         $token = bin2hex(random_bytes(32));
         $tokenHash = hash('sha256', $token);
         
@@ -32,9 +29,7 @@ class PasswordReset extends Model {
         return ['success' => false, 'error' => 'Failed to create reset token'];
     }
 
-    /**
-     * Find and validate a reset token
-     */
+    /** Return a reset token only while it is still valid. */
     public static function findByToken(string $token): ?static {
         $tokenHash = hash('sha256', $token);
         $db = Database::getConnection();
@@ -50,17 +45,13 @@ class PasswordReset extends Model {
         return $row ? static::fromRow($row) : null;
     }
 
-    /**
-     * Delete expired tokens
-     */
+    /** Remove expired reset tokens. */
     public static function deleteExpired(): void {
         $db = Database::getConnection();
         $db->prepare('DELETE FROM password_resets WHERE expires_at <= NOW()')->execute();
     }
 
-    /**
-     * Delete all tokens for a user (cleanup after password reset)
-     */
+    /** Remove reset tokens after a password change. */
     public static function deleteForUser(int $userId): void {
         $db = Database::getConnection();
         $db->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([$userId]);

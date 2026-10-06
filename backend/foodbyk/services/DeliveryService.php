@@ -1,8 +1,5 @@
 <?php
 
-// Grouped file, matching the house convention (services/Services.php) —
-// these classes are small and only ever used together.
-
 interface DeliveryFeeStrategy {
     public function calculate(float $distanceKm, BusinessSettings $settings): float;
 }
@@ -13,14 +10,10 @@ class FlatDeliveryFeeStrategy implements DeliveryFeeStrategy {
     }
 }
 
-// Stubbed for a future tiered model (e.g. R20 under 3km, R35 up to the
-// radius). Not wired up as the default yet - business_settings only has
-// a single flat delivery_fee column, so a real tiered strategy needs a
-// schema addition first. Left here so the extension point exists without
-// overbuilding it now.
+// Use the configured flat fee until the settings support distance tiers.
 class TieredDeliveryFeeStrategy implements DeliveryFeeStrategy {
     public function calculate(float $distanceKm, BusinessSettings $settings): float {
-        return $settings->delivery_fee; // TODO: replace once tier config exists
+        return $settings->delivery_fee;
     }
 }
 
@@ -29,14 +22,10 @@ interface Geocoder {
     public function geocode(string $rawAddress): ?array;
 }
 
-// Free-tier default. Nominatim's usage policy requires a descriptive
-// User-Agent and caps requests at ~1/sec - fine for MVP volume, swap for
-// a paid provider (Google Geocoding) later by implementing Geocoder again.
+// Geocode addresses with OpenStreetMap's Nominatim service.
 class NominatimGeocoder implements Geocoder {
 
-    // Nominatim's policy caps this at 1 req/sec absolute. This throttle
-    // only protects within a single PHP process - once this handles real
-    // concurrent traffic, move the timestamp to a shared store (DB/Redis).
+    // Nominatim allows at most one request per second.
     private static ?float $lastRequestTime = null;
 
     public function geocode(string $rawAddress): ?array {
@@ -46,7 +35,7 @@ class NominatimGeocoder implements Geocoder {
             'q'              => $rawAddress,
             'format'         => 'json',
             'limit'          => 1,
-            'countrycodes'   => 'za', // restrict to South Africa
+            'countrycodes'   => 'za',
             'addressdetails' => 0,
         ]);
 
@@ -61,9 +50,7 @@ class NominatimGeocoder implements Geocoder {
         $results = json_decode($response, true);
         if (empty($results)) return null;
 
-        // Reject low-confidence matches rather than trusting the top
-        // result blindly. 0.3 is a starting heuristic, not an authoritative
-        // threshold - worth tuning once you see real address data.
+        // Ignore results that Nominatim marks as low confidence.
         if ((float) ($results[0]['importance'] ?? 0) < 0.3) return null;
 
         return ['lat' => (float) $results[0]['lat'], 'lng' => (float) $results[0]['lon']];
@@ -88,9 +75,7 @@ class DeliveryService {
         $this->geocoder     = $geocoder ?? new NominatimGeocoder();
     }
 
-    // One-time geocode + persist. Address.latitude/longitude stay null
-    // if this fails - callers must check hasCoordinates() before relying
-    // on eligibility results for that address.
+    // Save coordinates once; callers can check hasCoordinates() if lookup fails.
     public function geocodeAddress(Address $address): bool {
         $coords = $this->geocoder->geocode($address->raw_address);
         if ($coords === null) return false;
@@ -100,7 +85,6 @@ class DeliveryService {
         return $address->save();
     }
 
-    // Core FR-05/FR-06 logic: classify + price an order's fulfilment.
     public function checkEligibility(string $fulfilmentType, ?Address $address): array {
         $settings = BusinessSettings::current();
 
@@ -123,7 +107,6 @@ class DeliveryService {
             $address->latitude, $address->longitude
         );
 
-        // Inclusive boundary - see DOMAIN.md §5.
         if ($distanceKm <= $settings->delivery_radius_km) {
             $fee = $this->feeStrategy->calculate($distanceKm, $settings);
             return ['success' => true, 'data' => ['fulfilment_type' => 'delivery', 'distance_km' => round($distanceKm, 2), 'fee' => $fee]];

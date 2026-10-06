@@ -1,6 +1,6 @@
 <?php
 
-//Registered Accounts
+// Registered user accounts.
 
 class User extends Model implements JsonSerializable {
 
@@ -96,7 +96,7 @@ protected static string $table = 'users';
             'address' => $this->address,
             'city' => $this->city,
             'province' => $this->province,
-            'is_active'=> (int) $this->is_active, //1 0
+            'is_active'=> (int) $this->is_active,
         ];
     }
 

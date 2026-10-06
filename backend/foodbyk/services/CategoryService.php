@@ -59,7 +59,6 @@ class CategoryService {
             return $this->failure('Category not found.');
         }
 
-        // Count active products in this category
         $products = Product::findByCategory($categoryId);
         $activeCount = count(array_filter(
             $products,
@@ -180,9 +179,7 @@ class CategoryService {
         ]);
     }
 
-        // Canonical place for "products in this category, optionally
-    // searched/filtered" - ProductController/CategoryController should
-    // route here rather than duplicating category-filter logic elsewhere.
+        // Keep category filtering here so callers use the same query behavior.
     public function getProductsInCategory(int $categoryId, ?string $search = null): array {
         $category = Category::findById($categoryId);
         if (!$category) {

@@ -8,7 +8,7 @@ protected static string $table = 'products';
 
 const STATUS_ACTIVE   = 'active';
     const STATUS_INACTIVE = 'inactive';
-    const STATUS_REMOVED  = 'removed';  // Set by Admin and cannot be reversed.
+    const STATUS_REMOVED  = 'removed';
 
 public function __construct(
     public int     $category_id  = 0,
@@ -45,17 +45,14 @@ public static function search(string $keyword): array {
         return array_map(fn($row) => static::fromRow($row), $stmt->fetchAll());
     }
 
-        // Soft-delete: preserves the row so historical orders referencing this
-    // product still resolve. Matches STATUS_REMOVED's own "cannot be
-    // reversed" comment - a hard DELETE would break past order history.
+    // Keep removed products so old order items still reference a valid row.
     public function markRemoved(): bool {
         $this->status = self::STATUS_REMOVED;
         $this->is_available = false;
         return $this->save();
     }
 
-    // Extended to accept an optional search term so CategoryService can
-    // do "products in category X matching keyword Y" as one query.
+    // Apply the category and optional keyword filter in one query.
     public static function findByCategory(int $categoryId, ?string $search = null): array {
         $db = Database::getConnection();
         $search = trim((string) $search);

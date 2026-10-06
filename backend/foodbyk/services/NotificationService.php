@@ -133,10 +133,7 @@ class SmsNotifier implements OrderNotifier {
     }
 }
 
-/* Subject in the Observer pattern. OrderService calls notifyOrderEvent()
- without knowing or caring which channels are registered - add a new
- channel by writing a class and registering it in bootstrap, not by editing this class.
-*/ 
+/* Notification channel contract used by NotificationService. */
 
 interface OrderNotifier {
     public function notify(Order $order, string $event, string $audience): void;
@@ -147,9 +144,7 @@ class NotificationService {
     /** @var OrderNotifier[] */
     private array $notifiers;
 
-    // Auto-subscribes the standard channels by default so every call site
-    // doesn't need to remember to wire three notifiers manually. Still
-    // overridable (e.g. for tests) by passing an explicit array.
+    // Use the standard channels unless a caller supplies a custom list.
     public function __construct(?array $notifiers = null) {
         $this->notifiers = $notifiers ?? [new EmailNotifier(), new WhatsAppNotifier(), new SmsNotifier()];
     }
@@ -163,15 +158,13 @@ class NotificationService {
             try {
                 $notifier->notify($order, $event, $audience);
             } catch (\Throwable $e) {
-                // One channel failing (e.g. Twilio down) must never roll
-                // back or block the order transition that triggered this.
+                // A notification failure must not undo the order change.
                 error_log("Notifier failed: " . get_class($notifier) . ' - ' . $e->getMessage());
             }
         }
     }
 
-    // Shared by WhatsAppNotifier/SmsNotifier/EmailNotifier - every active
-    // staff or admin's contact info, since any of them might review orders.
+    // Notify every active staff member and admin who can review orders.
     public static function staffRecipients(string $column): array {
         $db = Database::getConnection();
         $stmt = $db->prepare(

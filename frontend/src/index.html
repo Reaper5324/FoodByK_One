@@ -4,468 +4,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Food by K | Home</title>
-
-    <!-- Shared Website Styles -->
+    <meta name="theme-color" content="#111111">
+    <meta name="description" content="Big flavour, made with care. Explore the Food by K menu, discover meal specials and order your favourites.">
+    <title>Food by K | Big flavour, made with care</title>
     <link rel="stylesheet" href="../public assets/css/style.css">
-
-    <!-- Home Page Styles -->
     <link rel="stylesheet" href="../public assets/css/home.css">
 </head>
 
-<body>
+<body class="home-page">
+    <header class="navbar" id="top">
+        <div class="logo">
+            <a href="index.html" aria-label="Food by K home">FOOD<span>BY K</span></a>
+        </div>
+        <nav aria-label="Main navigation">
+            <a href="index.html" class="active">Home</a>
+            <a href="../pages/customer/menu.html">Menu</a>
+            <a href="#about">Our story</a>
+            <a href="#contact">Contact</a>
+            <a href="../pages/auth/login.html">Login</a>
+            <a href="../pages/auth/register.html" class="nav-register">Register</a>
+        </nav>
+    </header>
 
-<!-- =========================================
-     NAVIGATION
-     ========================================= -->
-
-<header class="navbar">
-
-    <div class="logo">
-        <a href="index.html">
-            FOOD<span>BY K</span>
-        </a>
-    </div>
-
-    <nav>
-
-        <a href="index.html" class="active">
-            Home
-        </a>
-
-        <a href="../pages/customer/menu.html">
-            Menu
-        </a>
-
-        <a href="#about">
-            About
-        </a>
-
-        <a href="#contact">
-            Contact
-        </a>
-
-        <a href="../pages/auth/login.html">
-            Login
-        </a>
-
-        <a href="../pages/auth/register.html" class="nav-register">
-            Register
-            <button type="button" class="nav-logout" style="display: none;">
-                Logout
-            </button>
-        </a>
-
-    </nav>
-
-</header>
-
-
-<!-- =========================================
-     MAIN CONTENT
-     ========================================= -->
-
-<main>
-
-    <!-- =====================================
-         HERO SECTION
-         ===================================== -->
-
-    <section class="hero">
-
-        <!-- Hero Text -->
-        <div class="hero-content">
-
-            <p class="hero-tag">
-                WELCOME TO FOOD BY K
-            </p>
-
-            <h1>
-                food.love.soul
-                <span></span>
-            </h1>
-
-            <p class="hero-text">
-                Delicious meals made with quality ingredients,
-                bold flavour and a whole lot of care.
-            </p>
-
-            <div class="hero-buttons">
-
-                <a href="../pages/customer/menu.html" class="btn btn-primary">
-                    View Our Menu
-                </a>
-
-                <a href="../pages/auth/register.html" class="btn btn-outline">
-                    Create an Account
-                </a>
-
+    <main>
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="hero-content">
+                <p class="hero-tag">Made fresh in Lenasia South</p>
+                <h1 id="hero-title">Big flavour.<br><span>Made with soul.</span></h1>
+                <p class="hero-text">Burgers, loaded favourites and feel-good food made with care. Your next favourite is right here.</p>
+                <div class="hero-buttons">
+                    <a href="../pages/customer/menu.html" class="btn btn-primary">Explore the menu <span aria-hidden="true">→</span></a>
+                    <a href="#latest-meals" class="hero-text-link">See what’s cooking</a>
+                </div>
+                <div class="hero-note"><span class="hero-note-dot"></span> Good food. Good mood. Every bite.</div>
             </div>
-
-        </div>
-
-
-        <!-- Hero Food Image -->
-        <div class="hero-visual">
-
-            <!-- Transparent information box -->
-            <div class="hero-overlay">
-
-                <p>
-                    FOOD BY K
-                </p>
-
-                <h2>
-                    Made with flavour.
-                </h2>
-
-                <span>
-                    Made for you.
-                </span>
-
-                <a href="../pages/customer/menu.html" class="hero-overlay-link">
-                    Explore the menu →
-                </a>
-
+            <div class="hero-visual" role="img" aria-label="A spread of Food by K burgers, loaded fries and grilled favourites">
+                <div class="hero-sticker"><span>FOOD</span><strong>LOVE<br>SOUL</strong><span>EST. FOOD BY K</span></div>
+                <div class="hero-caption"><span>THE GOOD STUFF</span><strong>Made for your kind of hungry.</strong></div>
             </div>
+        </section>
 
+        <div class="flavour-strip" aria-label="Food by K motto">
+            <span>FOOD</span><b>✦</b><span>LOVE</span><b>✦</b><span>SOUL</span><b>✦</b><span>FOOD</span><b>✦</b><span>LOVE</span><b>✦</b><span>SOUL</span>
         </div>
 
-    </section>
-
-
-    <!-- =====================================
-         FEATURED SECTION
-         ===================================== -->
-
-    <section class="featured">
-
-        <div class="section-heading">
-
-            <p class="section-tag">
-                WHAT WE OFFER
-            </p>
-
-            <h2>
-                Something Delicious
-                <span>for Everyone</span>
-            </h2>
-
-            <p>
-                Explore some of the delicious food available
-                from Food by K.
-            </p>
-
-        </div>
-
-
-        <!-- Feature Cards -->
-        <div class="feature-grid">
-
-            <!-- Card 1 -->
-            <article class="feature-card">
-
-                <div class="feature-icon">
-                    <span>01</span>
+        <section class="home-section meals-section" id="latest-meals" aria-labelledby="meals-title">
+            <div class="section-topline">
+                <div>
+                    <p class="section-tag">Fresh from our kitchen</p>
+                    <h2 id="meals-title">Meet your <span>new favourite.</span></h2>
+                    <p class="section-intro">A few reasons to get hungry. Find these and more on our menu.</p>
                 </div>
+                <a class="section-link" href="../pages/customer/menu.html">See the full menu <span aria-hidden="true">↗</span></a>
+            </div>
+            <div class="meal-grid" id="homeMealGrid" aria-live="polite">
+                <article class="meal-card meal-card-featured">
+                    <a class="meal-image" href="../pages/customer/menu.html" aria-label="Browse BBL on the menu"><img src="../images/menu/BBL.jpeg" alt="BBL burger with chips and a drink" loading="lazy"><span class="meal-image-label">A crowd favourite</span></a>
+                    <div class="meal-info"><div><p class="meal-kicker">Made to satisfy</p><h3>BBL</h3></div><strong class="meal-price">R175</strong></div>
+                </article>
+                <article class="meal-card">
+                    <a class="meal-image" href="../pages/customer/menu.html" aria-label="Browse Kay Special on the menu"><img src="../images/menu/Kay_special.jpeg" alt="Kay Special kota stacked with fillings and chips" loading="lazy"><span class="meal-image-label">The house special</span></a>
+                    <div class="meal-info"><div><p class="meal-kicker">A proper favourite</p><h3>Kay Special</h3></div><strong class="meal-price">R90</strong></div>
+                </article>
+                <article class="meal-card">
+                    <a class="meal-image" href="../pages/customer/menu.html" aria-label="Browse Platter for one on the menu"><img src="../images/menu/Platter_for_one.jpeg" alt="Platter for one with grilled meat and sides" loading="lazy"><span class="meal-image-label">Just for you</span></a>
+                    <div class="meal-info"><div><p class="meal-kicker">A little bit of everything</p><h3>Platter for One</h3></div><strong class="meal-price">R170</strong></div>
+                </article>
+            </div>
+            <p class="home-data-note" id="mealDataNote" hidden></p>
+        </section>
 
-                <h3>
-                    Quality Ingredients
-                </h3>
+        <section class="promo-section" aria-labelledby="promo-title">
+            <div class="promo-copy">
+                <p class="section-tag">Latest promotions</p>
+                <h2 id="promo-title">A little extra<br><span>goes a long way.</span></h2>
+                <p>Check out the latest Food by K offers and make your next order even better.</p>
+                <a href="../pages/customer/menu.html" class="btn btn-dark">Find your next bite <span aria-hidden="true">→</span></a>
+            </div>
+            <div class="promo-board" id="homePromotionList" aria-live="polite">
+                <div class="promo-empty"><span class="promo-spark" aria-hidden="true">✦</span><p>Our next special is cooking.</p><span>Follow along so you’re first to know.</span></div>
+            </div>
+            <span class="promo-watermark" aria-hidden="true">GOOD<br>MOOD</span>
+        </section>
 
-                <p>
-                    Carefully selected ingredients come together
-                    to create meals that are fresh, satisfying
-                    and full of flavour.
-                </p>
+        <section class="home-about" id="about" aria-labelledby="about-title">
+            <div class="about-photo" role="img" aria-label="Food by K meal made fresh and ready to enjoy">
+                <span class="about-photo-note">Local flavour, made with love</span>
+            </div>
+            <div class="about-content">
+                <p class="section-tag">A little about us</p>
+                <h2 id="about-title">Big on flavour.<br><span>Made for sharing.</span></h2>
+                <p>At Food by K, the best meals bring people together. We make the kind of satisfying, flavour-packed food you’ll want to come back for.</p>
+                <a href="../pages/customer/menu.html" class="text-arrow">Come see what’s cooking <span aria-hidden="true">→</span></a>
+                <div class="about-signoff"><span>FOOD BY K</span><strong>food.love.soul</strong></div>
+            </div>
+        </section>
 
-            </article>
-
-
-            <!-- Card 2 -->
-            <article class="feature-card">
-
-                <div class="feature-icon">
-                    <span>02</span>
+        <section class="social-section" aria-labelledby="social-title">
+            <div class="social-heading">
+                <p class="section-tag">A little taste of our world</p>
+                <h2 id="social-title">Good food looks<br><span>good on you.</span></h2>
+                <p>Follow the flavour, see what’s fresh and come say hi.</p>
+                <a class="social-handle" href="https://www.instagram.com/food_by_k_/?hl=en" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">◎</span> @food_by_k_ <span aria-hidden="true">↗</span></a>
+            </div>
+            <a class="instagram-widget" href="https://www.instagram.com/food_by_k_/?hl=en" target="_blank" rel="noopener noreferrer" aria-label="Visit Food by K on Instagram">
+                <div class="instagram-mosaic" aria-hidden="true">
+                    <img src="../images/menu/BoxFresh.jpeg" alt="" loading="lazy">
+                    <img src="../images/menu/DoubleSided_cheese_wrap.jpeg" alt="" loading="lazy">
+                    <img src="../images/menu/BBL.jpeg" alt="" loading="lazy">
+                    <img src="../images/menu/Kay_special.jpeg" alt="" loading="lazy">
                 </div>
-
-                <h3>
-                    Made to Perfection
-                </h3>
-
-                <p>
-                    Every meal is prepared with attention to
-                    detail, from the first ingredient to the
-                    final bite.
-                </p>
-
-            </article>
-
-
-            <!-- Card 3 -->
-            <article class="feature-card">
-
-                <div class="feature-icon">
-                    <span>03</span>
-                </div>
-
-                <h3>
-                    Built Around Great Taste
-                </h3>
-
-                <p>
-                    From classic favourites to satisfying
-                    combinations, every dish is created with
-                    great taste in mind.
-                </p>
-
-            </article>
-
-        </div>
-
-    </section>
-
-
-    <!-- =====================================
-         ABOUT SECTION
-         ===================================== -->
-
-    <section class="home-about" id="about">
-
-        <!-- About Text -->
-        <div class="about-content">
-
-            <p class="section-tag">
-                ABOUT FOOD BY K
-            </p>
-
-            <h2>
-                Food Made
-                <span>For You.</span>
-            </h2>
-
-            <p>
-                Food by K is all about bringing delicious food
-                and a great experience together. Whether you're
-                looking for something quick, something filling,
-                or simply something delicious, we've got
-                something for you.
-            </p>
-
-            <a href="../pages/customer/menu.html" class="btn btn-primary">
-                View Our Menu
+                <span class="instagram-badge"><span aria-hidden="true">◎</span> Follow on Instagram <span aria-hidden="true">↗</span></span>
             </a>
+        </section>
 
-        </div>
-
-
-        <!-- About Image -->
-        <div class="about-highlight">
-
-            <div>
-
-                <strong>
-                    food.love.soul
-                </strong>
-
-                <span>
-
-                </span>
-
+        <section class="home-contact" id="contact" aria-labelledby="contact-title">
+            <div class="contact-heading">
+                <p class="section-tag">Come through or say hello</p>
+                <h2 id="contact-title">We’re just a<br><span>message away.</span></h2>
+                <p>Questions, orders, or just here for the food pics? Choose your favourite way to reach us.</p>
             </div>
-
-        </div>
-
-    </section>
-
-
-    <!-- =====================================
-         CONTACT SECTION
-         ===================================== -->
-
-    <section class="home-contact" id="contact">
-
-        <div class="section-heading">
-
-            <p class="section-tag">
-                GET IN TOUCH
-            </p>
-
-            <h2>
-                Contact <span>Food By K</span>
-            </h2>
-
-            <p>
-                Have a question or want to get in touch?
-                We'd love to hear from you.
-            </p>
-
-        </div>
-
-
-        <div class="contact-info">
-
-            <div class="contact-item">
-
-                <h3>
-                    Location
-                </h3>
-
-                <p style="font-size: 17px;">
-                    8513 Goshawk Street<br>
-                    Lenasia South, Lenasia<br>
-                    Gauteng, South Africa
-                </p>
-
+            <div class="contact-layout">
+                <div class="contact-details">
+                    <div class="contact-detail"><span class="contact-icon" aria-hidden="true">⌖</span><div><h3>Find us</h3><p>8513 Goshawk Street<br>Lenasia South, Gauteng</p></div></div>
+                    <div class="contact-detail"><span class="contact-icon" aria-hidden="true">◷</span><div><h3>When we’re cooking</h3><p>Monday – Saturday<br>11:00 – 18:00</p></div></div>
+                    <div class="contact-detail"><span class="contact-icon" aria-hidden="true">☎</span><div><h3>Call or WhatsApp</h3><a href="https://wa.me/27814478365" target="_blank" rel="noopener noreferrer">081 447 8365 <span aria-hidden="true">↗</span></a></div></div>
+                </div>
+                <div class="contact-socials" aria-label="Food by K social media">
+                    <a href="https://wa.me/27814478365" target="_blank" rel="noopener noreferrer"><span class="social-symbol" aria-hidden="true">◉</span><span><strong>WhatsApp</strong><small>Chat with us about your order</small></span><span class="social-arrow" aria-hidden="true">↗</span></a>
+                    <a href="https://www.instagram.com/food_by_k_/?hl=en" target="_blank" rel="noopener noreferrer"><span class="social-symbol" aria-hidden="true">◎</span><span><strong>Instagram</strong><small>Fresh from our feed</small></span><span class="social-arrow" aria-hidden="true">↗</span></a>
+                    <a href="https://www.tiktok.com/@foodbyk1" target="_blank" rel="noopener noreferrer"><span class="social-symbol social-tiktok" aria-hidden="true">♪</span><span><strong>TikTok</strong><small>Catch the flavour in motion</small></span><span class="social-arrow" aria-hidden="true">↗</span></a>
+                    <a href="https://web.facebook.com/p/Food_By_k_-100084958604392/?_rdc=1&_rdr#" target="_blank" rel="noopener noreferrer"><span class="social-symbol social-facebook" aria-hidden="true">f</span><span><strong>Facebook</strong><small>Keep up with Food by K</small></span><span class="social-arrow" aria-hidden="true">↗</span></a>
+                </div>
             </div>
+        </section>
 
+        <section class="home-cta" aria-labelledby="cta-title">
+            <p class="section-tag">Ready when you are</p>
+            <h2 id="cta-title">Your next favourite<br>is waiting.</h2>
+            <p>Pick your meal. Bring your appetite.</p>
+            <a href="../pages/customer/menu.html" class="btn btn-dark">Explore the menu <span aria-hidden="true">→</span></a>
+        </section>
+    </main>
 
-            <div class="contact-item">
+    <footer class="home-footer">
+        <div class="footer-brand"><a href="index.html">FOOD<span>BY K</span></a><p>food.love.soul</p></div>
+        <div class="footer-links"><a href="../pages/customer/menu.html">Menu</a><a href="#about">Our story</a><a href="#contact">Contact</a><a href="../pages/auth/login.html">Login</a></div>
+        <div class="footer-socials"><a href="https://www.instagram.com/food_by_k_/?hl=en" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a href="https://www.tiktok.com/@foodbyk1" target="_blank" rel="noopener noreferrer">TikTok ↗</a><a href="https://web.facebook.com/p/Food_By_k_-100084958604392/?_rdc=1&_rdr#" target="_blank" rel="noopener noreferrer">Facebook ↗</a></div>
+        <div class="footer-bottom"><p>&copy; 2026 Food by K. All rights reserved.</p><a href="#top" aria-label="Back to top">Back to top ↑</a></div>
+    </footer>
 
-                <h3>
-                    Trading Hours
-                </h3>
-
-                <p style="font-size: 17px;">
-                    Monday – Saturday<br>
-                    11:00 – 18:00
-                </p>
-
-            </div>
-
-
-            <div class="contact-item">
-
-                <h3>
-                    Phone
-                </h3>
-
-                <p style="font-size: 17px;">
-                    081 447 8365
-                </p>
-
-            </div>
-
-        </div>
-
-    </section>
-
-
-    <!-- =====================================
-         CALL TO ACTION
-         ===================================== -->
-
-    <section class="home-cta">
-
-        <p class="section-tag">
-            READY TO ORDER?
-        </p>
-
-        <h2>
-            Your next favourite meal is waiting.
-        </h2>
-
-        <p>
-            Browse our menu and discover something
-            delicious today.
-        </p>
-
-        <a href="../pages/customer/menu.html" class="btn">
-            Explore the Menu
-        </a>
-
-    </section>
-
-</main>
-
-
-<!-- =========================================
-     FOOTER
-     ========================================= -->
-
-<footer>
-
-    <!-- Footer Brand -->
-    <div class="footer-brand">
-
-        <a href="index.html">
-            FOOD<span>BY K</span>
-        </a>
-
-        <p>
-            food.love.soul
-        </p>
-
-    </div>
-
-
-    <!-- Footer Navigation -->
-    <div class="footer-links">
-
-        <a href="../pages/customer/menu.html">
-            Menu
-        </a>
-
-        <a href="#about">
-            About
-        </a>
-
-        <a href="#contact">
-            Contact
-        </a>
-
-        <a href="../pages/auth/login.html">
-            Login
-        </a>
-
-    </div>
-
-
-    <!-- Social Media -->
-    <div class="footer-socials">
-
-        <a href="https://www.instagram.com/food_by_k_/?hl=en"
-           target="_blank"
-           rel="noopener noreferrer"
-           aria-label="Instagram">
-            Instagram
-        </a>
-
-        <a href="https://www.tiktok.com/@foodbyk1"
-           target="_blank"
-           rel="noopener noreferrer"
-           aria-label="TikTok">
-            TikTok
-        </a>
-
-        <a href="https://www.facebook.com/p/Food_By_k_-100084958604392/"
-           target="_blank"
-           rel="noopener noreferrer"
-           aria-label="Facebook">
-            Facebook
-        </a>
-
-    </div>
-
-
-    <!-- Copyright -->
-    <div class="footer-bottom">
-
-        <p>
-            &copy; 2026 Food by K. All rights reserved.
-        </p>
-
-    </div>
-
-</footer>
-
-
-<!-- =========================================
-     JAVASCRIPT
-     ========================================= -->
-
-<script src="../public assets/js/navigation.js"></script>
-
+    <script src="../public assets/js/config.js"></script>
+    <script src="../public assets/js/api/api.js"></script>
+    <script src="../public assets/js/api/auth.js"></script>
+    <script src="../public assets/js/navigation.js"></script>
+    <script src="../public assets/js/home.js"></script>
 </body>
 </html>

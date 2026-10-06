@@ -1,14 +1,6 @@
 <?php
 
-/*
-  AddressService - Manage customer delivery addresses.
-  
-  Handles:
-  - CRUD operations for customer addresses
-  - Address validation and geocoding
-  - Delivery eligibility checking
-  - Default address management
- */
+/* Customer address validation, geocoding, and default address handling. */
 class AddressService {
 
     private const MAX_STREET_LENGTH = 255;
@@ -16,7 +8,7 @@ class AddressService {
     private const MAX_POSTAL_CODE_LENGTH = 20;
     private const MAX_LABEL_LENGTH = 50;
 
-   //list all addresess forr customer
+    // Keep a customer's default address at the top of the list.
     public function listForCustomer(int $customerId, bool $onlyEligible = false): array {
         $addresses = Address::findBy('customer_id', $customerId);
 
@@ -30,14 +22,13 @@ class AddressService {
         }
 
         usort($addresses, fn(Address $a, Address $b) =>
-            ($b->is_default ?? false) <=> ($a->is_default ?? false) // default first
-            ?: $b->id <=> $a->id // then newest
+            ($b->is_default ?? false) <=> ($a->is_default ?? false)
+            ?: $b->id <=> $a->id
         );
 
         return $this->success(array_values($addresses));
     }
 
-   //get one address by ID
     public function getById(int $addressId, int $customerId): array {
         $address = Address::findById($addressId);
         if (!$address || $address->customer_id !== $customerId) {
@@ -46,7 +37,6 @@ class AddressService {
 
         $data = $this->addressToArray($address);
 
-        // Check delivery eligibility if geocoded
         if ($address->hasCoordinates()) {
             $deliveryService = new DeliveryService();
             $eligibility = $deliveryService->checkEligibility(Order::TYPE_DELIVERY, $address);
@@ -58,7 +48,6 @@ class AddressService {
         return $this->success($data);
     }
 
-    //create an address for the customer
     public function create(int $customerId, array $input): array {
         $validated = $this->validateInput($input);
         if (!$validated['success']) {
@@ -76,23 +65,19 @@ class AddressService {
             return $this->failure('Unable to create address.');
         }
 
-        // Attempt geocoding
         $deliveryService = new DeliveryService();
         $geocodeSuccess = $deliveryService->geocodeAddress($address);
         if (!$geocodeSuccess) {
-            // Non-fatal: address created but not yet geocoded
+            // Keep the address even when geocoding is temporarily unavailable.
             error_log("Failed to geocode address {$address->id}.");
         }
 
-        // If this is the default, unset all other defaults
         if ($data['is_default']) {
             $this->clearOtherDefaults($customerId, $address->id);
         }
 
         return $this->success($address);
     }
-
-    // we update an existing address 
 
     public function update(int $addressId, int $customerId, array $input): array {
         $address = Address::findById($addressId);
@@ -112,7 +97,6 @@ class AddressService {
         $address->is_default = $data['is_default'];
 
         if ($addressChanged) {
-            // Re-geocode if address changed
             $address->latitude = null;
             $address->longitude = null;
 
@@ -127,7 +111,6 @@ class AddressService {
             return $this->failure('Unable to update address.');
         }
 
-        // If this is the default, unset all other defaults
         if ($data['is_default']) {
             $this->clearOtherDefaults($customerId, $address->id);
         }
@@ -175,13 +158,7 @@ class AddressService {
 
         return $this->success($address);
     }
-
-    /**
-     * Get the customer's default address (if set).
-     * 
-     * @param int $customerId
-     * @return array ['success' => bool, 'data' => Address|null, 'error' => ?string]
-     */
+    // Return the saved default address, or null if none has been selected.
     public function getDefault(int $customerId): array {
         $addresses = Address::findBy('customer_id', $customerId);
         $default = array_values(array_filter(

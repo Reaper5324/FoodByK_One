@@ -4,7 +4,7 @@ class Role extends Model {
 
     protected static string $table = 'roles';
 
-    // Valid role name constants avoid magic strings across the codebase.
+    // Role names used by access checks and user queries.
     const CUSTOMER  = 'customer';
     const STAFF = 'staff';
     const ADMIN  = 'admin';

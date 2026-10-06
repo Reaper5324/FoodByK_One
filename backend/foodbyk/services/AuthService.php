@@ -89,7 +89,7 @@ class AuthService {
                 $db->rollBack();
             }
 
-            // A database unique constraint on users.email is still required for concurrent registration.
+            // The database unique constraint handles simultaneous registrations.
             return $this->failure('Unable to create the account.');
         }
     }
@@ -134,11 +134,7 @@ class AuthService {
         }
         return $this->success(null);
     }
-        // Admin-only provisioning - there is no public registration path to
-    // staff/admin roles. The account is created with a random, unknown
-    // password and an invite link is issued through the same
-    // PasswordReset flow used for forgotten passwords - the admin never
-    // sets or sees the actual login credential.
+        // Staff set their own password through the emailed setup link.
     public function createStaffAccount(string $name, string $email, string $role, ?string $phone = null): array {
         $name = trim($name);
         $email = $this->normaliseEmail($email);
@@ -163,12 +159,12 @@ class AuthService {
         }
 
         $user = new User(full_name: $name, email: $email, phone: $phone, role_id: $roleRow->id);
-        $user->setPassword(bin2hex(random_bytes(32))); // unusable placeholder - account activates only via invite link
+        $user->setPassword(bin2hex(random_bytes(32)));
         if (!$user->save()) {
             return $this->failure('Unable to create the account.');
         }
 
-        $invite = PasswordReset::create($user->id, 72); // 72h invite window, wider than the 1h forgot-password window
+        $invite = PasswordReset::create($user->id, 72);
         if ($invite['success']) {
             if (!$this->sendAccountLink($email, $name, $invite['token'], true)) {
                 PasswordReset::deleteForUser($user->id);
@@ -276,7 +272,6 @@ class AuthService {
             return 'Password must be between 12 and 128 characters.';
         }
 
-        //Regex
         if (preg_match('/\s/', $password) === 1 || preg_match('/[a-z]/', $password) !== 1
             || preg_match('/[A-Z]/', $password) !== 1 || preg_match('/\d/', $password) !== 1
             || preg_match('/[^A-Za-z0-9]/', $password) !== 1) {
@@ -369,7 +364,7 @@ class AuthService {
     }
 
      public function resetPassword(string $rawToken, string $newPassword): array {
-        $reset = PasswordReset::findByToken($rawToken); // already filters expires_at > NOW()
+        $reset = PasswordReset::findByToken($rawToken);
         if ($reset === null) {
             RateLimitMiddleware::recordResetFailure();
             return $this->failure('This reset link is invalid or has expired.');
@@ -389,9 +384,7 @@ class AuthService {
             return $this->failure('Unable to reset password at this time.');
         }
 
-        // No used-flag exists on this model - deleting every outstanding
-        // token for this user is the closest equivalent, and correctly
-        // invalidates any other reset links requested since.
+        // Invalidate any other reset links issued for this account.
         PasswordReset::deleteForUser($user->id);
 
         return $this->success(null);
@@ -437,7 +430,6 @@ class AuthService {
         return '+' . ltrim(preg_replace('/[\s\-()]/', '', trim($phone)), '+');
     }
 
-    //should use BCRYPT
     private function passwordAlgorithm(): string|int {
         return defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;
     }

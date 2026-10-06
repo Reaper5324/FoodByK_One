@@ -6,9 +6,7 @@ class PaymentService {
     const TOKENIZE_URL_LIVE    = 'https://www.payfast.co.za/eng/process';
     const API_BASE             = 'https://api.payfast.co.za';
 
-    // Step 1: build the redirect that sets up a R0 tokenization agreement.
-    // No money moves here - this is PayFast's "ad hoc" agreement setup,
-    // not a payment. The token itself arrives later via ITN (step 2).
+    // Start card tokenization; PayFast sends the token later in an ITN.
     public function beginTokenSetup(Order $order, Customer $customer): array {
         $fields = [
             'merchant_id'       => PAYFAST_MERCHANT_ID,
@@ -21,7 +19,7 @@ class PaymentService {
             'm_payment_id'      => (string) $order->id,
             'amount'            => '0.00',
             'item_name'         => 'Food by K - card setup for order #' . $order->id,
-            'subscription_type' => 2, // ad hoc tokenization, not a recurring subscription
+            'subscription_type' => 2,
         ];
         $fields['signature'] = $this->generateFormSignature($fields);
 
@@ -31,8 +29,7 @@ class PaymentService {
         ]];
     }
 
-    // Step 2: ITN webhook for the tokenization setup. Extracts the token
-    // and creates the order's Payment row - see DOMAIN.md §6.
+    // Save the token returned by PayFast after the customer authorizes it.
     public function handleTokenSetupWebhook(array $itn, ?string $sourceIp = null): array {
         if (!$this->verifyItn($itn, $sourceIp)) {
             return ['success' => false, 'error' => 'Invalid ITN signature/source.'];
@@ -60,7 +57,8 @@ class PaymentService {
                 throw new RuntimeException('Payment setup was not recorded for this order.');
             }
             if ($payment->gateway_token !== null) {
-                $db->commit(); // Duplicate token ITN; never replace the bearer token.
+                // Do not replace the saved token when PayFast retries an ITN.
+                $db->commit();
                 return ['success' => true];
             }
             $payment->gateway_token = $token;
@@ -77,8 +75,7 @@ class PaymentService {
         return ['success' => true];
     }
 
-    // PayFast sends token setup and ad hoc charge ITNs to the notify URL
-    // supplied during token setup. The order state distinguishes the two.
+    // Both token setup and charge results use the same notify URL.
     public function handleWebhook(array $itn, ?string $sourceIp = null): array {
         $order = Order::findById((int) ($itn['m_payment_id'] ?? 0));
         if ($order && $order->status === Order::STATUS_CHARGE_PENDING) {
@@ -88,9 +85,7 @@ class PaymentService {
         return $this->handleTokenSetupWebhook($itn, $sourceIp);
     }
 
-    // Step 3: called from OrderService::confirmOrder() (or a follow-up
-    // job) once staff accept. Sends the actual charge request; the
-    // outcome is confirmed asynchronously in handleChargeWebhook().
+    // Charge the saved token after staff accept; the ITN confirms the result.
     public function chargeToken(Order $order): array {
         $db = Database::getConnection();
         try {
@@ -124,7 +119,7 @@ class PaymentService {
 
         $timestamp = date('c');
         $body = [
-            'amount'    => (int) round($order->total() * 100), // PayFast adhoc API takes cents
+            'amount'    => (int) round($order->total() * 100),
             'item_name' => 'Food by K order #' . $order->id,
             'm_payment_id' => (string) $order->id,
             'itn' => true,
@@ -137,22 +132,19 @@ class PaymentService {
         ];
         $headers['signature'] = $this->generateApiSignature(array_merge($headers, $body));
 
-        // An ambiguous network failure must stay pending: PayFast may have
-        // processed the charge before the connection dropped.
+        // The charge may have succeeded even if the connection timed out.
         try {
             $response = $this->postJson(
                 $this->apiUrl("/subscriptions/{$payment->gateway_token}/adhoc"),
                 $body, $headers
             );
         } catch (\Throwable $e) {
-            // A timeout may happen after PayFast charged the card. Keep the
-            // order pending until the ITN or a manual reconciliation arrives.
+            // Wait for the ITN or manual reconciliation before changing status.
             error_log('PayFast charge request outcome is unknown for order ' . $order->id . ': ' . $e->getMessage());
             return ['success' => false, 'error' => 'Payment status is pending confirmation.'];
         }
 
-        // Immediate response only confirms PayFast accepted the request -
-        // final success/failure still comes via handleChargeWebhook().
+        // PayFast's response acknowledges the request; the ITN gives the result.
         if (($response['status'] ?? '') !== 'success') {
             $this->markChargeFailed($order->id);
             return ['success' => false, 'error' => 'PayFast declined the charge.'];
@@ -160,8 +152,7 @@ class PaymentService {
         return ['success' => true, 'data' => $response];
     }
 
-    // Step 4: ITN webhook confirming the actual charge outcome.
-    // Idempotent via Payment::markSuccessful()'s internal guard.
+    // Record the charge result reported by PayFast.
     public function handleChargeWebhook(array $itn, ?string $sourceIp = null): array {
         if (!$this->verifyItn($itn, $sourceIp)) {
             return ['success' => false, 'error' => 'Invalid ITN signature/source.'];
@@ -226,10 +217,7 @@ class PaymentService {
         return ['success' => true];
     }
 
-    // Best-effort cleanup on decline/cancel - functionally the token is
-    // already dead the moment we stop calling adhoc against it, but
-    // cancelling the agreement on PayFast's side keeps their dashboard
-    // and ours in sync.
+    // Cancel the PayFast agreement after an order is declined or cancelled.
     public function releaseToken(Order $order): void {
         $payment = $order->getPayment();
         if (!$payment || !$payment->gateway_token) return;
@@ -270,8 +258,7 @@ class PaymentService {
             return false;
         }
         $receivedSignature = $itn['signature'] ?? '';
-        // ITN signature fields must retain PayFast's submitted order. Sorting
-        // or rebuilding from a parsed map can change the signed payload.
+        // Preserve the field order PayFast used to sign the ITN.
         $paramString = $this->itnParameterString($itn);
         $expectedSignature = md5($paramString . ($this->passphrase() !== ''
             ? '&passphrase=' . urlencode(trim($this->passphrase()))

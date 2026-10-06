@@ -1,10 +1,9 @@
 <?php
-// Shared db behaviour for all data models.
-//ORM duties
+// Common database operations for the models.
 abstract class Model {
 
     protected static string $table;
-    public ?int $id = null; // Primary key.
+    public ?int $id = null;
 
    
 
@@ -27,7 +26,6 @@ abstract class Model {
         $table = static::$table;
         $stmt = $db->query("SELECT * FROM `{$table}` ORDER BY id DESC");
         $rows = $stmt->fetchAll();
-        //newest first
         return array_map(fn($row) => static::fromRow($row), $rows);
 
     }

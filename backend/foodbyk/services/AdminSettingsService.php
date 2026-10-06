@@ -2,8 +2,7 @@
 
 class AdminSettingsService {
 
-    // Explicit allowlist - the fix for the mass-assignment bug. Only
-    // these keys can ever be written, with real validation per field.
+    // Only these settings may be changed through this endpoint.
     private const ALLOWED_FIELDS = [
         'business_lat', 'business_long', 'delivery_radius_km', 'collection_radius_km',
         'delivery_fee', 'trading_hours_start', 'trading_hours_end',

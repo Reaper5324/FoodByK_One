@@ -28,7 +28,8 @@ public function beginCharge(): bool {
 }
 
 public function markSuccessful(string $gatewayReference): bool {
-    if ($this->status === self::STATUS_SUCCESS) return true; // idempotent - duplicate ITN
+    // PayFast may send the same charge notification more than once.
+    if ($this->status === self::STATUS_SUCCESS) return true;
     if ($this->status !== self::STATUS_CHARGE_PENDING || $gatewayReference === '') {
         return false;
     }

@@ -2,10 +2,7 @@
 
 class OrderService {
 
-    // Small Template-Method-style helper: every state-changing method here
-    // follows BEGIN -> lock -> validate -> mutate -> history -> COMMIT/ROLLBACK.
-    // This centralises that shape instead of repeating try/catch/rollback
-    // in five separate methods.
+    // Keep each order change and its status history in the same transaction.
     private function transactional(callable $work): array {
         $db = Database::getConnection();
         try {
@@ -38,9 +35,7 @@ class OrderService {
 
             $payment = $order->getPayment();
             if (!$payment || $payment->status !== Payment::STATUS_TOKENIZED || !$payment->gateway_token) {
-                // Confirming without a valid held token would mean charging
-                // is impossible later - fail loudly rather than confirming
-                // an order that can never actually be paid.
+                // An accepted order must have a token available for charging.
                 throw new \Exception("Order {$orderId} has no valid payment token.");
             }
 
@@ -107,7 +102,7 @@ class OrderService {
                 throw new \Exception("Order {$orderId} not found.");
             }
             if (!$order->canTransitionTo(Order::STATUS_CANCELLED)) {
-                // Deliberately includes the "already paid" case - see DOMAIN.md §7.
+                // Paid orders cannot be cancelled through the app.
                 throw new \Exception("Order {$orderId} can no longer be cancelled (status: '{$order->status}').");
             }
 
@@ -151,8 +146,7 @@ class OrderService {
         });
     }
 
-    // Avoids the N+1 trap flagged during review - one join, not a loop of
-    // Order::findById() + User::findById() per row.
+    // Load customer details with the orders in one query.
     public function getPendingOrdersForStaffDashboard(): array {
         $db = Database::getConnection();
         $rows = $db->query(
@@ -214,7 +208,6 @@ class OrderService {
                 throw new \Exception('Invalid fulfilment type.');
             }
 
-            // Load cart items
             $cartItems = CartItem::findBy('customer_id', $customerId);
             if (empty($cartItems)) {
                 throw new \Exception('Cart is empty.');
@@ -225,7 +218,6 @@ class OrderService {
                 throw new \Exception('Customer not found.');
             }
 
-            // Create Order row
             $order = new Order(
                 customer_id: $customerId,
                 fulfilment_type: $fulfilmentType,
@@ -235,7 +227,6 @@ class OrderService {
                 status: Order::STATUS_SUBMITTED
             );
 
-            // Calculate subtotal from cart
             $subtotal = 0.0;
             foreach ($cartItems as $cartItem) {
                 $product = Product::findById($cartItem->product_id);
@@ -246,7 +237,6 @@ class OrderService {
             }
             $order->subtotal = round($subtotal, 2);
 
-            // Check delivery eligibility and calculate fee
             $deliveryService = new DeliveryService();
             $address = $addressId ? Address::findById($addressId) : null;
             if ($fulfilmentType === Order::TYPE_DELIVERY && (!$address || $address->customer_id !== $customerId)) {
@@ -262,8 +252,7 @@ class OrderService {
                 $order->delivery_fee = $eligibility['data']['fee'];
             }
 
-            // Apply promotion after delivery is priced so free-delivery promotions
-            // lock the actual delivery fee, not zero.
+            // Price delivery first so a free-delivery promotion uses the real fee.
             if ($promotionCode) {
                 $promoResult = (new PromotionService())->validateAndCalculate(
                     $promotionCode,
@@ -282,9 +271,7 @@ class OrderService {
                 $order->promotion_id = $promoResult['data']['promotion_id'];
             }
 
-            // Check trading hours
-                       // Validate against the fixed-slot grid, then reserve capacity -
-            // both inside this transaction so check-then-insert is atomic.
+            // Validate and reserve the slot in this transaction to avoid overbooking.
             $slotService = new SlotService();
             $slotValidation = $slotService->isValidSlot($requestedWindowStart, $requestedWindowEnd);
             if (!$slotValidation['success']) {
@@ -295,8 +282,6 @@ class OrderService {
                 throw new \Exception($capacity['error']);
             }
 
-            // Save the order and create its single payment row before
-            // returning PayFast tokenization fields to the customer.
             if (!$order->save()) {
                 throw new \Exception('Unable to create order.');
             }
@@ -305,7 +290,6 @@ class OrderService {
                 throw new \Exception('Unable to create payment record.');
             }
 
-            // Create OrderItem rows from cart
             foreach ($cartItems as $cartItem) {
                 $product = Product::findById($cartItem->product_id);
                 $orderItem = new OrderItem(
@@ -319,20 +303,16 @@ class OrderService {
                 }
             }
 
-            // Initiate PayFast tokenization
             $paymentService = new PaymentService();
             $setupResult = $paymentService->beginTokenSetup($order, $customer);
             if (!$setupResult['success']) {
                 throw new \Exception('Unable to initiate payment.');
             }
 
-            // Clear the cart
             $clearResult = (new CartService())->clear($customerId);
             if (!$clearResult['success']) throw new \Exception($clearResult['error']);
 
-            // Log the submission
-            // The schema requires from_status to be non-null; an empty
-            // string represents the initial state before submission.
+            // The initial history entry has no previous order status.
             $this->logTransition($order->id, '', Order::STATUS_SUBMITTED, $customerId);
 
             return ['order' => $order, 'payment_setup' => $setupResult['data']];
@@ -375,16 +355,13 @@ class OrderService {
     public function getCustomerOrders(int $customerId, int $limit = 20, int $offset = 0): array {
         $db = Database::getConnection();
 
-        // Validate pagination params
-        $limit = max(1, min($limit, 100)); // cap at 100
+        $limit = max(1, min($limit, 100));
         $offset = max(0, $offset);
 
-        // Total count
         $countStmt = $db->prepare('SELECT COUNT(*) as total FROM orders WHERE customer_id = ?');
         $countStmt->execute([$customerId]);
         $total = (int) $countStmt->fetch()['total'];
 
-        // Paginated results
         $stmt = $db->prepare(
             'SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
         );
@@ -444,17 +421,14 @@ class OrderService {
             $oldSubtotal = $order->subtotal;
             $oldDiscount = $order->locked_discount;
 
-            // Update items if provided
             if ($adjustedItems !== null) {
                 if ($adjustedItems === []) {
                     throw new \Exception('Adjusted order must contain at least one item.');
                 }
-                // Delete existing OrderItems
                 foreach ($order->getItems() as $item) {
                     $item->delete();
                 }
 
-                // Recalculate subtotal
                 $newSubtotal = 0.0;
                 foreach ($adjustedItems as $adj) {
                     $product = Product::findById($adj['product_id'] ?? 0);
@@ -480,7 +454,6 @@ class OrderService {
                 }
                 $order->subtotal = round($newSubtotal, 2);
 
-                // Revalidate promotion against new subtotal
                 if ($order->promotion_id) {
                     $promotionService = new PromotionService();
                     $revalidate = $promotionService->revalidateForOrder($order);
@@ -490,7 +463,6 @@ class OrderService {
                 }
             }
 
-            // Update time windows if provided
             if ($newWindowStart !== null) {
                 $order->confirmed_window_start = $newWindowStart;
             }
@@ -498,7 +470,6 @@ class OrderService {
                 $order->confirmed_window_end = $newWindowEnd;
             }
 
-            // Mark as adjusted if this changed the order
             $fromStatus = $order->status;
             if ($adjustedItems !== null || $newWindowStart !== null || $newWindowEnd !== null) {
                 if ($order->status === Order::STATUS_SUBMITTED) {

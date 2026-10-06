@@ -3,7 +3,6 @@
 
 class LoyaltyService {
 
-    // Configurable via business_settings (future)
     private const POINTS_PER_RAND = 1.0; // 1 point per R1 spent
     private const RAND_PER_POINT = 1.0;  // 1 point = R1 discount (1:1 ratio)
 
@@ -40,7 +39,6 @@ class LoyaltyService {
             return $this->failure('Customer not found.');
         }
 
-        // Calculate points: R100 order = 100 points (at default 1:1)
         $pointsToAward = (int) round($orderTotal * self::POINTS_PER_RAND);
         if ($pointsToAward <= 0) {
             return $this->success(['points_awarded' => 0, 'new_balance' => $customer->loyalty_points]);
@@ -61,8 +59,6 @@ class LoyaltyService {
             'new_balance' => $customer->loyalty_points,
         ]);
     }
-
-    //Redeem a specific num of points
 
     public function redeemPoints(int $customerId, int $pointsToRedeem): array {
         $customer = Customer::findCustomerById($customerId);
@@ -119,7 +115,6 @@ class LoyaltyService {
         ]);
     }
 
-   // get estimated discount 
     public function estimateDiscount(int $points): array {
         if ($points < 0) {
             return $this->failure('Points cannot be negative.');
@@ -134,7 +129,6 @@ class LoyaltyService {
         ]);
     }
 
-    //calculate earned points
     public function estimateEarnings(float $orderTotal): array {
         if ($orderTotal < 0) {
             return $this->failure('Order total cannot be negative.');
@@ -149,7 +143,6 @@ class LoyaltyService {
         ]);
     }
 
-    //get top loyalty customer
     public function getTopCustomers(int $limit = 10): array {
         $limit = max(1, min($limit, 100));
 
@@ -169,7 +162,6 @@ class LoyaltyService {
         return $this->success($rows);
     }
 
-    //Admin
     public function bulkAwardPoints(array $customerIds, int $pointsPerCustomer, string $reason): array {
         if ($pointsPerCustomer <= 0) {
             return $this->failure('Points per customer must be positive.');

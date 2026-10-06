@@ -177,8 +177,7 @@ class ProductService {
             return $product;
         }
 
-        // Accept only simple object keys; never allow a database value to
-        // address objects outside the bucket's normal key namespace.
+        // Restrict image keys to the expected bucket path.
         if (!$this->isValidBucketKey($key)) {
             $product->image_url = null;
             return $product;

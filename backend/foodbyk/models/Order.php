@@ -25,9 +25,7 @@ public const ALLOWED_TRANSITIONS = [
     self::STATUS_ADJUSTED       => [self::STATUS_CHARGE_PENDING, self::STATUS_CANCELLED],
     self::STATUS_CHARGE_PENDING => [self::STATUS_PAID, self::STATUS_PAYMENT_FAILED],
     self::STATUS_PAYMENT_FAILED => [self::STATUS_CHARGE_PENDING, self::STATUS_CANCELLED],
-    // PAID is intentionally a dead end except forward to PREPARING - once
-    // charged, cancellation is a manual staff/refund process, not an
-    // in-app transition, for MVP.
+    // Paid orders can only move forward; refunds are handled outside the app.
     self::STATUS_PAID           => [self::STATUS_PREPARING],
     self::STATUS_PREPARING      => [self::STATUS_READY],
     self::STATUS_READY          => [self::STATUS_COMPLETED],
@@ -107,7 +105,7 @@ public static function lockById(int $id): ?static {
         return (int) $stmt->fetchColumn();
     }
 
-    // Must be called inside an existing transaction - same rule as lockById().
+    // Call this inside a transaction so the slot count stays consistent.
     public static function countActiveForSlotLocked(string $windowStart): int {
         $db = Database::getConnection();
         $stmt = $db->prepare(

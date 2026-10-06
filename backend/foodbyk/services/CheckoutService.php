@@ -42,7 +42,7 @@ class CheckoutService {
         }
         $cartItems = $cartValidation['data'];
 
-        // Calculate subtotal from cart items and their current product prices
+        // Preview with current menu prices; submission stores the prices on the order items.
         $subtotal = 0.0;
         $lineItems = [];
         foreach ($cartItems as $cartItem) {
@@ -59,7 +59,6 @@ class CheckoutService {
         }
         $subtotal = round($subtotal, 2);
 
-        // Check delivery eligibility and get fee
         $deliveryService = new DeliveryService();
         $address = $addressId ? Address::findById($addressId) : null;
         if ($fulfilmentType === Order::TYPE_DELIVERY && (!$address || $address->customer_id !== $customerId)) {
@@ -77,7 +76,6 @@ class CheckoutService {
             $distanceKm = $eligibility['data']['distance_km'];
         }
 
-        // Validate and apply promotion if provided
         $discount = 0.0;
         $promotionId = null;
         if ($promotionCode) {
@@ -95,7 +93,6 @@ class CheckoutService {
             $promotionId = $promoResult['data']['promotion_id'];
         }
 
-        // Calculate total
         $total = round(max(0.0, $subtotal - $discount) + $deliveryFee, 2);
 
         return $this->success([
@@ -151,7 +148,6 @@ class CheckoutService {
         }
 
         if (!$address->hasCoordinates()) {
-            // Attempt to geocode
             $deliveryService = new DeliveryService();
             if (!$deliveryService->geocodeAddress($address)) {
                 return $this->failure('Unable to verify delivery address. Please check and try again.');
