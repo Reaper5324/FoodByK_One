@@ -25,6 +25,10 @@ class AuthController extends Controller {
         return $this->respond($result, 200, 401);
     }
 
+    public function updateCustomerProfile(Request $request): Response {
+        return $this->respond((new AuthService())->updateCustomerProfile($request->user(), $request->body));
+    }
+
     public function requestPasswordReset(Request $request): Response {
         return $this->respond((new AuthService())->requestPasswordReset((string) $request->input('email', '')));
     }

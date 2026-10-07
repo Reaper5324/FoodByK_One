@@ -24,6 +24,7 @@
             rel="stylesheet"
             href="../../public assets/css/auth.css"
     >
+    <link rel="stylesheet" href="../../public%20assets/css/account.css">
 
 </head>
 
@@ -132,6 +133,17 @@
             </div>
 
 
+            <div id="profileMessage" class="account-message" role="status" aria-live="polite" hidden></div>
+            <form id="profileForm" class="account-edit-form">
+                <div class="form-group"><label for="profileName">Full name</label><input type="text" id="profileName" name="full_name" maxlength="120" autocomplete="name" required></div>
+                <div class="form-group"><label for="profileEmail">Email address</label><input type="email" id="profileEmail" name="email" maxlength="254" autocomplete="email" required></div>
+                <div class="form-group"><label for="profilePhone">Phone number</label><input type="tel" id="profilePhone" name="phone" autocomplete="tel" placeholder="+27123456789"></div>
+                <div class="form-group"><label for="profileAddress">Address details (optional)</label><input type="text" id="profileAddress" name="address" maxlength="255" autocomplete="street-address"></div>
+                <div class="form-group"><label for="profileCity">City</label><input type="text" id="profileCity" name="city" maxlength="100" autocomplete="address-level2"></div>
+                <div class="form-group"><label for="profileProvince">Province</label><input type="text" id="profileProvince" name="province" maxlength="100" autocomplete="address-level1"></div>
+                <button id="saveProfileButton" type="submit" class="btn btn-primary">Save account details</button>
+            </form>
+
             <!-- Account Actions -->
 
             <div class="account-actions">
@@ -150,6 +162,20 @@
         </section>
 
 
+
+        <section class="account-card" aria-labelledby="deliveryAddressesHeading">
+            <h2 id="deliveryAddressesHeading">Delivery addresses</h2>
+            <p class="account-address-intro">Save and update the addresses available at checkout. Choose a default for faster ordering.</p>
+            <div id="addressMessage" class="account-message" role="status" aria-live="polite" hidden></div>
+            <div id="deliveryAddressList" class="account-address-list" aria-live="polite"></div>
+            <form id="deliveryAddressForm" class="account-edit-form account-address-form">
+                <h3 id="addressFormHeading">Add a delivery address</h3>
+                <input type="hidden" id="deliveryAddressId" value="">
+                <div class="form-group"><label for="deliveryAddressText">Full delivery address</label><textarea id="deliveryAddressText" rows="3" maxlength="500" autocomplete="street-address" required></textarea></div>
+                <label class="account-default-option"><input type="checkbox" id="deliveryAddressDefault"> Set as my default address</label>
+                <div class="account-actions"><button id="saveAddressButton" type="submit" class="btn btn-primary">Save address</button><button id="cancelAddressEdit" type="button" class="btn btn-secondary" hidden>Cancel edit</button></div>
+            </form>
+        </section>
 
         <!-- =========================================
              CHANGE PASSWORD

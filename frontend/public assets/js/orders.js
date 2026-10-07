@@ -63,7 +63,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const itemList = element("div", "order-items");
         items.forEach((item) => {
             const row = element("div", "order-item");
-            row.append(element("span", "order-item-name", `${item.quantity} × ${item.product_name || "Menu item"}`), element("strong", "", money(Number(item.quantity) * Number(item.unit_price))));
+            const image = document.createElement("img");
+            image.className = "order-item-image";
+            image.src = item.image_url || "../../images/menu/BoxFresh.jpeg";
+            image.alt = item.product_name || "Food by K menu item";
+            image.loading = "lazy";
+            image.addEventListener("error", () => { image.hidden = true; }, { once: true });
+            const name = element("span", "order-item-name", `${item.quantity} × ${item.product_name || "Food by K item"}`);
+            const description = element("div", "order-item-description");
+            description.append(image, name);
+            row.append(description, element("strong", "", money(Number(item.quantity) * Number(item.unit_price))));
             itemList.appendChild(row);
         });
         main.appendChild(itemList);
@@ -95,12 +104,16 @@ document.addEventListener("DOMContentLoaded", () => {
             cancel.addEventListener("click", async () => {
                 if (!window.confirm("Cancel this order? This cannot be undone.")) return;
                 cancel.disabled = true;
-                cancel.textContent = "Cancelling…";
+                cancel.textContent = "Cancelled";
+                statusLabel.textContent = "cancelled";
+                progressTrack.hidden = true;
+                const optimisticNotice = element("p", "order-reason", "Your cancellation is being saved…");
+                main.insertBefore(optimisticNotice, main.firstChild);
                 const result = await apiPost(`/orders/${order.id}/cancel`, { reason: "Customer request" });
                 if (!result.success) {
-                    cancel.disabled = false;
-                    cancel.textContent = "Cancel order";
-                    setFeedback(result.error || "Unable to cancel this order. Please try again.");
+                    const error = result.error || "Unable to cancel this order. Please try again.";
+                    await loadOrders(true);
+                    setFeedback(error);
                     return;
                 }
                 await loadOrders();
@@ -113,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return card;
     }
 
-    async function loadOrders() {
+    async function loadOrders(forceRender = false) {
         if (isRefreshing) return;
         isRefreshing = true;
         const result = await apiGet("/orders?limit=1");
@@ -142,6 +155,12 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        if (detail.data?.order?.status === "completed") {
+            sessionStorage.setItem("foodByKCompletedOrder", String(detail.data.order.id));
+            window.location.replace("menu.html?order_complete=1");
+            return;
+        }
+
         const { order, items, address } = detail.data;
         const fingerprint = JSON.stringify({
             order: order && {
@@ -160,7 +179,7 @@ document.addEventListener("DOMContentLoaded", () => {
             items: (items || []).map(({ product_name, quantity, unit_price }) => ({ product_name, quantity, unit_price })),
             address: address?.raw_address || null
         });
-        if (fingerprint === renderedOrderFingerprint) return;
+        if (!forceRender && fingerprint === renderedOrderFingerprint) return;
 
         const scrollPosition = window.scrollY;
         renderedOrderFingerprint = fingerprint;

@@ -28,6 +28,14 @@
     .menu-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: auto; }
     .menu-price { font-weight: 800; white-space: nowrap; }
     .menu-message { padding: 18px; background: var(--food-white); border: 1px solid var(--food-border); border-radius: 6px; }
+    .order-thanks { width: min(500px, calc(100% - 28px)); max-width: none; padding: 0; border: 0; color: #151311; background: #fffaf1; box-shadow: 0 28px 90px rgba(0,0,0,.38); }
+    .order-thanks::backdrop { background: rgba(13,11,9,.78); backdrop-filter: blur(4px); }
+    .order-thanks-content { position: relative; padding: clamp(35px, 7vw, 58px); text-align: center; }
+    .order-thanks-content::before { position: absolute; inset: 0 0 auto; height: 8px; content: ""; background: var(--food-yellow); }
+    .order-thanks-kicker { margin: 0 0 14px; color: var(--food-red); font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+    .order-thanks h2 { margin: 0 0 12px; color: #151311; font-size: clamp(2rem, 8vw, 3.4rem); font-weight: 950; line-height: .95; letter-spacing: -.065em; text-transform: uppercase; }
+    .order-thanks p:not(.order-thanks-kicker) { margin-bottom: 22px; color: #625b54; }
+    .order-thanks-close { margin-left: 10px; padding: 11px 16px; border: 1px solid #cfc7bc; background: transparent; font-weight: 800; }
     @media (max-width: 640px) { .menu-header { display: block; } .menu-header .btn { margin-top: 14px; } }
   </style>
 </head>
@@ -86,6 +94,16 @@
   <div id="menuMessage" class="menu-message" hidden></div>
   <section id="menuGrid" class="menu-grid" aria-live="polite"></section>
 </main>
+
+<dialog class="order-thanks" id="orderThanksModal" aria-labelledby="orderThanksTitle">
+  <div class="order-thanks-content">
+    <p class="order-thanks-kicker">Food by K says thank you</p>
+    <h2 id="orderThanksTitle">Thank you for ordering!</h2>
+    <p>We hope you enjoy your day and every bite.</p>
+    <a class="btn btn-primary" href="menu.html">Browse the menu</a>
+    <button class="order-thanks-close" id="closeOrderThanks" type="button">Close</button>
+  </div>
+</dialog>
 
 <script src="../../public%20assets/js/config.js"></script>
 <script src="../../public%20assets/js/api/api.js"></script>

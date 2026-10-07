@@ -53,6 +53,8 @@
 .order-items { display: grid; gap: 0; }
 .order-item { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding: 12px 0; border-bottom: 1px solid #eee7de; }
 .order-item:first-child { border-top: 1px solid #eee7de; }
+.order-item-description { display: flex; min-width: 0; align-items: center; gap: 13px; }
+.order-item-image { width: 62px; height: 54px; flex: 0 0 62px; object-fit: cover; background: #eee7de; }
 .order-item-name { color: var(--home-ink); font-size: 13px; font-weight: 800; }
 .order-item strong { color: var(--food-red); font-size: 13px; font-weight: 950; white-space: nowrap; }
 .order-summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; color: #6b645c; font-size: 13px; }
@@ -87,4 +89,5 @@
   .order-step { font-size: 7px; letter-spacing: 0; }
   .order-step::before { width: 16px; height: 16px; }
   .order-step:not(:last-child)::after { top: 7px; left: calc(50% + 9px); width: calc(100% - 18px); }
+  .order-item-image { width: 56px; height: 50px; flex-basis: 56px; }
 }

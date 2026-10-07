@@ -293,6 +293,7 @@ class OrderService {
             foreach ($cartItems as $cartItem) {
                 $product = Product::findById($cartItem->product_id);
                 $orderItem = new OrderItem(
+                    product_name: $product->name,
                     order_id: $order->id,
                     product_id: $cartItem->product_id,
                     quantity: $cartItem->quantity,
@@ -334,9 +335,19 @@ class OrderService {
             return $this->failure('Order not found.');
         }
 
+        $items = $order->getItems();
+        $productService = new ProductService();
+        foreach ($items as $item) {
+            $product = Product::findById($item->product_id);
+            if ($product !== null) {
+                if (trim($item->product_name) === '') $item->product_name = $product->name;
+                $item->image_url = $productService->imageUrlForOrderItem($product);
+            }
+        }
+
         return $this->success([
             'order' => $order,
-            'items' => $order->getItems(),
+            'items' => $items,
             'payment' => $order->getPayment(),
             'address' => $order->getAddress(),
             'customer' => $order->getCustomer(),

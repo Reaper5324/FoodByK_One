@@ -745,15 +745,18 @@ if (
 
 
             // Display user information
+            const nameParts = String(user.full_name || user.name || "").trim().split(/\s+/).filter(Boolean);
             accountFirstName.textContent =
                 user.first_name ||
                 user.firstName ||
+                nameParts[0] ||
                 "Not available";
 
 
             accountLastName.textContent =
                 user.last_name ||
                 user.lastName ||
+                nameParts.slice(1).join(" ") ||
                 "Not available";
 
 

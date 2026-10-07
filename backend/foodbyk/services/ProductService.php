@@ -171,6 +171,10 @@ class ProductService {
         return $products;
     }
 
+    public function imageUrlForOrderItem(Product $product): ?string {
+        return $this->withImageUrl($product)->image_url;
+    }
+
     private function withImageUrl(Product $product): Product {
         $key = trim((string) $product->image_url);
         if ($key === '' || filter_var($key, FILTER_VALIDATE_URL) !== false) {

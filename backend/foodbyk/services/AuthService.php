@@ -334,8 +334,64 @@ class AuthService {
             'id' => $user->id,
             'full_name' => $user->full_name,
             'email' => $user->email,
+            'phone' => $user->phone,
+            'address' => $user->address,
+            'city' => $user->city,
+            'province' => $user->province,
             'role' => $role?->role_name,
         ]);
+    }
+
+    public function updateCustomerProfile(User $sessionUser, array $input): array {
+        $user = User::findById((int) $sessionUser->id);
+        if ($user === null || $user->getRole()?->role_name !== Role::CUSTOMER) {
+            return $this->failure('Customer account not found.');
+        }
+
+        $name = trim((string) ($input['full_name'] ?? ''));
+        $email = $this->normaliseEmail((string) ($input['email'] ?? ''));
+        $phone = $this->normalisePhone(isset($input['phone']) ? (string) $input['phone'] : null);
+        $address = trim((string) ($input['address'] ?? ''));
+        $city = trim((string) ($input['city'] ?? ''));
+        $province = trim((string) ($input['province'] ?? ''));
+
+        if ($name === '' || $this->stringLength($name) > self::MAX_NAME_LENGTH || preg_match('/[\p{C}]/u', $name) === 1) {
+            return $this->failure('Enter a valid full name.');
+        }
+        if ($email === '' || strlen($email) > 150 || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return $this->failure('Enter a valid email address.');
+        }
+        if ($phone !== null && preg_match('/^\+[1-9][0-9]{7,14}$/', $phone) !== 1) {
+            return $this->failure('Enter a valid phone number with country code.');
+        }
+        if ($this->stringLength($address) > 255 || $this->stringLength($city) > 100 || $this->stringLength($province) > 100) {
+            return $this->failure('Address, city, or province is too long.');
+        }
+
+        $existing = User::findByEmail($email);
+        if ($existing !== null && $existing->id !== $user->id) {
+            return $this->failure('An account with this email already exists.');
+        }
+
+        $user->full_name = $name;
+        $user->email = $email;
+        $user->phone = $phone;
+        $user->address = $address === '' ? null : $address;
+        $user->city = $city === '' ? null : $city;
+        $user->province = $province === '' ? null : $province;
+
+        return $user->save()
+            ? $this->success([
+                'id' => $user->id,
+                'full_name' => $user->full_name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'address' => $user->address,
+                'city' => $user->city,
+                'province' => $user->province,
+                'role' => Role::CUSTOMER,
+            ])
+            : $this->failure('Unable to update your account details.');
     }
 
     private function destroySession(): void {

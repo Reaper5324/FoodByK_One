@@ -1,0 +1,27 @@
+.account-edit-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; margin-top: 22px; }
+.account-edit-form .form-group { margin: 0; }
+.account-edit-form .form-group input, .account-edit-form .form-group textarea { width: 100%; min-height: 46px; padding: 12px 13px; border: 1px solid #cfc9c1; border-radius: 5px; color: #171717; background: #fff; font: inherit; }
+.account-edit-form .form-group textarea { resize: vertical; }
+.account-edit-form .form-group input:focus, .account-edit-form .form-group textarea:focus { border-color: var(--food-red); outline: 3px solid rgba(215,25,32,.12); }
+.account-edit-form > button[type="submit"], .account-address-form h3, .account-address-form .form-group, .account-address-form .account-default-option, .account-address-form .account-actions { grid-column: 1 / -1; }
+.account-address-form h3 { margin: 8px 0 0; font-size: 17px; }
+.account-message { margin: 18px 0 0; padding: 12px 14px; border-left: 4px solid #27804b; color: #225d3b; background: #edf8f0; font-size: 14px; }
+.account-message.is-error { border-color: var(--food-red); color: #8d161b; background: #fff0ed; }
+.account-message[hidden], [hidden] { display: none !important; }
+.account-address-intro { margin-top: 8px; color: #555; }
+.account-address-list { display: grid; gap: 12px; margin-top: 18px; }
+.account-address-card { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 16px; border: 1px solid #d9d9d9; background: #fff; }
+.account-address-card p { margin: 0; color: #222; white-space: pre-line; }
+.account-address-card strong { display: block; margin-bottom: 5px; color: var(--food-red); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.account-address-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.account-address-actions button { min-height: 38px; padding: 8px 11px; border: 1px solid #bbb; color: #222; background: #fff; font-weight: 700; }
+.account-address-actions button:hover { border-color: var(--food-red); color: var(--food-red); }
+.account-default-option { display: flex; align-items: center; gap: 9px; color: #222; font-size: 14px; }
+.account-default-option input { width: 18px; height: 18px; accent-color: var(--food-red); }
+.account-address-form .account-actions { justify-content: flex-start; }
+@media (max-width: 640px) {
+  .account-edit-form { grid-template-columns: 1fr; }
+  .account-address-card { align-items: flex-start; flex-direction: column; }
+  .account-address-actions { width: 100%; }
+  .account-address-actions button { flex: 1 1 auto; }
+}

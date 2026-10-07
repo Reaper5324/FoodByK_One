@@ -1,4 +1,17 @@
 document.addEventListener("DOMContentLoaded", async () => {
+    const thanksModal = document.getElementById("orderThanksModal");
+    if (thanksModal && new URLSearchParams(window.location.search).get("order_complete") === "1") {
+        if (typeof thanksModal.showModal === "function") thanksModal.showModal();
+        else thanksModal.setAttribute("open", "");
+        document.getElementById("closeOrderThanks")?.addEventListener("click", () => thanksModal.close());
+        thanksModal.addEventListener("click", (event) => {
+            if (event.target === thanksModal) thanksModal.close();
+        });
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete("order_complete");
+        window.history.replaceState({}, "", cleanUrl);
+    }
+
     const categoryList = document.getElementById("categoryList");
     const menuGrid = document.getElementById("menuGrid");
     const menuMessage = document.getElementById("menuMessage");

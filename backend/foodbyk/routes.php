@@ -24,6 +24,7 @@ function registerRoutes(Router $router): void {
     $authenticated = [new AuthMiddleware(), new CsrfMiddleware()];
     $router->post('/auth/logout', [AuthController::class, 'logout'], $authenticated);
     $router->get('/auth/me', [AuthController::class, 'me'], [new AuthMiddleware(), new CsrfMiddleware()]);
+    $router->put('/account/profile', [AuthController::class, 'updateCustomerProfile'], $customer);
     $router->post('/auth/change-password', [AuthController::class, 'changePassword'], $authenticated);
 
     $router->post('/cart/items', [CartController::class, 'add'], $customer);

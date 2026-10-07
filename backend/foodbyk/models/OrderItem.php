@@ -3,6 +3,7 @@
 class OrderItem extends Model {
 
 protected static string $table = 'order_items';
+public ?string $image_url = null;
 
 public function __construct(
     public string $product_name = '',
