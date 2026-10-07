@@ -1,6 +1,11 @@
 document.addEventListener("DOMContentLoaded", async () => {
     const thanksModal = document.getElementById("orderThanksModal");
-    if (thanksModal && new URLSearchParams(window.location.search).get("order_complete") === "1") {
+    const menuQuery = new URLSearchParams(window.location.search);
+    const completedOrderId = sessionStorage.getItem("foodByKCompletedOrder");
+    if (thanksModal && menuQuery.get("order_complete") === "1"
+        && completedOrderId && completedOrderId === menuQuery.get("order_id")) {
+        sessionStorage.removeItem("foodByKCompletedOrder");
+        sessionStorage.setItem("foodByKThankedOrder", completedOrderId);
         if (typeof thanksModal.showModal === "function") thanksModal.showModal();
         else thanksModal.setAttribute("open", "");
         document.getElementById("closeOrderThanks")?.addEventListener("click", () => thanksModal.close());
@@ -9,6 +14,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         const cleanUrl = new URL(window.location.href);
         cleanUrl.searchParams.delete("order_complete");
+        cleanUrl.searchParams.delete("order_id");
         window.history.replaceState({}, "", cleanUrl);
     }
 

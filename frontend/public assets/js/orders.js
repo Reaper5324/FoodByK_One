@@ -1,11 +1,14 @@
 document.addEventListener("DOMContentLoaded", () => {
     const list = document.getElementById("orderList");
     const feedback = document.getElementById("orderFeedback");
-    const paymentState = new URLSearchParams(window.location.search).get("payment");
+    const pageQuery = new URLSearchParams(window.location.search);
+    const paymentState = pageQuery.get("payment");
+    const returnedOrderId = pageQuery.get("order_id");
     const progress = ["submitted", "accepted", "paid", "preparing", "ready", "completed"];
     let refreshTimer = null;
     let isRefreshing = false;
     let renderedOrderFingerprint = null;
+    let observedActiveOrderId = null;
 
     const money = (amount) => `R${Number(amount || 0).toFixed(2)}`;
     const element = (tag, className, value) => {
@@ -23,6 +26,28 @@ document.addEventListener("DOMContentLoaded", () => {
         feedback.textContent = text;
         feedback.hidden = !visible;
     };
+
+    function showNoCurrentOrder() {
+        renderedOrderFingerprint = null;
+        list.replaceChildren();
+        let firstName = "there";
+        try {
+            const user = JSON.parse(localStorage.getItem("foodByKUser") || "null");
+            firstName = user?.full_name?.trim()?.split(/\s+/)[0] || firstName;
+        } catch (error) {
+            // Keep the generic greeting when no usable local profile is stored.
+        }
+        const empty = element("article", "current-order-empty");
+        empty.append(
+            element("p", "current-order-kicker", "A little room for something delicious"),
+            element("h3", "", `Hi ${firstName}, you have no current orders.`),
+            element("p", "", "When you place an order, you can follow its progress here."));
+        const browse = element("a", "btn btn-primary", "Browse the menu");
+        browse.href = "menu.html";
+        empty.appendChild(browse);
+        list.appendChild(empty);
+        setFeedback("", false);
+    }
 
     function renderOrder(bundle) {
         const order = bundle.order || {};
@@ -143,9 +168,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const newestOrder = result.data?.orders?.[0] || null;
         if (!newestOrder) {
-            renderedOrderFingerprint = null;
-            list.replaceChildren();
-            setFeedback("You don’t have any orders yet. Browse the menu when you’re ready for something good.");
+            observedActiveOrderId = null;
+            showNoCurrentOrder();
             return;
         }
         setFeedback("Order updates refresh automatically while this page is open.", false);
@@ -155,13 +179,22 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        if (detail.data?.order?.status === "completed") {
-            sessionStorage.setItem("foodByKCompletedOrder", String(detail.data.order.id));
-            window.location.replace("menu.html?order_complete=1");
+        const { order, items, address } = detail.data;
+        if (["completed", "declined", "cancelled"].includes(order?.status)) {
+            const completedOrderWasBeingTracked = String(observedActiveOrderId) === String(order.id)
+                || String(returnedOrderId) === String(order.id);
+            const alreadyThanked = sessionStorage.getItem("foodByKThankedOrder") === String(order.id);
+            if (order.status === "completed" && completedOrderWasBeingTracked && !alreadyThanked) {
+                sessionStorage.setItem("foodByKCompletedOrder", String(order.id));
+                window.location.replace(`menu.html?order_complete=1&order_id=${encodeURIComponent(order.id)}`);
+                return;
+            }
+            observedActiveOrderId = null;
+            showNoCurrentOrder();
             return;
         }
+        observedActiveOrderId = order?.id ?? newestOrder.id;
 
-        const { order, items, address } = detail.data;
         const fingerprint = JSON.stringify({
             order: order && {
                 id: order.id,

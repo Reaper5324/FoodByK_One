@@ -28,12 +28,12 @@
     .menu-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: auto; }
     .menu-price { font-weight: 800; white-space: nowrap; }
     .menu-message { padding: 18px; background: var(--food-white); border: 1px solid var(--food-border); border-radius: 6px; }
-    .order-thanks { width: min(500px, calc(100% - 28px)); max-width: none; padding: 0; border: 0; color: #151311; background: #fffaf1; box-shadow: 0 28px 90px rgba(0,0,0,.38); }
+    .order-thanks { position: fixed; inset: 0; width: min(360px, calc(100vw - 32px)); max-width: none; max-height: min(78vh, 520px); margin: auto; padding: 0; overflow: auto; border: 0; border-radius: 8px; color: #151311; background: #fffaf1; box-shadow: 0 28px 90px rgba(0,0,0,.38); }
     .order-thanks::backdrop { background: rgba(13,11,9,.78); backdrop-filter: blur(4px); }
-    .order-thanks-content { position: relative; padding: clamp(35px, 7vw, 58px); text-align: center; }
+    .order-thanks-content { position: relative; padding: clamp(26px, 6vw, 38px) 24px; text-align: center; }
     .order-thanks-content::before { position: absolute; inset: 0 0 auto; height: 8px; content: ""; background: var(--food-yellow); }
     .order-thanks-kicker { margin: 0 0 14px; color: var(--food-red); font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
-    .order-thanks h2 { margin: 0 0 12px; color: #151311; font-size: clamp(2rem, 8vw, 3.4rem); font-weight: 950; line-height: .95; letter-spacing: -.065em; text-transform: uppercase; }
+    .order-thanks h2 { margin: 0 0 12px; color: #151311; font-size: clamp(1.7rem, 7vw, 2.5rem); font-weight: 950; line-height: .95; letter-spacing: -.065em; text-transform: uppercase; }
     .order-thanks p:not(.order-thanks-kicker) { margin-bottom: 22px; color: #625b54; }
     .order-thanks-close { margin-left: 10px; padding: 11px 16px; border: 1px solid #cfc7bc; background: transparent; font-weight: 800; }
     @media (max-width: 640px) { .menu-header { display: block; } .menu-header .btn { margin-top: 14px; } }

@@ -70,6 +70,10 @@
 .order-cancel:hover { color: white; background: var(--food-red); }
 .order-reason { margin-top: 18px; padding: 12px 14px; border-left: 3px solid var(--food-red); color: #8e1a1d; background: #fff0ed; font-size: 13px; }
 .order-muted { margin: 0; color: #6b645c; font-size: 13px; line-height: 1.65; }
+.current-order-empty { display: grid; justify-items: center; gap: 14px; padding: clamp(30px,6vw,58px) 22px; background: white; text-align: center; box-shadow: 0 13px 38px rgba(47,32,17,.075); }
+.current-order-kicker { margin: 0; color: var(--food-red); font-size: 10px; font-weight: 950; letter-spacing: .18em; text-transform: uppercase; }
+.current-order-empty h3 { max-width: 650px; margin: 0; color: var(--home-ink); font-size: clamp(1.8rem,4vw,3rem); font-weight: 950; line-height: 1; letter-spacing: -.06em; text-transform: uppercase; }
+.current-order-empty > p:not(.current-order-kicker) { max-width: 430px; margin: 0 0 8px; color: #625b54; line-height: 1.7; }
 
 @media (max-width: 850px) {
   .orders-hero { grid-template-columns: 1fr; }
