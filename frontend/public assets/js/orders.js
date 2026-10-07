@@ -1,7 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     const list = document.getElementById("orderList");
     const feedback = document.getElementById("orderFeedback");
-    const requestedOrderId = new URLSearchParams(window.location.search).get("order_id");
     const paymentState = new URLSearchParams(window.location.search).get("payment");
     const progress = ["submitted", "accepted", "paid", "preparing", "ready", "completed"];
     let refreshTimer = null;
@@ -116,7 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function loadOrders() {
         if (isRefreshing) return;
         isRefreshing = true;
-        const result = await apiGet("/orders?limit=50");
+        const result = await apiGet("/orders?limit=1");
         isRefreshing = false;
         if (!result.success) {
             if (!list.childElementCount) setFeedback(result.error || "Unable to load your orders.");
@@ -128,22 +127,16 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             return;
         }
-        const orders = result.data?.orders || [];
-        const selected = requestedOrderId ? orders.find((order) => String(order.id) === String(requestedOrderId)) : null;
-        const visible = selected ? [selected, ...orders.filter((order) => order.id !== selected.id)] : orders;
-        const activeStatuses = ["submitted", "accepted", "adjusted", "charge_pending", "payment_failed", "paid", "preparing", "ready"];
-        const active = visible.filter((order) => activeStatuses.includes(order.status));
-        const ordered = [...active, ...visible.filter((order) => !activeStatuses.includes(order.status))];
+        const newestOrder = result.data?.orders?.[0] || null;
         list.replaceChildren();
-        if (!ordered.length) {
+        if (!newestOrder) {
             setFeedback("You don’t have any orders yet. Browse the menu when you’re ready for something good.");
             return;
         }
         setFeedback("Order updates refresh automatically while this page is open.", false);
-        for (const order of ordered) {
-            const detail = await apiGet(`/orders/${order.id}`);
-            if (detail.success) list.appendChild(renderOrder(detail.data));
-        }
+        const detail = await apiGet(`/orders/${newestOrder.id}`);
+        if (detail.success) list.appendChild(renderOrder(detail.data));
+        else setFeedback(detail.error || "Unable to load your newest order.");
     }
 
     loadOrders().then(() => {

@@ -363,7 +363,7 @@ class OrderService {
         $total = (int) $countStmt->fetch()['total'];
 
         $stmt = $db->prepare(
-            'SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
+            'SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?'
         );
         $stmt->execute([$customerId, $limit, $offset]);
         $orders = $stmt->fetchAll();
