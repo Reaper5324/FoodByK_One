@@ -325,6 +325,26 @@ p {
     background-color: var(--food-red);
 }
 
+.navbar nav[data-auth-ready="pending"] .nav-auth-action {
+    visibility: hidden;
+}
+
+.navbar nav a.nav-register {
+    padding: 10px 16px;
+    background-color: var(--food-red);
+    color: var(--food-white);
+}
+
+.navbar nav a.nav-register:hover {
+    background-color: var(--food-red-dark);
+    color: var(--food-white);
+}
+
+.navbar nav a.nav-logout[aria-disabled="true"] {
+    pointer-events: none;
+    opacity: .7;
+}
+
 
 /* =========================================
    8. LOGOUT BUTTON

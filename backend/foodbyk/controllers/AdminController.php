@@ -17,7 +17,7 @@ class AdminController extends Controller {
 
     public function updateStaff(Request $request, array $params): Response {
         return $this->respond((new AuthService())->updateStaffAccount((int) $this->param($params, 'id'), $request->body));
-    }
+    }   
 
     public function removeStaff(Request $request, array $params): Response {
         return $this->respond((new AuthService())->deactivateStaffAccount((int) $this->param($params, 'id')));
@@ -66,4 +66,5 @@ class AdminController extends Controller {
     public function removeCategory(Request $request, array $params): Response {
         return $this->respond((new CategoryService())->delete((int) $this->param($params, 'id')));
     }
+    
 }
