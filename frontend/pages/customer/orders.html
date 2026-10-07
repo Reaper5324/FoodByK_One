@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111111">
+  <title>Your order | Food by K</title>
+  <link rel="stylesheet" href="../../public%20assets/css/style.css">
+  <link rel="stylesheet" href="../../public%20assets/css/home.css">
+  <link rel="stylesheet" href="../../public%20assets/css/orders.css">
+</head>
+<body class="home-page orders-page-shell">
+<header class="navbar">
+  <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
+  <nav aria-label="Main navigation">
+    <a href="../../src/index.html">Home</a>
+    <a href="menu.html">Menu</a>
+    <a href="cart.html">Cart</a>
+    <a href="orders.html" aria-current="page">Your orders</a>
+    <a href="../../src/index.html#contact">Contact</a>
+    <a href="../auth/login.html" class="nav-auth-action">Login</a>
+    <a href="../auth/register.html" class="nav-register nav-auth-action">Register</a>
+  </nav>
+</header>
+<main>
+  <section class="orders-hero" aria-labelledby="ordersTitle">
+    <div class="orders-hero-copy">
+      <p class="hero-tag">Fresh updates from our kitchen</p>
+      <h1 id="ordersTitle">Good food.<br><span>On its way.</span></h1>
+      <p class="hero-text">Follow your order from our team’s hands to your table. We’ll keep this page up to date as it moves through the kitchen.</p>
+      <a class="btn btn-primary" href="menu.html">Explore the menu <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="orders-hero-visual" role="img" aria-label="Food freshly prepared by Food by K">
+      <div class="orders-hero-sticker"><span>FOOD BY K</span><strong>Made<br>with care</strong><span>ORDER TRACKING</span></div>
+      <div class="orders-hero-caption"><span>YOUR FOOD JOURNEY</span><strong>From our kitchen to you.</strong></div>
+    </div>
+  </section>
+  <div class="flavour-strip orders-flavour-strip" aria-label="Food by K motto"><span>MADE FRESH</span><b>✦</b><span>MADE WITH CARE</span><b>✦</b><span>MADE FOR YOU</span></div>
+  <section class="home-section orders-content" aria-labelledby="ordersListTitle">
+    <div class="section-topline orders-section-heading">
+      <div><p class="section-tag">Your Food by K orders</p><h2 id="ordersListTitle">Made fresh.<br><span>Tracked live.</span></h2><p class="section-intro">Your latest orders appear first. Updates refresh automatically while this page is open.</p></div>
+      <a class="section-link" href="menu.html">Order something good <span aria-hidden="true">→</span></a>
+    </div>
+    <div id="orderFeedback" class="order-feedback" role="status" aria-live="polite">Loading your orders…</div>
+    <section id="orderList" class="order-list" aria-live="polite"></section>
+  </section>
+</main>
+<script src="../../public%20assets/js/config.js"></script>
+<script src="../../public%20assets/js/api/api.js"></script>
+<script src="../../public%20assets/js/api/auth.js"></script>
+<script src="../../public%20assets/js/navigation.js"></script>
+<script src="../../public%20assets/js/orders.js"></script>
+</body>
+</html>

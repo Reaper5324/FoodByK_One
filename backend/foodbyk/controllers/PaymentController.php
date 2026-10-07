@@ -30,11 +30,11 @@ class PaymentController extends Controller {
     // just sends the customer back to a frontend page reflecting that.
     public function returnFromPayFast(Request $request): Response {
         $orderId = (int) ($request->query['order_id'] ?? 0);
-        return $this->redirect(rtrim(FRONTEND_URL, '/') . "/src/index.html?payment=pending&order_id={$orderId}");
+        return $this->redirect(rtrim(FRONTEND_URL, '/') . "/pages/customer/orders.html?payment=pending&order_id={$orderId}");
     }
 
     public function cancelFromPayFast(Request $request): Response {
         $orderId = (int) ($request->query['order_id'] ?? 0);
-        return $this->redirect(rtrim(FRONTEND_URL, '/') . "/src/index.html?payment=cancelled&order_id={$orderId}");
+        return $this->redirect(rtrim(FRONTEND_URL, '/') . "/pages/customer/orders.html?payment=cancelled&order_id={$orderId}");
     }
 }
