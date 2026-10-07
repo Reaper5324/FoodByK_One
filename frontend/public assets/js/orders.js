@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const progress = ["submitted", "accepted", "paid", "preparing", "ready", "completed"];
     let refreshTimer = null;
     let isRefreshing = false;
+    let renderedOrderFingerprint = null;
 
     const money = (amount) => `R${Number(amount || 0).toFixed(2)}`;
     const element = (tag, className, value) => {
@@ -128,15 +129,43 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         const newestOrder = result.data?.orders?.[0] || null;
-        list.replaceChildren();
         if (!newestOrder) {
+            renderedOrderFingerprint = null;
+            list.replaceChildren();
             setFeedback("You don’t have any orders yet. Browse the menu when you’re ready for something good.");
             return;
         }
         setFeedback("Order updates refresh automatically while this page is open.", false);
         const detail = await apiGet(`/orders/${newestOrder.id}`);
-        if (detail.success) list.appendChild(renderOrder(detail.data));
-        else setFeedback(detail.error || "Unable to load your newest order.");
+        if (!detail.success) {
+            if (!list.childElementCount) setFeedback(detail.error || "Unable to load your newest order.");
+            return;
+        }
+
+        const { order, items, address } = detail.data;
+        const fingerprint = JSON.stringify({
+            order: order && {
+                id: order.id,
+                status: order.status,
+                updated_at: order.updated_at,
+                created_at: order.created_at,
+                decline_reason: order.decline_reason,
+                fulfilment_type: order.fulfilment_type,
+                subtotal: order.subtotal,
+                locked_discount: order.locked_discount,
+                delivery_fee: order.delivery_fee,
+                confirmed_window_start: order.confirmed_window_start,
+                requested_window_start: order.requested_window_start
+            },
+            items: (items || []).map(({ product_name, quantity, unit_price }) => ({ product_name, quantity, unit_price })),
+            address: address?.raw_address || null
+        });
+        if (fingerprint === renderedOrderFingerprint) return;
+
+        const scrollPosition = window.scrollY;
+        renderedOrderFingerprint = fingerprint;
+        list.replaceChildren(renderOrder(detail.data));
+        window.requestAnimationFrame(() => window.scrollTo(0, scrollPosition));
     }
 
     loadOrders().then(() => {
