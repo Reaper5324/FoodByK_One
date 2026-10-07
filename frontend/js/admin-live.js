@@ -269,9 +269,20 @@ const initializeAdminLive = async () => {
     };
 
     const loadProducts = async () => {
-        const [productResult, categoryResult] = await Promise.all([apiGet("/admin/products"), apiGet("/admin/categories")]);
+        const productEndpoint = role === "staff" ? "/staff/products" : "/admin/products";
+        const categoryEndpoint = role === "staff" ? "/categories" : "/admin/categories";
+        const [productResult, categoryResult] = await Promise.all([apiGet(productEndpoint), apiGet(categoryEndpoint)]);
         if (!showResult(productResult) || !showResult(categoryResult)) return;
         const grid = document.getElementById("menuGrid");
+        const addMenuButton = document.getElementById("addMenuBtn");
+        if (addMenuButton) addMenuButton.hidden = role !== "admin";
+        const title = document.querySelector(".menu-page-header h3");
+        const description = document.querySelector(".menu-description");
+        if (role === "staff") {
+            if (title) title.textContent = "Menu Availability";
+            if (description) description.textContent = "Mark menu items available or unavailable.";
+        }
+        const categoryNames = new Map(categoryResult.data.map((category) => [Number(category.id), category.name]));
         const categorySelect = document.getElementById("itemCategory");
         if (categorySelect) {
             categorySelect.replaceChildren(new Option("Select category", ""));
@@ -296,23 +307,40 @@ const initializeAdminLive = async () => {
             card.className = "menu-card";
             card.dataset.id = product.id;
             card.dataset.category = String(product.category_id);
+            const imageContainer = document.createElement("div");
+            imageContainer.className = "menu-image";
             const image = document.createElement("img");
             image.src = product.image_url || "";
             image.alt = product.name;
+            const status = document.createElement("span");
+            status.className = `availability ${product.is_available ? "available" : "unavailable"}`;
+            status.textContent = product.is_available ? "Available" : "Unavailable";
+            imageContainer.append(image, status);
+            const content = document.createElement("div");
+            content.className = "menu-card-content";
+            const category = document.createElement("p");
+            category.className = "menu-category";
+            category.textContent = categoryNames.get(Number(product.category_id)) || "MENU ITEM";
             const title = document.createElement("h3");
             title.textContent = product.name;
             const price = document.createElement("p");
+            price.className = "menu-price";
             price.textContent = "R" + Number(product.price).toFixed(2);
-            const status = document.createElement("p");
-            status.textContent = product.is_available ? "Available" : "Unavailable";
+            const actions = document.createElement("div");
+            actions.className = "menu-card-actions";
             const edit = document.createElement("button");
-            edit.type = "button"; edit.textContent = "Edit"; edit.dataset.adminAction = "product-edit"; edit.dataset.id = product.id;
+            edit.type = "button"; edit.className = "edit-menu-btn"; edit.textContent = "Edit"; edit.dataset.adminAction = "product-edit"; edit.dataset.id = product.id;
             const availability = document.createElement("button");
-            availability.type = "button"; availability.textContent = product.is_available ? "Mark unavailable" : "Mark available";
+            availability.type = "button"; availability.className = `availability-btn${product.is_available ? "" : " unavailable-btn"}`;
+            availability.textContent = product.is_available ? "Mark unavailable" : "Mark available";
             availability.dataset.adminAction = "product-toggle"; availability.dataset.id = product.id;
             const remove = document.createElement("button");
-            remove.type = "button"; remove.textContent = "Remove"; remove.dataset.adminAction = "product-delete"; remove.dataset.id = product.id;
-            card.append(image, title, price, status, edit, availability, remove);
+            remove.type = "button"; remove.className = "delete-menu-btn"; remove.textContent = "Remove"; remove.dataset.adminAction = "product-delete"; remove.dataset.id = product.id;
+            if (role === "admin") actions.append(edit);
+            actions.append(availability);
+            if (role === "admin") actions.append(remove);
+            content.append(category, title, price, actions);
+            card.append(imageContainer, content);
             grid.appendChild(card);
         });
         const counter = document.getElementById("totalMenuItems");
@@ -527,11 +555,11 @@ const initializeAdminLive = async () => {
             : action.startsWith("order-") ? window.adminOrders?.find((item) => Number(item.id) === id) : null;
 
         if (action === "product-toggle" && record) {
-            const result = await apiPut(`/admin/products/${id}`, { is_available: !record.is_available });
+            const result = await apiPut(`/staff/products/${id}/availability`, { is_available: !record.is_available });
             if (showResult(result)) await loadProducts();
-        } else if (action === "product-delete" && confirm("Remove this menu item?")) {
+        } else if (role === "admin" && action === "product-delete" && confirm("Remove this menu item?")) {
             const result = await apiDelete(`/admin/products/${id}`); if (showResult(result)) await loadProducts();
-        } else if (action === "product-edit" && record) {
+        } else if (role === "admin" && action === "product-edit" && record) {
             editingId = id;
             document.getElementById("itemName").value = record.name;
             document.getElementById("itemCategory").value = record.category_id;
