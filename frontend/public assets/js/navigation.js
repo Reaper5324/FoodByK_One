@@ -30,11 +30,13 @@ async function updateCustomerNavigation() {
     }
 
     renderNavigationActions(nav, user);
+    await renderCustomerOrdersLink(nav, user);
     setActiveNavigationLink(nav);
 }
 
 function renderNavigationActions(nav, user) {
     const navRoot = nav.closest(".navbar") || nav;
+    navRoot.querySelectorAll("[data-customer-orders-link]").forEach((item) => item.remove());
     navRoot.querySelectorAll("a, button").forEach((item) => {
         const label = item.textContent.trim().toLowerCase();
         const href = item.getAttribute("href") || "";
@@ -72,6 +74,21 @@ function renderNavigationActions(nav, user) {
         logoutLink
     );
     nav.dataset.authReady = "true";
+}
+
+async function renderCustomerOrdersLink(nav, user) {
+    if (String(user?.role || "").toLowerCase() !== "customer" || typeof apiGet !== "function") return;
+
+    try {
+        const result = await apiGet("/orders?limit=1");
+        if (!result?.success || Number(result.data?.total || 0) < 1) return;
+
+        const link = createNavigationLink("Your orders", "/pages/customer/orders.html", "nav-customer-orders");
+        link.dataset.customerOrdersLink = "true";
+        nav.appendChild(link);
+    } catch (error) {
+        console.warn("Unable to check customer orders for navigation.", error);
+    }
 }
 
 function createNavigationLink(label, path, className) {

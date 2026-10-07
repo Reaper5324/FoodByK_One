@@ -72,7 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
         [["Subtotal", order.subtotal], ["Discount", -Number(order.locked_discount || 0)], ["Delivery fee", order.delivery_fee]].forEach(([label, amount]) => {
             const row = element("div", "order-summary-row");
             row.append(element("span", "", label), element("span", "", `${Number(amount) < 0 ? "−" : ""}${money(Math.abs(Number(amount || 0)))}`));
-            summary.appendChild(row);
+            side.appendChild(row);
         });
         const total = element("div", "order-summary-row order-summary-total");
         total.append(element("strong", "", "Total"), element("strong", "", money(Math.max(0, Number(order.subtotal || 0) - Number(order.locked_discount || 0)) + Number(order.delivery_fee || 0))));
