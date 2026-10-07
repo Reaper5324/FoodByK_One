@@ -18,6 +18,18 @@ const STAFF_ALLOWED_PAGES = new Set([
 
 const initializeAdminLive = async () => {
     const page = location.pathname.split("/").pop();
+    const loadingState = document.getElementById("adminLoadingState");
+    const showLoadingError = (message) => {
+        if (!loadingState) return;
+        loadingState.classList.add("is-error");
+        const status = loadingState.querySelector("[data-admin-loading-message]");
+        if (status) status.textContent = message;
+        const retry = loadingState.querySelector("[data-admin-loading-retry]");
+        if (retry) retry.hidden = false;
+    };
+    loadingState?.querySelector("[data-admin-loading-retry]")?.addEventListener("click", () => location.reload());
+    let initialDataLoadError = false;
+    let isInitialPageLoad = true;
     const loadScript = (src) => new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src = src;
@@ -34,13 +46,17 @@ const initializeAdminLive = async () => {
             await loadScript("../public%20assets/js/api/api.js");
         }
     } catch {
-        alert("The admin API client could not be loaded.");
+        showLoadingError("Could not connect to the service. Check your connection and try again.");
         return;
     }
 
-        const authResult = await apiGet("/auth/me");
+    const authResult = await apiGet("/auth/me");
 
     if (!authResult.success || !authResult.data) {
+        if (authResult.status === 0 || authResult.status >= 500) {
+            showLoadingError("Could not load your session. Check your connection and try again.");
+            return;
+        }
         location.href = "../pages/auth/login.html";
         return;
     }
@@ -105,7 +121,11 @@ const initializeAdminLive = async () => {
 
     const showResult = (result) => {
         if (!result?.success) {
-            alert(result?.error || "The request could not be completed.");
+            if (isInitialPageLoad) {
+                initialDataLoadError = true;
+            } else {
+                alert(result?.error || "The request could not be completed.");
+            }
             return false;
         }
         return true;
@@ -151,6 +171,7 @@ const initializeAdminLive = async () => {
         const body = document.getElementById("dashboardIncomingOrders");
         if (!body) return;
         if (!orders.success) {
+            showResult(orders);
             setMessageRow(body, orders.error || "Unable to load incoming orders.", 7);
             return;
         }
@@ -628,7 +649,19 @@ const initializeAdminLive = async () => {
     document.querySelectorAll("#userRole option[value='manager']").forEach((option) => option.remove());
     const password = document.getElementById("userPassword");
     if (password) password.closest(".form-group")?.replaceChildren(document.createTextNode("A secure account setup link is emailed to the new staff member."));
-    if (pageLoaders[page]) await pageLoaders[page]();
+    try {
+        if (pageLoaders[page]) await pageLoaders[page]();
+        if (initialDataLoadError) {
+            showLoadingError("Live data could not be loaded. Check your connection, then try again.");
+        } else {
+            loadingState?.remove();
+        }
+    } catch (error) {
+        console.error("Unable to load the current admin page data.", error);
+        showLoadingError("Live data could not be loaded. Check your connection, then try again.");
+    } finally {
+        isInitialPageLoad = false;
+    }
     document.getElementById("reportPeriod")?.addEventListener("change", loadReports);
 
     const filterRows = (bodySelector, searchSelector, statusSelector, roleSelector) => {

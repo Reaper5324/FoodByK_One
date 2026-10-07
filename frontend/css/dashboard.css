@@ -34,6 +34,65 @@ button {
     cursor: pointer;
 }
 
+/* Covers the static dashboard placeholders until live data is ready. */
+.admin-page-skeleton {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    background: #f5f5f5;
+}
+
+.admin-skeleton-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 34px 22px;
+    background: #161616;
+}
+
+.admin-skeleton-main { min-width: 0; padding: 34px; }
+.admin-skeleton-top { display: flex; justify-content: space-between; margin-bottom: 30px; }
+.admin-skeleton-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-bottom: 24px; }
+.admin-skeleton-panel { display: grid; gap: 18px; padding: 26px; min-height: 300px; background: #fff; border-radius: 14px; }
+.admin-skeleton-sidebar i, .admin-skeleton-logo, .admin-skeleton-top i,
+.admin-skeleton-stats i, .admin-skeleton-panel i {
+    display: block;
+    height: 18px;
+    border-radius: 7px;
+    background: linear-gradient(100deg, #e6e6e6 25%, #f5f5f5 40%, #e6e6e6 60%);
+    background-size: 300% 100%;
+    animation: admin-skeleton-shimmer 1.4s ease infinite;
+}
+.admin-skeleton-sidebar i { background: #303030; width: 85%; }
+.admin-skeleton-sidebar i:nth-of-type(2n) { width: 68%; }
+.admin-skeleton-logo { height: 38px; width: 78%; margin-bottom: 24px; background: #383838; }
+.admin-skeleton-top i { width: 190px; height: 32px; }
+.admin-skeleton-top i:last-child { width: 42px; height: 42px; border-radius: 50%; }
+.admin-skeleton-stats i { height: 112px; background-color: #fff; }
+.admin-skeleton-panel i { width: 100%; height: 20px; }
+.admin-skeleton-panel i:first-child { width: 42%; height: 28px; margin-bottom: 10px; }
+.admin-loading-feedback { position: absolute; left: calc(260px + (100% - 260px) / 2); bottom: 28px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; color: #555; font-size: .9rem; }
+.admin-loading-feedback p { margin: 0; }
+.admin-loading-feedback button { padding: 9px 16px; border: 0; border-radius: 7px; background: var(--orange); color: #fff; font-weight: 600; }
+.admin-loading-feedback button[hidden] { display: none; }
+.admin-page-skeleton.is-error { display: grid; grid-template-columns: 1fr; place-items: center; background: #f5f5f5; }
+.admin-page-skeleton.is-error .admin-skeleton-app { display: none; }
+.admin-page-skeleton.is-error .admin-loading-feedback { position: static; transform: none; display: flex; flex-direction: column; text-align: center; padding: 24px; }
+@keyframes admin-skeleton-shimmer { to { background-position: -150% 0; } }
+@media (max-width: 700px) {
+    .admin-page-skeleton { grid-template-columns: 68px minmax(0, 1fr); }
+    .admin-skeleton-sidebar { padding: 25px 14px; }
+    .admin-skeleton-main { padding: 22px 16px; }
+    .admin-skeleton-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .admin-loading-feedback { left: calc(68px + (100% - 68px) / 2); width: calc(100% - 90px); text-align: center; flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .admin-skeleton-sidebar i, .admin-skeleton-logo, .admin-skeleton-top i,
+    .admin-skeleton-stats i, .admin-skeleton-panel i { animation: none; }
+}
+
 
 /* =========================
    SIDEBAR

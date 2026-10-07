@@ -21,6 +21,14 @@
 </head>
 
 <body>
+    <div class="admin-page-skeleton" id="adminLoadingState" aria-label="Loading live dashboard data">
+        <div class="admin-skeleton-app" aria-hidden="true">
+            <aside class="admin-skeleton-sidebar"><span class="admin-skeleton-logo"></span><i></i><i></i><i></i><i></i><i></i><i></i></aside>
+            <main class="admin-skeleton-main"><div class="admin-skeleton-top"><i></i><i></i></div><div class="admin-skeleton-stats"><i></i><i></i><i></i><i></i></div><div class="admin-skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div></main>
+        </div>
+        <div class="admin-loading-feedback"><p role="status" aria-live="polite" data-admin-loading-message>Loading current business data...</p><button type="button" data-admin-loading-retry hidden>Try again</button></div>
+    </div>
+
 
     <!-- =========================
          SIDEBAR

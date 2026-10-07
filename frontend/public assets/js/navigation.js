@@ -1,4 +1,8 @@
-document.addEventListener("DOMContentLoaded", updateCustomerNavigation);
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", updateCustomerNavigation, { once: true });
+} else {
+    updateCustomerNavigation();
+}
 
 async function updateCustomerNavigation() {
     const nav = document.querySelector(".navbar nav");
@@ -30,9 +34,16 @@ async function updateCustomerNavigation() {
 }
 
 function renderNavigationActions(nav, user) {
-    nav.querySelectorAll(
-        'a[href*="login.html"], a[href*="register.html"], a[href*="account.html"], .nav-login, .nav-register, .nav-account, .nav-logout'
-    ).forEach((item) => item.remove());
+    const navRoot = nav.closest(".navbar") || nav;
+    navRoot.querySelectorAll("a, button").forEach((item) => {
+        const label = item.textContent.trim().toLowerCase();
+        const href = item.getAttribute("href") || "";
+        const isAuthAction = item.classList.contains("nav-auth-action")
+            || item.matches(".nav-login, .nav-register, .nav-account, .nav-logout")
+            || /(?:^|\/)(login|register|account)\.html(?:$|[?#])/.test(href)
+            || ["login", "sign in", "register", "account", "logout", "dashboard", "staff orders"].includes(label);
+        if (isAuthAction) item.remove();
+    });
 
     if (!user) {
         nav.append(
