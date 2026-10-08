@@ -40,10 +40,6 @@ class WhatsAppNotifier implements OrderNotifier {
             return;
         }
 
-        $phones = $audience === 'staff'
-            ? NotificationService::staffRecipients('phone')
-            : array_filter([$order->getCustomer()?->phone]);
-
         $sandbox = defined('TWILIO_WHATSAPP_SANDBOX') && TWILIO_WHATSAPP_SANDBOX;
         if ($sandbox) {
             $allowedRecipients = array_filter(array_map(
@@ -54,6 +50,12 @@ class WhatsAppNotifier implements OrderNotifier {
                 error_log('WHATSAPP sandbox enabled but TWILIO_WHATSAPP_SANDBOX_RECIPIENTS is empty.');
                 return;
             }
+
+            // Sandbox staff alerts go to the configured test recipient(s),
+            // regardless of whether staff phone numbers are present in users.
+            $phones = $audience === 'staff'
+                ? $allowedRecipients
+                : array_filter([$order->getCustomer()?->phone]);
             $phones = array_values(array_filter($phones, function ($phone) use ($allowedRecipients) {
                 return in_array($this->normalizeWhatsAppAddress((string) $phone), $allowedRecipients, true);
             }));
@@ -69,6 +71,10 @@ class WhatsAppNotifier implements OrderNotifier {
             }
             return;
         }
+
+        $phones = $audience === 'staff'
+            ? NotificationService::staffRecipients('phone')
+            : array_filter([$order->getCustomer()?->phone]);
 
         $templateKey = $audience === 'staff'
             ? ($event === 'submitted' ? 'staff_new_order' : '')
