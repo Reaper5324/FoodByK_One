@@ -140,7 +140,16 @@ class WhatsAppNotifier implements OrderNotifier {
         $response = @file_get_contents("https://api.twilio.com/2010-04-01/Accounts/" . TWILIO_SID . "/Messages.json", false, $context);
         $statusLine = $http_response_header[0] ?? '';
         if ($response === false || !preg_match('/\s2\d\d\s/', $statusLine)) {
-            error_log("WHATSAPP template send failed to {$to} ({$statusLine})");
+            $error = json_decode(is_string($response) ? $response : '', true);
+            $errorCode = is_array($error) ? (string) ($error['code'] ?? 'unknown') : 'unknown';
+            $errorMessage = is_array($error) ? (string) ($error['message'] ?? 'No readable Twilio error message.') : 'Twilio returned no readable response.';
+            error_log(sprintf(
+                'WHATSAPP send failed to %s (%s; Twilio %s): %s',
+                $to,
+                $statusLine !== '' ? $statusLine : 'no HTTP status',
+                substr($errorCode, 0, 30),
+                substr($errorMessage, 0, 300)
+            ));
         }
     }
 }
