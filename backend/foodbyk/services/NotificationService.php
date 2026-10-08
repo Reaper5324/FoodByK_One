@@ -25,7 +25,7 @@ class EmailNotifier implements OrderNotifier {
         $context = stream_context_create(['http' => [
             'method'  => 'POST',
             'header'  => "Authorization: Bearer " . RESEND_API_KEY . "\r\nContent-Type: application/json\r\n",
-            'content' => json_encode(['from' => 'Food by K <orders@foodbyk.co.za>', 'to' => [$to], 'subject' => $subject, 'text' => $body]),
+            'content' => json_encode(['from' => RESEND_FROM_EMAIL, 'to' => [$to], 'subject' => $subject, 'text' => $body]),
             'timeout' => 8,
         ]]);
         if (@file_get_contents('https://api.resend.com/emails', false, $context) === false) {

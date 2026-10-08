@@ -21,6 +21,7 @@ define('PAYFAST_SANDBOX', getenv('PAYFAST_SANDBOX') ?: '');
 define('PAYFAST_PASSPHRASE', getenv('PAYFAST_PASSPHRASE') ?: '');
 define('FRONTEND_URL', getenv('FRONTEND_URL') ?: '');
 define('RESEND_API_KEY', getenv('RESEND_API_KEY') ?: '');
+define('RESEND_FROM_EMAIL', getenv('RESEND_FROM_EMAIL') ?: 'Food by K <onboarding@resend.dev>');
 define('TWILIO_SID', getenv('TWILIO_SID') ?: '');
 define('TWILIO_AUTH_TOKEN', getenv('TWILIO_AUTH_TOKEN') ?: '');
 define('TWILIO_FROM_NUMBER', getenv('TWILIO_FROM_NUMBER') ?: '');

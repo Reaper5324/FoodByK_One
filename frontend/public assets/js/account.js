@@ -1,12 +1,12 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const profileForm = document.getElementById("profileForm");
-    const profileMessage = document.getElementById("profileMessage");
-    const addressForm = document.getElementById("deliveryAddressForm");
-    const addressList = document.getElementById("deliveryAddressList");
-    const addressMessage = document.getElementById("addressMessage");
-    if (!profileForm || !addressForm) return;
-
     const byId = (id) => document.getElementById(id);
+    const profileForm = byId("profileForm");
+    const addressForm = byId("deliveryAddressForm");
+    const addressList = byId("deliveryAddressList");
+    const profileMessage = byId("profileMessage");
+    const addressMessage = byId("addressMessage");
+    if (!profileForm || !addressForm || !addressList) return;
+
     let addresses = [];
 
     const showMessage = (node, message, isError = false) => {
@@ -14,14 +14,25 @@ document.addEventListener("DOMContentLoaded", () => {
         node.hidden = false;
         node.classList.toggle("is-error", isError);
     };
+
     const setProfile = (user) => {
-        byId("profileName").value = user.full_name || "";
+        const fullName = String(user.full_name || user.name || "").trim();
+        const nameParts = fullName.split(/\s+/).filter(Boolean);
+        byId("profileName").value = fullName;
         byId("profileEmail").value = user.email || "";
         byId("profilePhone").value = user.phone || "";
-        byId("profileAddress").value = user.address || "";
-        byId("profileCity").value = user.city || "";
-        byId("profileProvince").value = user.province || "";
+        byId("accountFirstName").textContent = nameParts[0] || "—";
+        byId("accountLastName").textContent = nameParts.slice(1).join(" ") || "—";
+        byId("accountEmail").textContent = user.email || "—";
+        byId("accountPhone").textContent = user.phone || "Not added";
     };
+
+    const setFormDisabled = (form, disabled) => {
+        form.querySelectorAll("input, button").forEach((field) => {
+            field.disabled = disabled;
+        });
+    };
+
     const resetAddressForm = () => {
         addressForm.reset();
         byId("deliveryAddressId").value = "";
@@ -35,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!addresses.length) {
             const empty = document.createElement("p");
             empty.className = "account-muted";
-            empty.textContent = "You haven’t saved a delivery address yet.";
+            empty.textContent = "You haven't saved a delivery address yet.";
             addressList.appendChild(empty);
             return;
         }
@@ -49,9 +60,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 label.textContent = "Default address";
                 details.appendChild(label);
             }
+
             const text = document.createElement("p");
-            text.textContent = address.raw_address;
+            text.textContent = address.raw_address || [address.street, address.city, address.province, address.postal_code]
+                .filter(Boolean).join(", ");
             details.appendChild(text);
+
+            if (!address.has_coordinates) {
+                const locationNote = document.createElement("small");
+                locationNote.className = "account-address-note";
+                locationNote.textContent = "We couldn't locate this address for delivery. Check the details and save it again.";
+                details.appendChild(locationNote);
+            }
 
             const actions = document.createElement("div");
             actions.className = "account-address-actions";
@@ -60,12 +80,15 @@ document.addEventListener("DOMContentLoaded", () => {
             edit.textContent = "Edit";
             edit.addEventListener("click", () => {
                 byId("deliveryAddressId").value = String(address.id);
-                byId("deliveryAddressText").value = address.raw_address || "";
+                byId("deliveryStreet").value = address.street || address.raw_address || "";
+                byId("deliveryCity").value = address.city || "";
+                byId("deliveryProvince").value = address.province || "";
+                byId("deliveryPostalCode").value = address.postal_code || "";
                 byId("deliveryAddressDefault").checked = Boolean(address.is_default);
                 byId("addressFormHeading").textContent = "Edit delivery address";
                 byId("saveAddressButton").textContent = "Update address";
                 byId("cancelAddressEdit").hidden = false;
-                byId("deliveryAddressText").focus();
+                byId("deliveryStreet").focus();
             });
             actions.appendChild(edit);
 
@@ -76,8 +99,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 makeDefault.addEventListener("click", async () => {
                     makeDefault.disabled = true;
                     const result = await apiPost(`/addresses/${address.id}/default`, {});
-                    if (!result.success) showMessage(addressMessage, result.error || "Unable to set the default address.", true);
-                    else await loadAddresses();
+                    if (!result.success) {
+                        showMessage(addressMessage, result.error || "Unable to set the default address.", true);
+                    } else {
+                        showMessage(addressMessage, "Default delivery address updated.");
+                        await loadAddresses();
+                    }
                     makeDefault.disabled = false;
                 });
                 actions.appendChild(makeDefault);
@@ -108,39 +135,54 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await apiGet("/addresses");
         if (!result.success) {
             showMessage(addressMessage, result.error || "Unable to load delivery addresses.", true);
-            return;
+            return false;
         }
-        addresses = result.data || [];
+        addresses = Array.isArray(result.data) ? result.data : [];
         renderAddresses();
+        return true;
     }
 
-    getCurrentUser().then((result) => {
+    async function loadAccount() {
+        const result = await getCurrentUser();
         if (!result.success) {
             showMessage(profileMessage, result.error || "Log in to manage your account.", true);
-            profileForm.querySelectorAll("input, button").forEach((field) => { field.disabled = true; });
+            showMessage(addressMessage, "Log in to manage your delivery addresses.", true);
+            setFormDisabled(profileForm, true);
+            setFormDisabled(addressForm, true);
             return;
         }
+
         setProfile(result.data);
-    });
-    loadAddresses();
+        localStorage.setItem("foodByKUser", JSON.stringify(result.data));
+        const addressesLoaded = await loadAddresses();
+        if (addressesLoaded && addresses.length === 0 && (result.data.address || result.data.city || result.data.province)) {
+            byId("deliveryStreet").value = result.data.address || "";
+            byId("deliveryCity").value = result.data.city || "";
+            byId("deliveryProvince").value = result.data.province || "";
+            showMessage(addressMessage, "Your older profile address is not saved for delivery yet. Review these details and save them below.");
+        }
+    }
+
+    loadAccount();
 
     profileForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const button = byId("saveProfileButton");
         button.disabled = true;
+        button.textContent = "Saving...";
         const result = await apiPut("/account/profile", {
             full_name: byId("profileName").value.trim(),
             email: byId("profileEmail").value.trim(),
-            phone: byId("profilePhone").value.trim() || null,
-            address: byId("profileAddress").value.trim(),
-            city: byId("profileCity").value.trim(),
-            province: byId("profileProvince").value.trim()
+            phone: byId("profilePhone").value.trim() || null
         });
         button.disabled = false;
+        button.textContent = "Save account details";
+
         if (!result.success) {
             showMessage(profileMessage, result.error || "Unable to save your account details.", true);
             return;
         }
+
         setProfile(result.data);
         localStorage.setItem("foodByKUser", JSON.stringify(result.data));
         showMessage(profileMessage, "Your account details have been saved.");
@@ -150,22 +192,33 @@ document.addEventListener("DOMContentLoaded", () => {
         event.preventDefault();
         const id = byId("deliveryAddressId").value;
         const payload = {
-            raw_address: byId("deliveryAddressText").value.trim(),
+            street: byId("deliveryStreet").value.trim(),
+            city: byId("deliveryCity").value.trim(),
+            province: byId("deliveryProvince").value.trim(),
+            postal_code: byId("deliveryPostalCode").value.trim(),
             is_default: byId("deliveryAddressDefault").checked
         };
         const button = byId("saveAddressButton");
         button.disabled = true;
+        button.textContent = id ? "Updating..." : "Saving...";
         const result = id
             ? await apiPut(`/addresses/${id}`, payload)
             : await apiPost("/addresses", payload);
         button.disabled = false;
+
         if (!result.success) {
+            button.textContent = id ? "Update address" : "Save address";
             showMessage(addressMessage, result.error || "Unable to save this address.", true);
             return;
         }
+
         resetAddressForm();
-        showMessage(addressMessage, id ? "Delivery address updated." : "Delivery address saved.");
         await loadAddresses();
+        const savedAddress = result.data;
+        showMessage(addressMessage, savedAddress?.has_coordinates === false
+            ? "Address saved, but it couldn't be located for delivery. Check the details and edit it before choosing delivery."
+            : (id ? "Delivery address updated." : "Delivery address saved."),
+            savedAddress?.has_coordinates === false);
     });
 
     byId("cancelAddressEdit").addEventListener("click", resetAddressForm);

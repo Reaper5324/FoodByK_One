@@ -1,6 +1,6 @@
 <?php
 
-class Address extends Model {
+class Address extends Model implements JsonSerializable {
 
 protected static string $table = 'addresses';
 
@@ -11,6 +11,7 @@ public function __construct(
     public ?string $street = null,
     public ?string $postal_code = null,
     public ?string $city = null,
+    public ?string $province = null,
     public ?float $longitude   = null,
     public bool   $is_default  = false
 ) {}
@@ -26,6 +27,22 @@ public function hasCoordinates(): bool {
         && $this->longitude <= 180.0;
 }
 
+public function jsonSerialize(): array {
+    return [
+        'id' => $this->id,
+        'customer_id' => $this->customer_id,
+        'raw_address' => $this->raw_address,
+        'street' => $this->street,
+        'city' => $this->city,
+        'province' => $this->province,
+        'postal_code' => $this->postal_code,
+        'latitude' => $this->latitude,
+        'longitude' => $this->longitude,
+        'is_default' => $this->is_default,
+        'has_coordinates' => $this->hasCoordinates(),
+    ];
+}
+
     protected function toArray(): array {
         return [
             'customer_id' => $this->customer_id,
@@ -33,6 +50,7 @@ public function hasCoordinates(): bool {
             'street'      => $this->street,
             'postal_code' => $this->postal_code,
             'city'        => $this->city,
+            'province'    => $this->province,
             'latitude'    => $this->latitude,
             'longitude'   => $this->longitude,
             'is_default'  => (int) $this->is_default,
@@ -47,6 +65,7 @@ public function hasCoordinates(): bool {
         $a->street      =        $row['street'] ?? null;
         $a->postal_code = $row['postal_code'] ?? null;
         $a->city        =        $row['city'] ?? null;
+        $a->province    =        $row['province'] ?? null;
         $a->latitude    = isset($row['latitude'])  ? (float) $row['latitude']  : null;
         $a->longitude   = isset($row['longitude']) ? (float) $row['longitude'] : null;
         $a->is_default  = (bool) $row['is_default'];

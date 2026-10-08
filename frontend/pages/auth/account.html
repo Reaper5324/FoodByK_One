@@ -125,8 +125,13 @@
                             class="account-value"
                     >
                             Loading...
-                        </span>
+                    </span>
 
+                </div>
+
+                <div class="account-field">
+                    <span class="account-label">Phone number</span>
+                    <span id="accountPhone" class="account-value">Loading...</span>
                 </div>
 
 
@@ -136,11 +141,8 @@
             <div id="profileMessage" class="account-message" role="status" aria-live="polite" hidden></div>
             <form id="profileForm" class="account-edit-form">
                 <div class="form-group"><label for="profileName">Full name</label><input type="text" id="profileName" name="full_name" maxlength="120" autocomplete="name" required></div>
-                <div class="form-group"><label for="profileEmail">Email address</label><input type="email" id="profileEmail" name="email" maxlength="254" autocomplete="email" required></div>
-                <div class="form-group"><label for="profilePhone">Phone number</label><input type="tel" id="profilePhone" name="phone" autocomplete="tel" placeholder="+27123456789"></div>
-                <div class="form-group"><label for="profileAddress">Address details (optional)</label><input type="text" id="profileAddress" name="address" maxlength="255" autocomplete="street-address"></div>
-                <div class="form-group"><label for="profileCity">City</label><input type="text" id="profileCity" name="city" maxlength="100" autocomplete="address-level2"></div>
-                <div class="form-group"><label for="profileProvince">Province</label><input type="text" id="profileProvince" name="province" maxlength="100" autocomplete="address-level1"></div>
+                <div class="form-group"><label for="profileEmail">Email address</label><input type="email" id="profileEmail" name="email" maxlength="150" autocomplete="email" required></div>
+                <div class="form-group"><label for="profilePhone">Phone number</label><input type="tel" id="profilePhone" name="phone" maxlength="20" autocomplete="tel" placeholder="082 123 4567 or +27 82 123 4567"><small>South African numbers can be entered with or without +27.</small></div>
                 <button id="saveProfileButton" type="submit" class="btn btn-primary">Save account details</button>
             </form>
 
@@ -165,13 +167,16 @@
 
         <section class="account-card" aria-labelledby="deliveryAddressesHeading">
             <h2 id="deliveryAddressesHeading">Delivery addresses</h2>
-            <p class="account-address-intro">Save and update the addresses available at checkout. Choose a default for faster ordering.</p>
+            <p class="account-address-intro">Enter each part separately so we can save and check your delivery address correctly. Choose a default for faster ordering.</p>
             <div id="addressMessage" class="account-message" role="status" aria-live="polite" hidden></div>
             <div id="deliveryAddressList" class="account-address-list" aria-live="polite"></div>
             <form id="deliveryAddressForm" class="account-edit-form account-address-form">
                 <h3 id="addressFormHeading">Add a delivery address</h3>
                 <input type="hidden" id="deliveryAddressId" value="">
-                <div class="form-group"><label for="deliveryAddressText">Full delivery address</label><textarea id="deliveryAddressText" rows="3" maxlength="500" autocomplete="street-address" required></textarea></div>
+                <div class="form-group"><label for="deliveryStreet">Street address, building, and unit</label><input id="deliveryStreet" type="text" maxlength="255" autocomplete="street-address" required></div>
+                <div class="form-group"><label for="deliveryCity">Suburb / town / city</label><input id="deliveryCity" type="text" maxlength="100" autocomplete="address-level2" required></div>
+                <div class="form-group"><label for="deliveryProvince">Province</label><input id="deliveryProvince" type="text" maxlength="100" autocomplete="address-level1" required></div>
+                <div class="form-group"><label for="deliveryPostalCode">Postal code (optional)</label><input id="deliveryPostalCode" type="text" maxlength="20" autocomplete="postal-code"></div>
                 <label class="account-default-option"><input type="checkbox" id="deliveryAddressDefault"> Set as my default address</label>
                 <div class="account-actions"><button id="saveAddressButton" type="submit" class="btn btn-primary">Save address</button><button id="cancelAddressEdit" type="button" class="btn btn-secondary" hidden>Cancel edit</button></div>
             </form>
@@ -295,6 +300,7 @@
 
 <!-- Authentication Page Logic -->
 <script src="../../public assets/js/auth.js"></script>
+<script src="../../public%20assets/js/account.js"></script>
 
 </body>
 

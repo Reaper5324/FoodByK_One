@@ -77,6 +77,7 @@ CREATE TABLE addresses (
     street        VARCHAR(255)   DEFAULT NULL,
     postal_code   VARCHAR(20)    DEFAULT NULL,
     city          VARCHAR(100)   DEFAULT NULL,
+    province      VARCHAR(100)   DEFAULT NULL,
     latitude      DECIMAL(9,6)   DEFAULT NULL,
     longitude     DECIMAL(9,6)   DEFAULT NULL,
     is_default    TINYINT(1)     NOT NULL DEFAULT 0,

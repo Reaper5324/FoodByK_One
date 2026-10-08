@@ -351,9 +351,9 @@ class AuthService {
         $name = trim((string) ($input['full_name'] ?? ''));
         $email = $this->normaliseEmail((string) ($input['email'] ?? ''));
         $phone = $this->normalisePhone(isset($input['phone']) ? (string) $input['phone'] : null);
-        $address = trim((string) ($input['address'] ?? ''));
-        $city = trim((string) ($input['city'] ?? ''));
-        $province = trim((string) ($input['province'] ?? ''));
+        $address = array_key_exists('address', $input) ? trim((string) $input['address']) : (string) ($user->address ?? '');
+        $city = array_key_exists('city', $input) ? trim((string) $input['city']) : (string) ($user->city ?? '');
+        $province = array_key_exists('province', $input) ? trim((string) $input['province']) : (string) ($user->province ?? '');
 
         if ($name === '' || $this->stringLength($name) > self::MAX_NAME_LENGTH || preg_match('/[\p{C}]/u', $name) === 1) {
             return $this->failure('Enter a valid full name.');
@@ -451,14 +451,19 @@ class AuthService {
     }
 
     private function sendAccountLink(string $email, string $name, string $token, bool $invite): bool {
-        if (!defined('RESEND_API_KEY') || RESEND_API_KEY === '' || !defined('FRONTEND_URL') || FRONTEND_URL === '') {
+        if (!defined('RESEND_API_KEY') || RESEND_API_KEY === '') {
+            error_log('Resend account link not sent: RESEND_API_KEY is not configured.');
+            return false;
+        }
+        if (!defined('FRONTEND_URL') || FRONTEND_URL === '') {
+            error_log('Resend account link not sent: FRONTEND_URL is not configured.');
             return false;
         }
         $link = rtrim(FRONTEND_URL, '/') . '/pages/auth/reset-password.html?token=' . rawurlencode($token);
         $subject = $invite ? 'Set up your Food by K account' : 'Reset your Food by K password';
         $action = $invite ? 'set your password' : 'reset your password';
         $payload = [
-            'from' => 'Food by K <orders@foodbyk.co.za>',
+            'from' => RESEND_FROM_EMAIL,
             'to' => [$email],
             'subject' => $subject,
             'text' => "Hi {$name},\n\nUse this link to {$action}: {$link}\n\nIf you did not request this, you can ignore this email.",
@@ -472,7 +477,20 @@ class AuthService {
         ]]);
         $response = @file_get_contents('https://api.resend.com/emails', false, $context);
         $status = $http_response_header[0] ?? '';
-        return $response !== false && preg_match('/\s2\d\d\s/', $status) === 1;
+        if ($response === false || preg_match('/\s2\d\d\s/', $status) !== 1) {
+            $error = json_decode(is_string($response) ? $response : '', true);
+            $errorName = is_array($error) ? (string) ($error['name'] ?? $error['error'] ?? 'unknown_error') : 'no_response_body';
+            $errorMessage = is_array($error) ? (string) ($error['message'] ?? 'No provider error message.') : 'The provider returned no readable error.';
+            error_log(sprintf(
+                'Resend account link failed (%s; %s): %s',
+                $status !== '' ? $status : 'no HTTP status',
+                substr($errorName, 0, 80),
+                substr($errorMessage, 0, 300)
+            ));
+            return false;
+        }
+
+        return true;
     }
 
     private function stringLength(string $value): int {
@@ -483,7 +501,13 @@ class AuthService {
         if ($phone === null || trim($phone) === '') {
             return null;
         }
-        return '+' . ltrim(preg_replace('/[\s\-()]/', '', trim($phone)), '+');
+        $phone = preg_replace('/[\s\-().]/', '', trim($phone));
+        if (str_starts_with($phone, '0')) {
+            $phone = '+27' . substr($phone, 1);
+        } elseif (!str_starts_with($phone, '+')) {
+            $phone = '+' . $phone;
+        }
+        return $phone;
     }
 
     private function passwordAlgorithm(): string|int {

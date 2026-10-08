@@ -12,6 +12,7 @@
 .account-address-list { display: grid; gap: 12px; margin-top: 18px; }
 .account-address-card { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 16px; border: 1px solid #d9d9d9; background: #fff; }
 .account-address-card p { margin: 0; color: #222; white-space: pre-line; }
+.account-address-note { display: block; margin-top: 8px; color: #8d4b00; line-height: 1.45; }
 .account-address-card strong { display: block; margin-bottom: 5px; color: var(--food-red); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
 .account-address-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .account-address-actions button { min-height: 38px; padding: 8px 11px; border: 1px solid #bbb; color: #222; background: #fff; font-weight: 700; }

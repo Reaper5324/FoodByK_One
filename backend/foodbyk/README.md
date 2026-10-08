@@ -103,6 +103,7 @@ DB_PASS=
 DB_SSL_CA=
 PAYMENT_TOKEN_ENCRYPTION_KEY= # base64-encoded 32-byte key; required for token storage
 RESEND_API_KEY=...
+RESEND_FROM_EMAIL=Food by K <onboarding@resend.dev>
 TWILIO_SID=...
 TWILIO_AUTH_TOKEN=...
 TWILIO_FROM_NUMBER=+27...
@@ -117,11 +118,11 @@ TWILIO_TEMPLATE_CUSTOMER_PAID=HX...
 TWILIO_TEMPLATE_CUSTOMER_PAYMENT_FAILED=HX...
 ```
 
-Twilio WhatsApp normally sends use the configured Content Template Builder SIDs. Set `TWILIO_WHATSAPP_SANDBOX=true` for Sandbox testing; this sends free-form notification text from the Sandbox sender only to the comma-separated allowlist in `TWILIO_WHATSAPP_SANDBOX_RECIPIENTS`. Each recipient must have joined the Sandbox, and free-form messages are limited to the 24-hour customer service window after their last inbound WhatsApp message. Set the switch back to `false` after upgrading to use the live sender and approved templates again. SMS does not use template SIDs. Configure a verified Resend sender domain before sending email. `DOMAIN.md` additionally defines PayFast and geocoding configuration.
+For Resend trial testing, use its `onboarding@resend.dev` sender and send the invite to the Resend account email (`tyronemas@gmail.com`). For production, verify `foodbyk.co.za` in Resend and set `RESEND_FROM_EMAIL` to an address on that verified domain, such as `Food by K <orders@foodbyk.co.za>`. Resend requires a verified sender domain for your own From address. Twilio WhatsApp normally sends use the configured Content Template Builder SIDs. Set `TWILIO_WHATSAPP_SANDBOX=true` for Sandbox testing; this sends free-form notification text from the Sandbox sender only to the comma-separated allowlist in `TWILIO_WHATSAPP_SANDBOX_RECIPIENTS`. Each recipient must have joined the Sandbox, and free-form messages are limited to the 24-hour customer service window after their last inbound WhatsApp message. Set the switch back to `false` after upgrading to use the live sender and approved templates again. SMS does not use template SIDs. `DOMAIN.md` additionally defines PayFast and geocoding configuration.
 
 ### Database setup and production
 
-For a new database, run `database/migration.sql`. Existing databases should be backed up and then upgraded once with `database/harden_existing_schema.sql`; the upgrade fails if current rows violate the new checks, so inspect and correct offending rows first. Set `APP_ENV=production`, provide explicit database credentials for a dedicated non-root MySQL user, and configure `DB_SSL_CA` when the database requires TLS.
+For a new database, run `database/migration.sql`. Existing databases should be backed up and then upgraded once with `database/harden_existing_schema.sql`; the upgrade fails if current rows violate the new checks, so inspect and correct offending rows first. Existing databases created before structured delivery addresses must also run `database/add_address_province.sql` once. Set `APP_ENV=production`, provide explicit database credentials for a dedicated non-root MySQL user, and configure `DB_SSL_CA` when the database requires TLS.
 
 Payment tokens are encrypted by the `Payment` model using AES-256-GCM. Generate `PAYMENT_TOKEN_ENCRYPTION_KEY` with `php -r "echo base64_encode(random_bytes(32)), PHP_EOL;"`; store it in the deployment secret manager and keep a protected backup. Existing plaintext tokens are encrypted when their payment rows are next saved. `Payment` JSON omits the token.
 

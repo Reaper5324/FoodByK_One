@@ -3,6 +3,7 @@
 /* Customer address validation, geocoding, and default address handling. */
 class AddressService {
 
+    private const MAX_RAW_ADDRESS_LENGTH = 500;
     private const MAX_STREET_LENGTH = 255;
     private const MAX_CITY_LENGTH = 100;
     private const MAX_POSTAL_CODE_LENGTH = 20;
@@ -58,6 +59,10 @@ class AddressService {
         $address = new Address(
             customer_id: $customerId,
             raw_address: $data['raw_address'],
+            street: $data['street'],
+            city: $data['city'],
+            province: $data['province'],
+            postal_code: $data['postal_code'],
             is_default: $data['is_default']
         );
 
@@ -94,6 +99,10 @@ class AddressService {
         $addressChanged = ($data['raw_address'] !== $address->raw_address);
 
         $address->raw_address = $data['raw_address'];
+        $address->street = $data['street'];
+        $address->city = $data['city'];
+        $address->province = $data['province'];
+        $address->postal_code = $data['postal_code'];
         $address->is_default = $data['is_default'];
 
         if ($addressChanged) {
@@ -177,11 +186,22 @@ class AddressService {
      * @return array ['success' => bool, 'data' => validated_input, 'error' => ?string]
      */
     public function validateInput(array $input, ?Address $existing = null): array {
-        $rawAddress = trim((string) ($input['raw_address'] ?? $existing?->raw_address ?? ''));
+        $street = trim((string) ($input['street'] ?? $existing?->street ?? $input['raw_address'] ?? $existing?->raw_address ?? ''));
+        $city = trim((string) ($input['city'] ?? $existing?->city ?? ''));
+        $province = trim((string) ($input['province'] ?? $existing?->province ?? ''));
+        $postalCode = trim((string) ($input['postal_code'] ?? $existing?->postal_code ?? ''));
         $isDefault = $input['is_default'] ?? $existing?->is_default ?? false;
+        $rawAddress = implode(', ', array_filter([$street, $city, $province, $postalCode], fn(string $part) => $part !== ''));
 
-        if ($rawAddress === '' || $this->stringLength($rawAddress) > 500) {
-            return $this->failure('Address must be between 1 and 500 characters.');
+        if ($street === '' || $city === '' || $province === '') {
+            return $this->failure('Enter the street address, city or suburb, and province.');
+        }
+        if ($this->stringLength($street) > self::MAX_STREET_LENGTH
+            || $this->stringLength($city) > self::MAX_CITY_LENGTH
+            || $this->stringLength($province) > 100
+            || $this->stringLength($postalCode) > self::MAX_POSTAL_CODE_LENGTH
+            || $this->stringLength($rawAddress) > self::MAX_RAW_ADDRESS_LENGTH) {
+            return $this->failure('One or more address fields are too long.');
         }
 
         if (!is_bool($isDefault) && !in_array($isDefault, [0, 1, '0', '1'], true)) {
@@ -190,6 +210,10 @@ class AddressService {
 
         return $this->success([
             'raw_address' => $rawAddress,
+            'street' => $street,
+            'city' => $city,
+            'province' => $province,
+            'postal_code' => $postalCode === '' ? null : $postalCode,
             'is_default' => (bool) $isDefault,
         ]);
     }
@@ -216,6 +240,10 @@ class AddressService {
             'id' => $address->id,
             'customer_id' => $address->customer_id,
             'raw_address' => $address->raw_address,
+            'street' => $address->street,
+            'city' => $address->city,
+            'province' => $address->province,
+            'postal_code' => $address->postal_code,
             'is_default' => $address->is_default,
             'latitude' => $address->latitude,
             'longitude' => $address->longitude,
