@@ -100,6 +100,15 @@
 .cart-remove-button:hover { border-color: var(--food-red); color: var(--food-red); }
 .cart-row button:disabled, .cart-row input:disabled { cursor: wait; opacity: .6; }
 
+.cart-skeleton-row { pointer-events: none; }
+.cart-skeleton-image { width: 104px; height: 88px; border-radius: 2px; }
+.cart-skeleton-info { display: grid; gap: 10px; }
+.cart-skeleton-name { width: min(78%, 230px); height: 16px; }
+.cart-skeleton-price { width: 96px; height: 12px; }
+.cart-skeleton-quantity { width: 76px; height: 42px; border-radius: 2px; }
+.cart-skeleton-subtotal { width: 78px; height: 16px; }
+.cart-skeleton-remove { width: 86px; height: 40px; border-radius: 2px; }
+
 .cart-total {
     display: flex;
     align-items: center;
@@ -124,16 +133,22 @@
     .cart-heading { align-items: flex-start; flex-direction: column; }
     .cart-row { grid-template-columns: 76px minmax(0, 1fr) auto; gap: 12px; padding: 12px; }
     .cart-item-image { grid-row: span 2; width: 76px; height: 76px; }
+    .cart-skeleton-image { grid-row: span 2; width: 76px; height: 76px; }
     .cart-item-info { grid-column: 2 / 4; }
+    .cart-skeleton-info { grid-column: 2 / 4; }
     .cart-quantity-label { grid-column: 2; }
+    .cart-skeleton-quantity { grid-column: 2; }
     .cart-line-total { grid-column: 3; grid-row: 2; justify-self: end; }
+    .cart-skeleton-subtotal { grid-column: 3; grid-row: 2; justify-self: end; }
     .cart-remove-button { grid-column: 1 / 4; width: 100%; }
+    .cart-skeleton-remove { grid-column: 1 / 4; width: 100%; }
 }
 
 @media (max-width: 420px) {
     .cart-page { width: min(100% - 24px, 1080px); }
     .cart-row { grid-template-columns: 64px minmax(0, 1fr) auto; }
     .cart-item-image { width: 64px; height: 64px; }
+    .cart-skeleton-image { width: 64px; height: 64px; }
     .cart-item-name { font-size: 13px; }
     .cart-total { padding-inline: 16px; }
     .cart-actions { flex-direction: column; }

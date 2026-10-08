@@ -19,9 +19,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         cartItems.setAttribute("aria-busy", "true");
         cartItems.replaceChildren();
         for (let index = 0; index < 2; index += 1) {
-            const row = document.createElement("div");
-            row.className = "cart-row skeleton-card";
+            const row = document.createElement("article");
+            row.className = "cart-row cart-skeleton-row";
             row.setAttribute("aria-hidden", "true");
+            const image = document.createElement("div");
+            image.className = "skeleton cart-skeleton-image";
+            const info = document.createElement("div");
+            info.className = "cart-skeleton-info";
+            const name = document.createElement("span");
+            name.className = "skeleton cart-skeleton-name";
+            const price = document.createElement("span");
+            price.className = "skeleton cart-skeleton-price";
+            info.append(name, price);
+            const quantity = document.createElement("span");
+            quantity.className = "skeleton cart-skeleton-quantity";
+            const subtotal = document.createElement("span");
+            subtotal.className = "skeleton cart-skeleton-subtotal";
+            const remove = document.createElement("span");
+            remove.className = "skeleton cart-skeleton-remove";
+            row.append(image, info, quantity, subtotal, remove);
             cartItems.appendChild(row);
         }
     };
