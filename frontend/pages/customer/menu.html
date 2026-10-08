@@ -19,8 +19,8 @@
     .category-list { display: flex; flex-wrap: wrap; gap: 8px; }
     .category-list button { padding: 10px 16px; border: 1px solid var(--food-border); border-radius: 6px; background: var(--food-white); cursor: pointer; }
     .category-list button.active { background: var(--food-black); color: var(--food-white); }
-    .menu-grid { display: flex; flex-wrap: wrap; align-items: stretch; gap: clamp(12px, 1.5vw, 20px); }
-    .menu-card { display: flex; flex: 1 1 clamp(240px, 26vw, 320px); min-width: min(100%, 240px); flex-direction: column; background: var(--food-white); border: 1px solid var(--food-border); border-radius: 8px; overflow: hidden; }
+    .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); grid-auto-rows: 1fr; align-items: stretch; gap: clamp(12px, 1.5vw, 20px); }
+    .menu-card { display: flex; min-width: 0; flex-direction: column; background: var(--food-white); border: 1px solid var(--food-border); border-radius: 8px; overflow: hidden; }
     .menu-card-image { width: 100%; height: clamp(180px, 22vw, 320px); object-fit: cover; background: var(--food-light); }
     .menu-card-body { display: flex; flex: 1; flex-direction: column; padding: 18px; }
     .menu-card-body h2 { font-size: 20px; margin-bottom: 6px; }
