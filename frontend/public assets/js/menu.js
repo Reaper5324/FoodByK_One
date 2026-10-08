@@ -47,7 +47,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const showMessage = (message, isError = false) => {
         menuMessage.hidden = false;
         menuMessage.textContent = message;
-        menuMessage.style.color = isError ? "var(--food-red-dark)" : "inherit";
+        menuMessage.classList.toggle("is-error", isError);
     };
 
     const clearMessage = () => {

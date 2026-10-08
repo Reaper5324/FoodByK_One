@@ -5,25 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Your Cart | Food by K</title>
   <link rel="stylesheet" href="../../public%20assets/css/style.css">
-  <style>
-    .cart-page { max-width: 900px; margin: 0 auto; padding: 32px 7%; }
-    .cart-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 18px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--food-border); }
-    .cart-row input { width: 72px; padding: 8px; }
-    .cart-total { margin: 24px 0; text-align: right; font-size: 1.2rem; font-weight: 700; }
-    .cart-message { padding: 16px; margin: 18px 0; background: var(--food-white); border: 1px solid var(--food-border); border-radius: 6px; }
-    @media (max-width: 600px) { .cart-row { grid-template-columns: 1fr auto; } }
-  </style>
+  <link rel="stylesheet" href="../../public%20assets/css/home.css">
+  <link rel="stylesheet" href="../../public%20assets/css/cart.css">
 </head>
-<body>
+<body class="home-page cart-page-shell">
 <header class="navbar">
   <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
-  <nav>
+  <nav aria-label="Main navigation">
     <!-- Home -->
     <a href="../../src/index.html">
       Home
     </a>
     <!-- Menu -->
-    <a href="menu.html" class="active">
+    <a href="menu.html">
       Menu
     </a>
     <!-- Contact -->
@@ -31,7 +25,7 @@
       Contact
     </a>
     <!-- Cart -->
-    <a href="cart.html">
+    <a href="cart.html" class="active" aria-current="page">
       Cart
     </a>
     <a href="../auth/login.html" class="nav-auth-action">Login</a>
@@ -40,12 +34,21 @@
 </header>
 
 <main class="cart-page">
-  <h1>Your Cart</h1>
-  <div id="cartMessage" class="cart-message" role="status">Loading your cart…</div>
+  <header class="cart-heading">
+    <div>
+      <p class="section-tag">Good choices so far</p>
+      <h1>Your <span>cart.</span></h1>
+      <p>Check your picks, adjust quantities, and get ready to choose a time.</p>
+    </div>
+    <a class="btn btn-secondary cart-browse-link" href="menu.html">Back to menu <span aria-hidden="true">→</span></a>
+  </header>
+  <div id="cartMessage" class="cart-message" role="status" aria-live="polite">Loading your cart…</div>
   <section id="cartItems" aria-live="polite"></section>
   <p id="cartTotal" class="cart-total" hidden></p>
-  <a id="continueShopping" class="btn btn-secondary" href="menu.html">Continue shopping</a>
-  <a id="checkoutLink" class="btn btn-primary" href="checkout.html" hidden>Proceed to checkout</a>
+  <div class="cart-actions">
+    <a id="continueShopping" class="btn btn-secondary" href="menu.html">Continue shopping</a>
+    <a id="checkoutLink" class="btn btn-primary" href="checkout.html" hidden>Proceed to checkout <span aria-hidden="true">→</span></a>
+  </div>
 </main>
 
 <script src="../../public%20assets/js/config.js"></script>

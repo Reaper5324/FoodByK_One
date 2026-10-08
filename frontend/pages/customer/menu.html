@@ -4,47 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Menu | Food by K</title>
-  <link rel="stylesheet" href="../../public assets/css/style.css">
-  <style>
-    .cart-notification { position: fixed; z-index: 1100; right: 20px; bottom: 20px; max-width: min(calc(100vw - 40px), 360px); padding: 14px 20px; border-radius: 10px; background: #202020; color: #fff; box-shadow: 0 8px 28px rgba(0,0,0,.24); opacity: 0; transform: translateY(16px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
-    .cart-notification.is-visible { opacity: 1; transform: translateY(0); }
-    @media (prefers-reduced-motion: reduce) { .cart-notification { transition: none; } }
-    .menu-page { width: 100%; max-width: none; margin: 0; padding: clamp(20px, 3vw, 40px) clamp(12px, 2.5vw, 40px); }
-    .menu-header { display: flex; justify-content: space-between; gap: 20px; align-items: end; margin-bottom: 24px; }
-    .menu-header h1 { margin-bottom: 4px; }
-    .menu-header p { color: var(--food-grey); }
-    .menu-toolbar { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
-    .menu-search { display: flex; flex: 1 1 280px; gap: 8px; }
-    .menu-search input { flex: 1; min-width: 0; padding: 12px; border: 1px solid var(--food-border); border-radius: 6px; }
-    .category-list { display: flex; flex-wrap: wrap; gap: 8px; }
-    .category-list button { padding: 10px 16px; border: 1px solid var(--food-border); border-radius: 6px; background: var(--food-white); cursor: pointer; }
-    .category-list button.active { background: var(--food-black); color: var(--food-white); }
-    .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); grid-auto-rows: 1fr; align-items: stretch; gap: clamp(12px, 1.5vw, 20px); }
-    .menu-card { display: flex; min-width: 0; flex-direction: column; background: var(--food-white); border: 1px solid var(--food-border); border-radius: 8px; overflow: hidden; }
-    .menu-card-image { width: 100%; height: clamp(180px, 22vw, 320px); object-fit: cover; background: var(--food-light); }
-    .menu-card-body { display: flex; flex: 1; flex-direction: column; padding: 18px; }
-    .menu-card-body h2 { font-size: 20px; margin-bottom: 6px; }
-    .menu-card-body p { color: var(--food-grey); margin-bottom: 14px; }
-    .menu-card-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: auto; }
-    .menu-price { font-weight: 800; white-space: nowrap; }
-    .menu-message { padding: 18px; background: var(--food-white); border: 1px solid var(--food-border); border-radius: 6px; }
-    .order-thanks { position: fixed; inset: 0; width: min(360px, calc(100vw - 32px)); max-width: none; max-height: min(78vh, 520px); margin: auto; padding: 0; overflow: auto; border: 0; border-radius: 8px; color: #151311; background: #fffaf1; box-shadow: 0 28px 90px rgba(0,0,0,.38); }
-    .order-thanks::backdrop { background: rgba(13,11,9,.78); backdrop-filter: blur(4px); }
-    .order-thanks-content { position: relative; padding: clamp(26px, 6vw, 38px) 24px; text-align: center; }
-    .order-thanks-content::before { position: absolute; inset: 0 0 auto; height: 8px; content: ""; background: var(--food-yellow); }
-    .order-thanks-kicker { margin: 0 0 14px; color: var(--food-red); font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
-    .order-thanks h2 { margin: 0 0 12px; color: #151311; font-size: clamp(1.7rem, 7vw, 2.5rem); font-weight: 950; line-height: .95; letter-spacing: -.065em; text-transform: uppercase; }
-    .order-thanks p:not(.order-thanks-kicker) { margin-bottom: 22px; color: #625b54; }
-    .order-thanks-close { margin-left: 10px; padding: 11px 16px; border: 1px solid #cfc7bc; background: transparent; font-weight: 800; }
-    @media (max-width: 640px) { .menu-header { display: block; } .menu-header .btn { margin-top: 14px; } .menu-toolbar { gap: 14px; margin-bottom: 20px; } .menu-search { flex-basis: 100%; } .category-list { width: 100%; } }
-  </style>
+  <link rel="stylesheet" href="../../public%20assets/css/style.css">
+  <link rel="stylesheet" href="../../public%20assets/css/home.css">
+  <link rel="stylesheet" href="../../public%20assets/css/menu.css">
 </head>
-<body>
+<body class="home-page menu-page-shell">
 <header class="navbar">
   <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
 
 
-  <nav>
+  <nav aria-label="Main navigation">
 
     <!-- Home -->
     <a href="../../src/index.html">
@@ -52,7 +21,7 @@
     </a>
 
     <!-- Menu -->
-    <a href="menu.html" class="active">
+    <a href="menu.html" class="active" aria-current="page">
       Menu
     </a>
 
@@ -75,23 +44,24 @@
 </header>
 
 <main class="menu-page">
-  <div class="menu-header">
+  <header class="menu-header">
     <div>
-      <h1>Our Menu</h1>
+      <p class="section-tag">Made fresh for you</p>
+      <h1>Our <span>menu.</span></h1>
       <p>Fresh food made for your next order.</p>
     </div>
-    <a class="btn btn-secondary" href="cart.html">View cart</a>
-  </div>
+    <a class="btn btn-secondary menu-cart-link" href="cart.html">View cart <span aria-hidden="true">→</span></a>
+  </header>
 
   <div class="menu-toolbar">
-    <form id="menuSearchForm" class="menu-search">
+    <form id="menuSearchForm" class="menu-search" role="search">
       <input id="menuSearch" type="search" placeholder="Search burgers, fries, wings..." aria-label="Search menu">
       <button class="btn btn-primary" type="submit">Search</button>
     </form>
     <div id="categoryList" class="category-list" aria-label="Menu categories"></div>
   </div>
 
-  <div id="menuMessage" class="menu-message" hidden></div>
+  <div id="menuMessage" class="menu-message" role="status" aria-live="polite" hidden></div>
   <section id="menuGrid" class="menu-grid" aria-live="polite"></section>
 </main>
 
