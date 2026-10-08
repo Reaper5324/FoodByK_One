@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="../../public%20assets/css/style.css">
   <link rel="stylesheet" href="../../public%20assets/css/home.css">
   <link rel="stylesheet" href="../../public%20assets/css/menu.css">
+  <link rel="stylesheet" href="../../public%20assets/css/skeletons.css">
 </head>
 <body class="home-page menu-page-shell">
 <header class="navbar">
@@ -58,11 +59,11 @@
       <input id="menuSearch" type="search" placeholder="Search burgers, fries, wings..." aria-label="Search menu">
       <button class="btn btn-primary" type="submit">Search</button>
     </form>
-    <div id="categoryList" class="category-list" aria-label="Menu categories"></div>
+  <div id="categoryList" class="category-list" aria-label="Menu categories" aria-busy="true"></div>
   </div>
 
   <div id="menuMessage" class="menu-message" role="status" aria-live="polite" hidden></div>
-  <section id="menuGrid" class="menu-grid" aria-live="polite"></section>
+  <section id="menuGrid" class="menu-grid" aria-live="polite" aria-busy="true"></section>
 </main>
 
 <dialog class="order-thanks" id="orderThanksModal" aria-labelledby="orderThanksTitle">

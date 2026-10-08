@@ -23,15 +23,24 @@ const localMealImages = {
 async function loadHomeMeals() {
     const grid = document.getElementById("homeMealGrid");
     if (!grid || typeof API_BASE_URL === "undefined") return;
+    const fallback = [...grid.children];
+    grid.setAttribute("aria-busy", "true");
+    grid.replaceChildren(...Array.from({ length: 3 }, () => {
+        const card = document.createElement("div");
+        card.className = "skeleton skeleton-card";
+        card.setAttribute("aria-hidden", "true");
+        card.appendChild(Object.assign(document.createElement("div"), { className: "skeleton skeleton-media" }));
+        return card;
+    }));
 
     try {
         const response = await fetch(`${API_BASE_URL}/products`, {
             headers: { Accept: "application/json" }
         });
-        if (!response.ok) return;
+        if (!response.ok) { grid.replaceChildren(...fallback); return; }
 
         const result = await response.json();
-        if (!result.success || !Array.isArray(result.data) || result.data.length === 0) return;
+        if (!result.success || !Array.isArray(result.data) || result.data.length === 0) { grid.replaceChildren(...fallback); return; }
 
         const products = result.data
             .slice()
@@ -42,6 +51,9 @@ async function loadHomeMeals() {
     } catch (error) {
         // The local menu highlights remain visible if the public API is unavailable.
         console.info("Home menu highlights are using the local fallback.");
+        grid.replaceChildren(...fallback);
+    } finally {
+        grid.setAttribute("aria-busy", "false");
     }
 }
 
@@ -92,16 +104,21 @@ function createMealCard(product, index) {
 async function loadHomePromotions() {
     const list = document.getElementById("homePromotionList");
     if (!list || typeof API_BASE_URL === "undefined") return;
+    const fallback = [...list.children];
+    list.setAttribute("aria-busy", "true");
+    const placeholder = document.createElement("div");
+    placeholder.className = "skeleton skeleton-card";
+    placeholder.setAttribute("aria-hidden", "true");
+    list.replaceChildren(placeholder);
 
     try {
         const response = await fetch(`${API_BASE_URL}/promotions/active`, {
             headers: { Accept: "application/json" }
         });
-        if (!response.ok) return;
+        if (!response.ok) { list.replaceChildren(...fallback); return; }
 
         const result = await response.json();
-        if (!result.success || !Array.isArray(result.data)) return;
-        if (result.data.length === 0) return;
+        if (!result.success || !Array.isArray(result.data) || result.data.length === 0) { list.replaceChildren(...fallback); return; }
 
         const promotions = result.data.slice().sort((a, b) => {
             const dateDifference = new Date(b.created_at || 0) - new Date(a.created_at || 0);
@@ -112,6 +129,9 @@ async function loadHomePromotions() {
     } catch (error) {
         // Keep the inviting empty state if promotions cannot be loaded.
         console.info("Home promotions are using the default message.");
+        list.replaceChildren(...fallback);
+    } finally {
+        list.setAttribute("aria-busy", "false");
     }
 }
 

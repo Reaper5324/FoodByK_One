@@ -1,0 +1,25 @@
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #e9e5df;
+  color: transparent !important;
+  border-radius: 8px;
+  pointer-events: none;
+}
+.skeleton::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.7), transparent);
+  animation: skeleton-shimmer 1.35s infinite;
+}
+.skeleton-line { display: block; width: min(100%, 240px); height: 1em; }
+.skeleton-block { display: block; min-height: 72px; }
+.skeleton-card { min-height: 220px; border-radius: 16px; background: #e9e5df; overflow: hidden; }
+.skeleton-media { display: block; min-height: 140px; background: #ded9d1; }
+.skeleton-pill { display: inline-block; width: 76px; height: 34px; border-radius: 999px; }
+@keyframes skeleton-shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}

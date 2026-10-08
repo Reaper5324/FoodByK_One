@@ -15,8 +15,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    const loadCart = async () => {
+    const showCartSkeletons = () => {
+        cartItems.setAttribute("aria-busy", "true");
         cartItems.replaceChildren();
+        for (let index = 0; index < 2; index += 1) {
+            const row = document.createElement("div");
+            row.className = "cart-row skeleton-card";
+            row.setAttribute("aria-hidden", "true");
+            cartItems.appendChild(row);
+        }
+    };
+
+    const loadCart = async () => {
+        showCartSkeletons();
         cartTotal.hidden = true;
         checkoutLink.hidden = true;
 
@@ -26,6 +37,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         ]);
 
         if (!cartResult.success) {
+            cartItems.replaceChildren();
+            cartItems.setAttribute("aria-busy", "false");
             showMessage(cartResult.error || "Please log in to view your cart.", true);
             const loginLink = document.createElement("a");
             loginLink.href = "../auth/login.html";
@@ -35,6 +48,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (!productResult.success) {
+            cartItems.replaceChildren();
+            cartItems.setAttribute("aria-busy", "false");
             showMessage(productResult.error || "Unable to load product details.", true);
             return;
         }
@@ -43,11 +58,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const items = cartResult.data.items || [];
 
         if (items.length === 0) {
+            cartItems.replaceChildren();
+            cartItems.setAttribute("aria-busy", "false");
             showMessage("Your cart is empty.");
             return;
         }
 
         cartMessage.hidden = true;
+        cartItems.setAttribute("aria-busy", "false");
         let total = 0;
 
         items.forEach((item) => {

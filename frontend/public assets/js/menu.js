@@ -25,6 +25,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     const searchInput = document.getElementById("menuSearch");
     let selectedCategory = null;
 
+    const skeleton = (className) => {
+        const node = document.createElement("div");
+        node.className = `skeleton ${className}`;
+        node.setAttribute("aria-hidden", "true");
+        return node;
+    };
+    const showCategorySkeletons = () => {
+        categoryList.setAttribute("aria-busy", "true");
+        categoryList.replaceChildren(...Array.from({ length: 4 }, () => skeleton("skeleton-pill")));
+    };
+    const showProductSkeletons = () => {
+        menuGrid.setAttribute("aria-busy", "true");
+        menuGrid.replaceChildren(...Array.from({ length: 6 }, () => {
+            const card = skeleton("skeleton-card");
+            const media = skeleton("skeleton-media");
+            card.appendChild(media);
+            return card;
+        }));
+    };
+
     const showCartNotification = (message) => {
         let notification = document.getElementById("cartNotification");
         if (!notification) {
@@ -56,13 +76,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const loadCategories = async () => {
+        showCategorySkeletons();
         const result = await apiGet("/categories");
         if (!result.success) {
+            categoryList.replaceChildren();
+            categoryList.setAttribute("aria-busy", "false");
             showMessage(result.error || "Unable to load menu categories.", true);
             return;
         }
 
         categoryList.innerHTML = "";
+        categoryList.setAttribute("aria-busy", "false");
         const allButton = document.createElement("button");
         allButton.type = "button";
         allButton.textContent = "All items";
@@ -88,7 +112,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const loadProducts = async () => {
         clearMessage();
-        menuGrid.innerHTML = "";
+        showProductSkeletons();
         const query = searchInput.value.trim();
         let endpoint = selectedCategory === null ? "/products" : `/products/category/${selectedCategory}`;
         if (query !== "") {
@@ -97,15 +121,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const result = await apiGet(endpoint);
         if (!result.success) {
+            menuGrid.replaceChildren();
+            menuGrid.setAttribute("aria-busy", "false");
             showMessage(result.error || "Unable to load menu items.", true);
             return;
         }
         if (result.data.length === 0) {
+            menuGrid.replaceChildren();
+            menuGrid.setAttribute("aria-busy", "false");
             showMessage("No menu items match your search.");
             return;
         }
 
+        menuGrid.replaceChildren();
         result.data.forEach((product) => renderProduct(product));
+        menuGrid.setAttribute("aria-busy", "false");
     };
 
     const renderProduct = (product) => {

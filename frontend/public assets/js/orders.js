@@ -25,10 +25,17 @@ document.addEventListener("DOMContentLoaded", () => {
         feedback.textContent = text;
         feedback.hidden = !visible;
     };
+    const showOrderSkeleton = () => {
+        list.setAttribute("aria-busy", "true");
+        const card = element("article", "skeleton skeleton-card");
+        card.setAttribute("aria-hidden", "true");
+        list.replaceChildren(card);
+    };
 
     function showNoCurrentOrder() {
         renderedOrderFingerprint = null;
         list.replaceChildren();
+        list.setAttribute("aria-busy", "false");
         let firstName = "there";
         try {
             const user = JSON.parse(localStorage.getItem("foodByKUser") || "null");
@@ -175,10 +182,13 @@ document.addEventListener("DOMContentLoaded", () => {
     async function loadOrders(forceRender = false) {
         if (isRefreshing) return;
         isRefreshing = true;
+        if (!list.childElementCount) showOrderSkeleton();
         const result = await apiGet("/orders?limit=1");
         isRefreshing = false;
         if (!result.success) {
-            if (!list.childElementCount) setFeedback(result.error || "Unable to load your orders.");
+            if (list.querySelector(".skeleton")) list.replaceChildren();
+            list.setAttribute("aria-busy", "false");
+            setFeedback(result.error || "Unable to load your orders.");
             if (result.status === 401) {
                 const login = element("a", "btn btn-primary", "Log in to view your orders");
                 login.href = "../auth/login.html";
@@ -196,7 +206,9 @@ document.addEventListener("DOMContentLoaded", () => {
         setFeedback("Order updates refresh automatically while this page is open.", false);
         const detail = await apiGet(`/orders/${newestOrder.id}`);
         if (!detail.success) {
-            if (!list.childElementCount) setFeedback(detail.error || "Unable to load your newest order.");
+            if (list.querySelector(".skeleton")) list.replaceChildren();
+            list.setAttribute("aria-busy", "false");
+            setFeedback(detail.error || "Unable to load your newest order.");
             return;
         }
 
@@ -238,6 +250,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const scrollPosition = window.scrollY;
         renderedOrderFingerprint = fingerprint;
         list.replaceChildren(renderOrder(detail.data));
+        list.setAttribute("aria-busy", "false");
         window.requestAnimationFrame(() => window.scrollTo(0, scrollPosition));
     }
 

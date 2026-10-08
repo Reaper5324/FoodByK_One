@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="../../public%20assets/css/style.css">
   <link rel="stylesheet" href="../../public%20assets/css/home.css">
   <link rel="stylesheet" href="../../public%20assets/css/checkout.css">
+  <link rel="stylesheet" href="../../public%20assets/css/skeletons.css">
 </head>
 <body class="home-page checkout-page-shell">
 <header class="navbar">
@@ -37,7 +38,7 @@
       </select>
     </label>
     <label id="addressField" class="checkout-field" for="addressId" hidden>Delivery address
-      <select id="addressId"></select>
+      <select id="addressId" aria-busy="true"><option value="">Loading saved addresses…</option></select>
     </label>
     <section class="checkout-time-panel" aria-labelledby="checkoutTimeTitle">
       <div class="checkout-panel-heading">
@@ -50,7 +51,7 @@
           <input id="slotDate" type="date" required>
         </label>
         <label class="checkout-field" for="slotSelect">Available time
-          <select id="slotSelect" required><option value="">Choose a date first</option></select>
+          <select id="slotSelect" required aria-busy="true"><option value="">Loading available times…</option></select>
         </label>
       </div>
     </section>

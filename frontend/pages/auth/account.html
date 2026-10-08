@@ -25,6 +25,7 @@
             href="../../public assets/css/auth.css"
     >
     <link rel="stylesheet" href="../../public%20assets/css/account.css">
+    <link rel="stylesheet" href="../../public%20assets/css/skeletons.css">
 
 </head>
 
@@ -79,7 +80,7 @@
 
             <!-- User Information -->
 
-            <div class="account-info">
+            <div class="account-info" aria-busy="true">
 
 
                 <div class="account-field">
@@ -90,7 +91,7 @@
 
                     <span
                             id="accountFirstName"
-                            class="account-value"
+                            class="account-value skeleton skeleton-line"
                     >
                             Loading...
                         </span>
@@ -106,7 +107,7 @@
 
                     <span
                             id="accountLastName"
-                            class="account-value"
+                            class="account-value skeleton skeleton-line"
                     >
                             Loading...
                         </span>
@@ -122,7 +123,7 @@
 
                     <span
                             id="accountEmail"
-                            class="account-value"
+                            class="account-value skeleton skeleton-line"
                     >
                             Loading...
                     </span>
@@ -131,7 +132,7 @@
 
                 <div class="account-field">
                     <span class="account-label">Phone number</span>
-                    <span id="accountPhone" class="account-value">Loading...</span>
+                    <span id="accountPhone" class="account-value skeleton skeleton-line">Loading...</span>
                 </div>
 
 
@@ -169,7 +170,7 @@
             <h2 id="deliveryAddressesHeading">Delivery addresses</h2>
             <p class="account-address-intro">Enter each part separately so we can save and check your delivery address correctly. Choose a default for faster ordering.</p>
             <div id="addressMessage" class="account-message" role="status" aria-live="polite" hidden></div>
-            <div id="deliveryAddressList" class="account-address-list" aria-live="polite"></div>
+            <div id="deliveryAddressList" class="account-address-list" aria-live="polite" aria-busy="true"></div>
             <form id="deliveryAddressForm" class="account-edit-form account-address-form">
                 <h3 id="addressFormHeading">Add a delivery address</h3>
                 <input type="hidden" id="deliveryAddressId" value="">

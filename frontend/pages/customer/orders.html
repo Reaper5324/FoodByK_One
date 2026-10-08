@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="../../public%20assets/css/style.css">
   <link rel="stylesheet" href="../../public%20assets/css/home.css">
   <link rel="stylesheet" href="../../public%20assets/css/orders.css">
+  <link rel="stylesheet" href="../../public%20assets/css/skeletons.css">
 </head>
 <body class="home-page orders-page-shell">
 <header class="navbar">
@@ -40,8 +41,8 @@
       <div><p class="section-tag">Your current Food by K order</p><h2 id="ordersListTitle">Made fresh.<br><span>Tracked live.</span></h2><p class="section-intro">Follow your current order as it moves through the kitchen. Completed orders leave this page.</p></div>
       <a class="section-link" href="menu.html">Order something good <span aria-hidden="true">→</span></a>
     </div>
-    <div id="orderFeedback" class="order-feedback" role="status" aria-live="polite">Loading your orders…</div>
-    <section id="orderList" class="order-list" aria-live="polite"></section>
+    <div id="orderFeedback" class="order-feedback" role="status" aria-live="polite" hidden></div>
+    <section id="orderList" class="order-list" aria-live="polite" aria-busy="true"></section>
   </section>
 </main>
 <script src="../../public%20assets/js/config.js"></script>

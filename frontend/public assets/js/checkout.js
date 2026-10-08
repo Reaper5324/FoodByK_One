@@ -32,8 +32,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const loadAddresses = async () => {
+        addressSelect.setAttribute("aria-busy", "true");
+        addressSelect.replaceChildren(new Option("Loading saved addresses…", ""));
         const result = await apiGet("/addresses");
         if (!result.success) {
+            addressSelect.replaceChildren(new Option("Unable to load addresses", ""));
+            addressSelect.setAttribute("aria-busy", "false");
             showMessage(result.error || "Log in to continue to checkout.", true);
             return false;
         }
@@ -46,6 +50,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             option.selected = Boolean(address.is_default);
             addressSelect.appendChild(option);
         });
+        addressSelect.setAttribute("aria-busy", "false");
         if (addressSelect.options.length === 0) {
             showMessage("Add a delivery address to your account before choosing delivery.", true);
             return false;
@@ -60,9 +65,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         placeholder.value = "";
         placeholder.textContent = "Loading available times…";
         slotSelect.appendChild(placeholder);
+        slotSelect.setAttribute("aria-busy", "true");
 
         const result = await apiGet(`/checkout/slots?date=${encodeURIComponent(date)}`);
         slotSelect.replaceChildren();
+        slotSelect.setAttribute("aria-busy", "false");
         if (!result.success) {
             const failed = document.createElement("option");
             failed.value = "";
@@ -112,16 +119,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
         previewButton.disabled = true;
         previewButton.textContent = "Reviewing your total…";
+        summary.setAttribute("aria-busy", "true");
+        summary.replaceChildren(...Array.from({ length: 4 }, () => {
+            const row = document.createElement("div");
+            row.className = "skeleton skeleton-line";
+            row.setAttribute("aria-hidden", "true");
+            return row;
+        }));
+        summary.hidden = false;
         const result = await apiPost("/checkout/preview", payload);
         previewButton.disabled = false;
         previewButton.innerHTML = 'Review total <span aria-hidden="true">→</span>';
         if (!result.success) {
+            summary.hidden = true;
+            summary.setAttribute("aria-busy", "false");
             showMessage(result.error || "Unable to review this order.", true);
             return;
         }
 
         const data = result.data;
         summary.replaceChildren();
+        summary.setAttribute("aria-busy", "false");
         const summaryHeading = document.createElement("div");
         summaryHeading.className = "checkout-summary-heading";
         const summaryKicker = document.createElement("p");

@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="../../public%20assets/css/style.css">
   <link rel="stylesheet" href="../../public%20assets/css/home.css">
   <link rel="stylesheet" href="../../public%20assets/css/cart.css">
+  <link rel="stylesheet" href="../../public%20assets/css/skeletons.css">
 </head>
 <body class="home-page cart-page-shell">
 <header class="navbar">
@@ -42,8 +43,8 @@
     </div>
     <a class="btn btn-secondary cart-browse-link" href="menu.html">Back to menu <span aria-hidden="true">→</span></a>
   </header>
-  <div id="cartMessage" class="cart-message" role="status" aria-live="polite">Loading your cart…</div>
-  <section id="cartItems" aria-live="polite"></section>
+  <div id="cartMessage" class="cart-message" role="status" aria-live="polite" hidden></div>
+  <section id="cartItems" aria-live="polite" aria-busy="true"></section>
   <p id="cartTotal" class="cart-total" hidden></p>
   <div class="cart-actions">
     <a id="continueShopping" class="btn btn-secondary" href="menu.html">Continue shopping</a>

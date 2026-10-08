@@ -8,6 +8,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!profileForm || !addressForm || !addressList) return;
 
     let addresses = [];
+    ["accountFirstName", "accountLastName", "accountEmail", "accountPhone"].forEach((id) => byId(id)?.classList.add("skeleton", "skeleton-line"));
+    for (let index = 0; index < 2; index += 1) {
+        const placeholder = document.createElement("div");
+        placeholder.className = "skeleton skeleton-card";
+        placeholder.setAttribute("aria-hidden", "true");
+        addressList.appendChild(placeholder);
+    }
 
     const showMessage = (node, message, isError = false) => {
         node.textContent = message;
@@ -25,6 +32,8 @@ document.addEventListener("DOMContentLoaded", () => {
         byId("accountLastName").textContent = nameParts.slice(1).join(" ") || "—";
         byId("accountEmail").textContent = user.email || "—";
         byId("accountPhone").textContent = user.phone || "Not added";
+        ["accountFirstName", "accountLastName", "accountEmail", "accountPhone"].forEach((id) => byId(id).classList.remove("skeleton"));
+        document.querySelector(".account-info")?.setAttribute("aria-busy", "false");
     };
 
     const setFormDisabled = (form, disabled) => {
@@ -43,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderAddresses() {
         addressList.replaceChildren();
+        addressList.setAttribute("aria-busy", "false");
         if (!addresses.length) {
             const empty = document.createElement("p");
             empty.className = "account-muted";
@@ -132,8 +142,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function loadAddresses() {
+        addressList.setAttribute("aria-busy", "true");
+        addressList.replaceChildren();
+        for (let index = 0; index < 2; index += 1) {
+            const placeholder = document.createElement("div");
+            placeholder.className = "skeleton skeleton-card";
+            placeholder.setAttribute("aria-hidden", "true");
+            addressList.appendChild(placeholder);
+        }
         const result = await apiGet("/addresses");
         if (!result.success) {
+            addressList.replaceChildren();
+            addressList.setAttribute("aria-busy", "false");
             showMessage(addressMessage, result.error || "Unable to load delivery addresses.", true);
             return false;
         }
