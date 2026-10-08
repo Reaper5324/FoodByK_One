@@ -4,7 +4,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const pageQuery = new URLSearchParams(window.location.search);
     const paymentState = pageQuery.get("payment");
     const returnedOrderId = pageQuery.get("order_id");
-    const progress = ["submitted", "accepted", "paid", "preparing", "ready", "completed"];
     let refreshTimer = null;
     let isRefreshing = false;
     let renderedOrderFingerprint = null;
@@ -52,11 +51,16 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderOrder(bundle) {
         const order = bundle.order || {};
         const items = bundle.items || [];
+        const isDelivery = order.fulfilment_type === "delivery";
         const card = element("article", "order-card");
         const top = element("header", "order-card-header");
         const heading = document.createElement("div");
         heading.append(element("h3", "", `Order #${order.id}`), element("p", "order-number", `Placed ${dateText(order.created_at)}`));
-        const statusLabel = (order.status || "submitted").replaceAll("_", " ");
+        const statusLabel = order.status === "ready"
+            ? (isDelivery ? "out for delivery" : "ready for collection")
+            : (order.status === "completed"
+                ? (isDelivery ? "delivered" : "collected")
+                : (order.status || "submitted").replaceAll("_", " "));
         top.append(heading, element("span", "order-status-label", statusLabel));
         card.appendChild(top);
 
@@ -71,12 +75,29 @@ document.addEventListener("DOMContentLoaded", () => {
         if (order.status === "cancelled") main.appendChild(element("p", "order-reason", "This order has been cancelled."));
         if (order.status === "payment_failed") main.appendChild(element("p", "order-reason", "We couldn’t confirm payment for this order. Please contact Food by K for help."));
 
-        const progressTrack = element("div", "order-progress");
-        progressTrack.setAttribute("aria-label", "Order progress");
+        const progress = isDelivery
+            ? [
+                { status: "submitted", label: "Received" },
+                { status: "accepted", label: "Confirmed" },
+                { status: "paid", label: "Paid" },
+                { status: "preparing", label: "Preparing" },
+                { status: "ready", label: "Out for delivery" },
+                { status: "completed", label: "Delivered" }
+            ]
+            : [
+                { status: "submitted", label: "Received" },
+                { status: "accepted", label: "Confirmed" },
+                { status: "paid", label: "Paid" },
+                { status: "preparing", label: "Preparing" },
+                { status: "ready", label: "Ready for collection" },
+                { status: "completed", label: "Collected" }
+            ];
+        const progressTrack = element("div", `order-progress${isDelivery ? " order-progress-delivery" : " order-progress-collection"}`);
+        progressTrack.setAttribute("aria-label", `${isDelivery ? "Delivery" : "Collection"} progress`);
         const current = ["adjusted", "charge_pending", "payment_failed"].includes(order.status) ? "accepted" : order.status;
-        const currentIndex = progress.indexOf(current);
-        progress.forEach((status, index) => {
-            const step = element("div", `order-step${index < currentIndex ? " is-done" : ""}${index === currentIndex ? " is-current" : ""}`, ({ submitted: "Received", accepted: "Confirmed", paid: "Paid", preparing: "Preparing", ready: "Ready", completed: "Done" })[status]);
+        const currentIndex = progress.findIndex(({ status }) => status === current);
+        progress.forEach(({ status, label }, index) => {
+            const step = element("div", `order-step${index < currentIndex ? " is-done" : ""}${index === currentIndex ? " is-current" : ""}`, label);
             if (index === currentIndex) step.setAttribute("aria-current", "step");
             progressTrack.appendChild(step);
         });
