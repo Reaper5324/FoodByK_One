@@ -8,19 +8,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     const promotionInput = document.getElementById("promotionCode");
     const message = document.getElementById("checkoutMessage");
     const summary = document.getElementById("checkoutSummary");
+    const previewButton = document.getElementById("previewButton");
     const submitButton = document.getElementById("submitButton");
     let previewReady = false;
 
     const showMessage = (text, isError = false) => {
         message.hidden = false;
         message.textContent = text;
-        message.style.color = isError ? "var(--food-red-dark)" : "inherit";
+        message.classList.toggle("is-error", isError);
+        message.classList.toggle("is-success", !isError);
     };
 
     const clearPreview = () => {
         previewReady = false;
         summary.hidden = true;
         submitButton.hidden = true;
+        message.hidden = true;
     };
 
     const getLocalDate = () => {
@@ -75,6 +78,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             none.value = "";
             none.textContent = "No available times for this date";
             slotSelect.appendChild(none);
+            showMessage("No time slots are available for this date. Choose another date.");
             return;
         }
 
@@ -106,7 +110,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             address_id: fulfilment.value === "delivery" ? Number(addressSelect.value) : null,
             promotion_code: promotionInput.value.trim() || null
         };
+        previewButton.disabled = true;
+        previewButton.textContent = "Reviewing your total…";
         const result = await apiPost("/checkout/preview", payload);
+        previewButton.disabled = false;
+        previewButton.innerHTML = 'Review total <span aria-hidden="true">→</span>';
         if (!result.success) {
             showMessage(result.error || "Unable to review this order.", true);
             return;
@@ -114,12 +122,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const data = result.data;
         summary.replaceChildren();
+        const summaryHeading = document.createElement("div");
+        summaryHeading.className = "checkout-summary-heading";
+        const summaryKicker = document.createElement("p");
+        summaryKicker.textContent = "Price breakdown";
+        const summaryTitle = document.createElement("h2");
+        summaryTitle.textContent = "Review your total";
+        summaryHeading.append(summaryKicker, summaryTitle);
+        summary.appendChild(summaryHeading);
         [
             ["Subtotal", data.subtotal],
             ["Discount", -Number(data.discount || 0)],
             ["Delivery fee", data.delivery_fee]
         ].forEach(([label, amount]) => {
             const row = document.createElement("p");
+            row.className = "checkout-summary-row";
             const title = document.createElement("span");
             const value = document.createElement("strong");
             title.textContent = label;
@@ -128,15 +145,21 @@ document.addEventListener("DOMContentLoaded", async () => {
             summary.appendChild(row);
         });
         const total = document.createElement("p");
+        total.className = "checkout-summary-row checkout-summary-total";
         const totalLabel = document.createElement("strong");
         const totalValue = document.createElement("strong");
         totalLabel.textContent = "Total";
         totalValue.textContent = `R${Number(data.total).toFixed(2)}`;
         total.append(totalLabel, totalValue);
         summary.appendChild(total);
+        const summaryNote = document.createElement("p");
+        summaryNote.className = "checkout-summary-note";
+        summaryNote.textContent = "Your card is set up securely in the next step and is not charged while the team reviews your order.";
+        summary.appendChild(summaryNote);
         summary.hidden = false;
         submitButton.hidden = false;
         previewReady = true;
+        showMessage("Total reviewed. Check the breakdown below before continuing.");
     };
 
     fulfilment.addEventListener("change", async () => {
@@ -150,7 +173,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await loadSlots();
     });
     [addressSelect, slotSelect, promotionInput].forEach((input) => input.addEventListener("change", clearPreview));
-    document.getElementById("previewButton").addEventListener("click", requestPreview);
+    previewButton.addEventListener("click", requestPreview);
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();

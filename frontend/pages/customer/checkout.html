@@ -5,19 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Checkout | Food by K</title>
   <link rel="stylesheet" href="../../public%20assets/css/style.css">
-  <style>
-    .checkout-page { max-width: 760px; margin: 0 auto; padding: 32px 7%; }
-    .checkout-form, .checkout-summary { display: grid; gap: 16px; padding: 20px; margin: 20px 0; background: var(--food-white); border: 1px solid var(--food-border); border-radius: 8px; }
-    .checkout-form label { display: grid; gap: 6px; font-weight: 600; }
-    .checkout-form select, .checkout-form input { width: 100%; padding: 11px; border: 1px solid var(--food-border); border-radius: 6px; }
-    .checkout-summary p { display: flex; justify-content: space-between; margin: 0; }
-    .checkout-message { padding: 14px; margin: 16px 0; border: 1px solid var(--food-border); border-radius: 6px; }
-  </style>
+  <link rel="stylesheet" href="../../public%20assets/css/home.css">
+  <link rel="stylesheet" href="../../public%20assets/css/checkout.css">
 </head>
-<body>
+<body class="home-page checkout-page-shell">
 <header class="navbar">
   <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
-  <nav>
+  <nav aria-label="Main navigation">
     <a href="../../src/index.html">Home</a>
     <a href="menu.html">Menu</a>
     <a href="cart.html">Cart</a>
@@ -28,32 +22,44 @@
 </header>
 
 <main class="checkout-page">
-  <h1>Checkout</h1>
-  <p>Choose collection or delivery, select a fulfilment time, then review your order.</p>
-  <div id="checkoutMessage" class="checkout-message" role="status" hidden></div>
+  <header class="checkout-heading">
+    <p class="section-tag">Fresh food, nearly yours</p>
+    <h1>Checkout<span>.</span></h1>
+    <p>Choose collection or delivery, pick a time, and review your total before secure card setup.</p>
+  </header>
+  <div id="checkoutMessage" class="checkout-message" role="status" aria-live="polite" hidden></div>
 
   <form id="checkoutForm" class="checkout-form">
-    <label for="fulfilmentType">Fulfilment
+    <label class="checkout-field" for="fulfilmentType">Fulfilment
       <select id="fulfilmentType" required>
         <option value="collection">Collection</option>
         <option value="delivery">Delivery</option>
       </select>
     </label>
-    <label id="addressField" for="addressId" hidden>Delivery address
+    <label id="addressField" class="checkout-field" for="addressId" hidden>Delivery address
       <select id="addressId"></select>
     </label>
-    <label for="slotDate">Date
-      <input id="slotDate" type="date" required>
-    </label>
-    <label for="slotSelect">Available time
-      <select id="slotSelect" required><option value="">Choose a date first</option></select>
-    </label>
-    <label for="promotionCode">Promotion code (optional)
+    <section class="checkout-time-panel" aria-labelledby="checkoutTimeTitle">
+      <div class="checkout-panel-heading">
+        <p class="checkout-panel-kicker">Set your fulfilment time</p>
+        <h2 id="checkoutTimeTitle">Choose a time</h2>
+        <p>Available collection and delivery slots update for the date you select.</p>
+      </div>
+      <div class="checkout-time-fields">
+        <label class="checkout-field" for="slotDate">Date
+          <input id="slotDate" type="date" required>
+        </label>
+        <label class="checkout-field" for="slotSelect">Available time
+          <select id="slotSelect" required><option value="">Choose a date first</option></select>
+        </label>
+      </div>
+    </section>
+    <label class="checkout-field checkout-promotion-field" for="promotionCode">Promotion code (optional)
       <input id="promotionCode" type="text" maxlength="50" autocomplete="off">
     </label>
-    <button id="previewButton" class="btn btn-secondary" type="button">Review total</button>
+    <button id="previewButton" class="btn btn-secondary checkout-review-button" type="button">Review total <span aria-hidden="true">→</span></button>
     <section id="checkoutSummary" class="checkout-summary" hidden aria-live="polite"></section>
-    <button id="submitButton" class="btn btn-primary" type="submit" hidden>Continue to secure card setup</button>
+    <button id="submitButton" class="btn btn-primary checkout-submit-button" type="submit" hidden>Continue to secure card setup <span aria-hidden="true">→</span></button>
   </form>
 </main>
 
