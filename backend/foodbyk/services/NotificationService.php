@@ -40,6 +40,36 @@ class WhatsAppNotifier implements OrderNotifier {
             return;
         }
 
+        $phones = $audience === 'staff'
+            ? NotificationService::staffRecipients('phone')
+            : array_filter([$order->getCustomer()?->phone]);
+
+        $sandbox = defined('TWILIO_WHATSAPP_SANDBOX') && TWILIO_WHATSAPP_SANDBOX;
+        if ($sandbox) {
+            $allowedRecipients = array_filter(array_map(
+                fn(string $phone): string => $this->normalizeWhatsAppAddress($phone),
+                explode(',', TWILIO_WHATSAPP_SANDBOX_RECIPIENTS)
+            ));
+            if (!$allowedRecipients) {
+                error_log('WHATSAPP sandbox enabled but TWILIO_WHATSAPP_SANDBOX_RECIPIENTS is empty.');
+                return;
+            }
+            $phones = array_values(array_filter($phones, function ($phone) use ($allowedRecipients) {
+                return in_array($this->normalizeWhatsAppAddress((string) $phone), $allowedRecipients, true);
+            }));
+            if (!$phones) {
+                error_log("WHATSAPP sandbox skipped order #{$order->id}: recipient has not been allowlisted/joined.");
+                return;
+            }
+
+            $from = $this->normalizeWhatsAppAddress(TWILIO_WHATSAPP_SANDBOX_FROM);
+            $body = NotificationService::messageFor($order, $event, $audience);
+            foreach ($phones as $phone) {
+                $this->sendMessage($this->normalizeWhatsAppAddress((string) $phone), $from, $body);
+            }
+            return;
+        }
+
         $templateKey = $audience === 'staff'
             ? ($event === 'submitted' ? 'staff_new_order' : '')
             : "customer_{$event}";
@@ -56,10 +86,6 @@ class WhatsAppNotifier implements OrderNotifier {
             return;
         }
 
-        $phones = $audience === 'staff'
-            ? NotificationService::staffRecipients('phone')
-            : array_filter([$order->getCustomer()?->phone]);
-
         $variables = ['1' => (string) $order->id];
         if ($event === 'submitted' && $audience === 'staff') {
             $variables['2'] = ucfirst($order->fulfilment_type);
@@ -71,25 +97,43 @@ class WhatsAppNotifier implements OrderNotifier {
 
         foreach ($phones as $phone) {
             $this->sendTemplate(
-                "whatsapp:{$phone}",
-                "whatsapp:" . TWILIO_FROM_NUMBER,
+                $this->normalizeWhatsAppAddress((string) $phone),
+                $this->normalizeWhatsAppAddress(TWILIO_WHATSAPP_FROM !== '' ? TWILIO_WHATSAPP_FROM : TWILIO_FROM_NUMBER),
                 $contentSid,
                 $variables
             );
         }
     }
 
+    private function normalizeWhatsAppAddress(string $phone): string {
+        $phone = trim($phone);
+        if (str_starts_with($phone, 'whatsapp:')) return $phone;
+        return 'whatsapp:' . preg_replace('/[\s().-]+/', '', $phone);
+    }
+
+    private function sendMessage(string $to, string $from, string $body): void {
+        $this->sendTwilioRequest([
+            'To' => $to,
+            'From' => $from,
+            'Body' => $body,
+        ], $to);
+    }
+
     private function sendTemplate(string $to, string $from, string $contentSid, array $variables): void {
+        $this->sendTwilioRequest([
+            'To' => $to,
+            'From' => $from,
+            'ContentSid' => $contentSid,
+            'ContentVariables' => json_encode($variables),
+        ], $to);
+    }
+
+    private function sendTwilioRequest(array $params, string $to): void {
         $auth = base64_encode(TWILIO_SID . ':' . TWILIO_AUTH_TOKEN);
         $context = stream_context_create(['http' => [
             'method'  => 'POST',
             'header'  => "Authorization: Basic {$auth}\r\nContent-Type: application/x-www-form-urlencoded\r\n",
-            'content' => http_build_query([
-                'To' => $to,
-                'From' => $from,
-                'ContentSid' => $contentSid,
-                'ContentVariables' => json_encode($variables),
-            ]),
+            'content' => http_build_query($params),
             'ignore_errors' => true,
             'timeout' => 8,
         ]]);
