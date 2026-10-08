@@ -81,6 +81,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         cartMessage.hidden = true;
+        cartItems.replaceChildren();
         cartItems.setAttribute("aria-busy", "false");
         let total = 0;
 
