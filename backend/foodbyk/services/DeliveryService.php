@@ -50,10 +50,22 @@ class NominatimGeocoder implements Geocoder {
         $results = json_decode($response, true);
         if (empty($results)) return null;
 
-        // Ignore results that Nominatim marks as low confidence.
-        if ((float) ($results[0]['importance'] ?? 0) < 0.3) return null;
+        // Nominatim's `importance` measures how likely a place is to be
+        // searched for, not the confidence that an address match is correct.
+        // Do not reject valid street or house results based on that ranking.
+        $latitude = $results[0]['lat'] ?? null;
+        $longitude = $results[0]['lon'] ?? null;
+        if (!is_numeric($latitude) || !is_numeric($longitude)) return null;
 
-        return ['lat' => (float) $results[0]['lat'], 'lng' => (float) $results[0]['lon']];
+        $latitude = (float) $latitude;
+        $longitude = (float) $longitude;
+        if (!is_finite($latitude) || !is_finite($longitude)
+            || $latitude < -90 || $latitude > 90
+            || $longitude < -180 || $longitude > 180) {
+            return null;
+        }
+
+        return ['lat' => $latitude, 'lng' => $longitude];
     }
 
     private function throttle(): void {

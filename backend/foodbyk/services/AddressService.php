@@ -108,7 +108,11 @@ class AddressService {
         if ($addressChanged) {
             $address->latitude = null;
             $address->longitude = null;
+        }
 
+        // Retry geocoding when an address was saved previously without a
+        // match, even if the customer is now saving the same address again.
+        if ($addressChanged || !$address->hasCoordinates()) {
             $deliveryService = new DeliveryService();
             $geocodeSuccess = $deliveryService->geocodeAddress($address);
             if (!$geocodeSuccess) {
