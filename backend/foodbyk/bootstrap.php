@@ -52,6 +52,17 @@ if (session_status() === PHP_SESSION_NONE) {
         'httponly' => true,
         'samesite' => $isSecureRequest ? 'None' : 'Lax',
     ]);
+
+    // Fallback for Safari/iOS: cross-site cookies (Netlify -> Railway) are
+    // frequently blocked by ITP even with SameSite=None; Secure correctly
+    // set. If the client sends its session id via this header instead
+    // (set by the frontend after login - see api.js), resume that exact
+    // session rather than depending on the cookie arriving at all.
+    // Validated against PHP's actual session id format before trusting it.
+    $headerToken = $_SERVER['HTTP_X_SESSION_TOKEN'] ?? '';
+    if ($headerToken !== '' && preg_match('/^[a-zA-Z0-9,\-]{22,250}$/', $headerToken) === 1) {
+        session_id($headerToken);
+    }
 }
 
 spl_autoload_register(function (string $class): void {
