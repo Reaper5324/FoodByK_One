@@ -26,7 +26,8 @@ async function ensureCsrfToken() {
     if (!csrfTokenRequest) {
         csrfTokenRequest = fetch(API_BASE_URL + "/auth/me", {
             method: "GET",
-            credentials: "include"
+            credentials: "include",
+            headers: buildSessionHeaders()
         }).then((response) => {
             const token = response.headers.get("X-CSRF-Token");
             if (token) window.foodByKCsrfToken = token;
@@ -41,6 +42,28 @@ async function ensureCsrfToken() {
 
 
 /* =========================================
+   1b. SESSION TOKEN HELPERS (Safari/iOS fallback)
+   ========================================= */
+
+// Cross-site cookies (Netlify -> Railway) are frequently blocked by
+// Safari's ITP even with SameSite=None; Secure correctly set. When present,
+// this header lets the backend resume the session directly instead of
+// depending on the cookie arriving at all - see bootstrap.php.
+function buildSessionHeaders() {
+    const token = localStorage.getItem(SESSION_TOKEN_KEY);
+    return token ? { "X-Session-Token": token } : {};
+}
+
+function storeSessionToken(token) {
+    if (token) localStorage.setItem(SESSION_TOKEN_KEY, token);
+}
+
+function clearSessionToken() {
+    localStorage.removeItem(SESSION_TOKEN_KEY);
+}
+
+
+/* =========================================
    2. CENTRAL API REQUEST
    ========================================= */
 
@@ -51,7 +74,8 @@ async function apiRequest(endpoint, options = {}) {
 
     const defaultOptions = {
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            ...buildSessionHeaders()
         },
         credentials: "include"
     };
@@ -130,6 +154,16 @@ async function apiRequest(endpoint, options = {}) {
                 jsonError
             );
 
+        }
+
+
+        /* -----------------------------------------
+           Capture session token from login/register
+           (body, not a header - see AuthService::login/register)
+           ----------------------------------------- */
+
+        if (result?.data?.session_token) {
+            storeSessionToken(result.data.session_token);
         }
 
 
