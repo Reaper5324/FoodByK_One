@@ -83,7 +83,7 @@ class AuthService {
 
             $db->commit();
             $this->establishSession($user);
-            return $this->success($this->publicUser($user));
+return $this->success(array_merge($this->publicUser($user), ['session_token' => session_id()]));
         } catch (Throwable) {
             if ($db->inTransaction()) {
                 $db->rollBack();
