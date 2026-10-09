@@ -120,7 +120,7 @@ class AuthService {
         }
 
         $this->establishSession($user);
-        return $this->success($this->publicUser($user));
+return $this->success(array_merge($this->publicUser($user), ['session_token' => session_id()]));
     }
 
     public function logout(): array {
