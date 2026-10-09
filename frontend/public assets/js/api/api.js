@@ -14,6 +14,8 @@ const CSRF_EXEMPT_ENDPOINTS = [
     "/auth/reset-password"
 ];
 
+const SESSION_TOKEN_KEY = "foodByKSessionToken";
+
 let csrfTokenRequest = null;
 
 async function ensureCsrfToken() {
