@@ -51,6 +51,21 @@ PERSONAL_DATA_PATTERN = re.compile(
     r"\b\d{1,5}\s+[A-Z0-9.'-]+\s+(?:street|st|road|rd|avenue|ave|drive|dr|lane|ln|close|crescent|way)\b",
     re.IGNORECASE,
 )
+CAPABILITY_PATTERN = re.compile(
+    r"\bwhat\s+(?:can|do)\s+(?:you|this assistant|the assistant)\s+(?:answer|help with|know)\b|"
+    r"\bwhat questions?\s+(?:can|should)\s+(?:i|we)\s+ask\b|"
+    r"\bwhat can\s+(?:i|we)\s+ask(?:\s+about)?\b|"
+    r"\bhow can\s+(?:you|this assistant|the assistant)\s+help\b|"
+    r"\bwhat do\s+(?:you|this assistant|the assistant)\s+know\b",
+    re.IGNORECASE,
+)
+CAPABILITY_REPLY = (
+    "I can answer questions about the current menu, including item descriptions, "
+    "prices and availability, suggest a meal based on its description, and share "
+    "Food by K's published hours, location and contact details. I can't check or "
+    "change orders, payments, delivery or collection decisions, or customer accounts. "
+    "Try asking: ‘What can I get for a filling meal?’ or ‘What time do you close?’"
+)
 TRANSACTIONAL_REPLY = (
     "I can help with Food by K's menu and approved general FAQs. "
     "For orders, payments, delivery, collection, or account questions, please contact the Food by K team."
@@ -104,6 +119,9 @@ def ask(
 
     if PERSONAL_DATA_PATTERN.search(question):
         return {"answer": PRIVACY_REPLY, "sources": []}
+
+    if CAPABILITY_PATTERN.search(question):
+        return {"answer": CAPABILITY_REPLY, "sources": []}
 
     if TRANSACTIONAL_PATTERN.search(question):
         return {"answer": TRANSACTIONAL_REPLY, "sources": []}
