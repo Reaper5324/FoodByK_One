@@ -207,7 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!result.success) {
             showMessage(policyMessage, result.error || "Unable to save your choices.", true);
             button.disabled = false;
-            button.innerHTML = 'Continue to my account <span aria-hidden="true">→</span>';
+            button.innerHTML = 'Continue to my account <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
             return;
         }
         window.location.replace("account.html");

@@ -10,6 +10,26 @@
     font-family: inherit;
 }
 
+.foodbyk-assistant.is-open {
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+}
+
+.foodbyk-assistant.is-open::before {
+    position: fixed;
+    z-index: -1;
+    inset: 0;
+    background: rgb(16 13 11 / 66%);
+    content: "";
+    backdrop-filter: blur(3px);
+}
+
+.foodbyk-assistant.is-open .foodbyk-assistant-launcher {
+    visibility: hidden;
+}
+
 .foodbyk-assistant button,
 .foodbyk-assistant textarea {
     font: inherit;
@@ -58,14 +78,15 @@
 }
 
 .foodbyk-assistant-panel {
-    position: absolute;
-    right: 0;
-    bottom: 68px;
+    position: fixed;
+    z-index: 1;
+    inset: 50% auto auto 50%;
     display: flex;
     flex-direction: column;
-    width: min(390px, calc(100vw - 28px));
-    max-height: min(620px, calc(100dvh - 110px));
-    padding: 20px;
+    width: min(760px, calc(100vw - 48px));
+    height: min(820px, calc(100dvh - 48px));
+    padding: clamp(18px, 3vw, 28px);
+    transform: translate(-50%, -50%);
     overflow: hidden;
     border: 1px solid var(--assistant-border);
     border-radius: 18px;
@@ -146,21 +167,27 @@
     flex: 1 1 auto;
     flex-direction: column;
     gap: 9px;
-    min-height: 70px;
-    max-height: 250px;
-    padding: 2px 3px 10px 0;
+    min-height: 0;
+    padding: 12px 8px 16px 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;
+}
+
+.foodbyk-assistant.has-conversation .foodbyk-assistant-intro,
+.foodbyk-assistant.has-conversation .foodbyk-assistant-prompts {
+    display: none;
 }
 
 .foodbyk-assistant-message {
     align-self: flex-start;
-    max-width: 94%;
-    padding: 10px 12px;
+    max-width: min(88%, 620px);
+    padding: 13px 16px;
     border-radius: 12px 12px 12px 3px;
     background: #f5f3f0;
-    font-size: 13px;
-    line-height: 1.5;
+    font-size: 15px;
+    line-height: 1.6;
 }
 
 .foodbyk-assistant-message.is-customer {
@@ -208,8 +235,9 @@
 .foodbyk-assistant-form textarea {
     display: block;
     width: 100%;
-    min-height: 58px;
-    padding: 10px 11px;
+    min-height: 64px;
+    max-height: 150px;
+    padding: 13px 14px;
     resize: vertical;
     border: 1px solid #aaa6a0;
     border-radius: 10px;
@@ -276,13 +304,24 @@
         bottom: max(12px, env(safe-area-inset-bottom));
     }
 
+    .foodbyk-assistant.is-open {
+        padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    }
+
     .foodbyk-assistant-panel {
-        position: fixed;
-        right: 10px;
-        bottom: calc(76px + env(safe-area-inset-bottom));
-        width: calc(100vw - 20px);
-        max-height: calc(100dvh - 105px - env(safe-area-inset-bottom));
-        padding: 17px;
+        width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right));
+        height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        padding: 16px;
+        border-radius: 16px;
+    }
+
+    .foodbyk-assistant-message {
+        max-width: 94%;
+        font-size: 14px;
+    }
+
+    .foodbyk-assistant-links {
+        flex: 0 0 auto;
     }
 }
 

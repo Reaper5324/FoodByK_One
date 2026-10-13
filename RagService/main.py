@@ -33,8 +33,10 @@ PRODUCT_PATTERN = re.compile(
     r"\b(menu|menus|food|product|products|item|items|price|prices|cost|"
     r"sell|serve|offer|offers|burger|kota|fries|wings|chicken|chips|drink|platter|"
     r"ingredients?|allergens?|contains?|how much|recommend(?:ation|ed)?|suggest(?:ion|ed)?|"
-    r"filling|hearty|satisfying|hungry|meal|something to eat)\b|"
-    r"\bwhat (?:would you|do you) recommend\b",
+    r"filling|hearty|satisfying|hungry|meal|something to eat|good to eat|cheap|cheapest|affordable|budget)\b|"
+    r"\bwhat (?:would you|do you) recommend\b|"
+    r"\bwhat(?:'s| is) good\b|\bwhat should i (?:get|try|eat)\b|"
+    r"\b(?:i am|i'm|im) (?:hungry|starving)\b|\blooking for something to eat\b",
     re.IGNORECASE,
 )
 POLICY_PATTERN = re.compile(
@@ -56,7 +58,8 @@ CAPABILITY_PATTERN = re.compile(
     r"\bwhat questions?\s+(?:can|should)\s+(?:i|we)\s+ask\b|"
     r"\bwhat can\s+(?:i|we)\s+ask(?:\s+about)?\b|"
     r"\bhow can\s+(?:you|this assistant|the assistant)\s+help\b|"
-    r"\bwhat do\s+(?:you|this assistant|the assistant)\s+know\b",
+    r"\bwhat do\s+(?:you|this assistant|the assistant)\s+know\b|"
+    r"\bwhat can (?:you|u) help (?:me )?with\b|\bwhat are you able to help with\b",
     re.IGNORECASE,
 )
 CAPABILITY_REPLY = (
@@ -142,7 +145,11 @@ def ask(
             text, metadata = product_to_document(product)
             chunks.append({"text": text, **metadata})
 
-    if is_policy_question:
+    # Natural customer phrasing may not match a fixed policy keyword. Run
+    # lightweight document retrieval for other non-transactional questions;
+    # the model still receives only retrieved approved context and may not
+    # make unsupported claims.
+    if is_policy_question or not is_product_question:
         chunks.extend(retrieve(question))
 
     if not chunks:

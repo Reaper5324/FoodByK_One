@@ -1,5 +1,6 @@
 import re
 import time
+from difflib import SequenceMatcher
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -13,6 +14,17 @@ load_dotenv()
 _catalog_cache: tuple[float, list[dict[str, Any]]] | None = None
 _CACHE_SECONDS = 30
 _MAX_PRODUCTS_IN_CONTEXT = 4
+_PREFERENCE_ALIASES = {
+    "hearty": {"filling", "generous"},
+    "substantial": {"filling", "generous"},
+    "satisfying": {"filling"},
+    "proper": {"filling"},
+    "big": {"generous", "sharing"},
+    "large": {"generous", "sharing"},
+    "filing": {"filling"},
+    "fillin": {"filling"},
+    "fulfilling": {"filling"},
+}
 _STOP_WORDS = {
     "a", "an", "and", "are", "by", "do", "for", "have", "i", "in", "is",
     "it", "me", "of", "on", "or", "our", "please", "the", "to", "we", "what",
@@ -97,11 +109,36 @@ def _tokens(text: str) -> set[str]:
 
 def select_products(question: str, products: list[dict[str, Any]]) -> list[dict[str, Any]]:
     query_tokens = _tokens(question)
+    expanded_tokens = set(query_tokens)
+    for token in query_tokens:
+        expanded_tokens.update(_PREFERENCE_ALIASES.get(token, set()))
+
+    wants_affordable = bool(re.search(r"\b(cheap|cheapest|affordable|inexpensive|low[ -]cost|budget)\b", question, re.IGNORECASE))
+    if wants_affordable:
+        priced = []
+        for product in products:
+            try:
+                amount = Decimal(str(product["price"]).replace("R", "").strip())
+            except (InvalidOperation, ValueError, TypeError):
+                continue
+            if amount.is_finite() and amount >= 0:
+                priced.append((amount, product))
+        if priced:
+            priced.sort(key=lambda item: (item[0], item[1]["name"].casefold()))
+            return [product for _, product in priced[:_MAX_PRODUCTS_IN_CONTEXT]]
+
     scored = []
     for product in products:
         searchable = f"{product['name']} {product['category']} {product['description']}"
         product_tokens = _tokens(searchable)
-        score = len(query_tokens & product_tokens)
+        score = len(expanded_tokens & product_tokens)
+        # Forgive common one-character typos in meaningful words (e.g. "filing"
+        # for "filling") without fuzzy-matching short words or the whole query.
+        for query_token in query_tokens:
+            if query_token in product_tokens or len(query_token) < 4:
+                continue
+            if any(SequenceMatcher(None, query_token, item_token).ratio() >= 0.84 for item_token in product_tokens if len(item_token) >= 4):
+                score += 1
         if score:
             scored.append((score, product))
 
@@ -110,7 +147,9 @@ def select_products(question: str, products: list[dict[str, Any]]) -> list[dict[
         return [product for _, product in scored[:_MAX_PRODUCTS_IN_CONTEXT]]
 
     broad_menu_question = bool(re.search(
-        r"\b(menu|menus|offer|offers|sell|serve|available|food|prices?|items?)\b|what do you have|what do you serve",
+        r"\b(menu|menus|offer|offers|sell|serve|available|food|prices?|items?|recommend|suggest|hungry|filling|hearty|meal|eat|good)\b|"
+        r"what do you have|what do you serve|what should i (?:get|try|eat)|what's good|what is good|"
+        r"(?:looking|in the mood) for (?:something|food)",
         question,
         re.IGNORECASE,
     ))

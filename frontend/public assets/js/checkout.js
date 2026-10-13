@@ -129,7 +129,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         summary.hidden = false;
         const result = await apiPost("/checkout/preview", payload);
         previewButton.disabled = false;
-        previewButton.innerHTML = 'Review total <span aria-hidden="true">→</span>';
+        previewButton.innerHTML = 'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
         if (!result.success) {
             summary.hidden = true;
             summary.setAttribute("aria-busy", "false");
