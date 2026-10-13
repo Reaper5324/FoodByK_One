@@ -2853,3 +2853,27 @@ td {
     }
 
 }
+
+
+/* Staff order review modal */
+.order-review-modal { max-width: 760px; max-height: 90vh; overflow-y: auto; }
+.order-review-modal .modal-body { max-height: calc(90vh - 90px); overflow-y: auto; }
+.order-items-section, .order-totals-section { margin-top: 22px; }
+.order-items-section h4 { margin: 0 0 12px; }
+.order-items-list { border: 1px solid var(--border); border-radius: 10px; padding: 0 14px; }
+.order-item-line, .order-total-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid #eee; font-size: .85rem; }
+.order-item-line:last-child, .order-total-row:last-child { border-bottom: 0; }
+.order-item-name { display: flex; flex-direction: column; gap: 4px; }
+.order-item-name span { color: var(--grey); font-size: .78rem; }
+.order-grand-total { border-top: 1px solid var(--border); font-size: 1rem; }
+.order-review-modal .decision-buttons { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.order-review-modal .accept-order-btn, .order-review-modal .confirm-time-btn, .order-review-modal .confirm-decline-btn, .order-review-modal .save-status-btn { width: 100%; border: 0; border-radius: 8px; padding: 12px; margin-top: 10px; font: inherit; font-weight: 600; cursor: pointer; }
+.order-review-modal .accept-order-btn { background: var(--green); color: white; }
+.order-review-modal .confirm-time-btn { background: var(--orange); color: white; }
+.order-review-modal .confirm-decline-btn { background: #e74c3c; color: white; }
+.order-review-modal .confirm-time-btn:disabled { opacity: .5; cursor: not-allowed; }
+.order-review-modal #slotDate, .order-review-modal #slotSelect, .order-review-modal #declineReason { display: block; width: 100%; padding: 11px; margin: 8px 0; border: 1px solid var(--border); border-radius: 8px; font: inherit; }
+.order-review-modal #declineReason { min-height: 76px; resize: vertical; }
+.order-review-modal .slot-help { font-size: .8rem; color: var(--grey); }
+.order-review-modal [hidden] { display: none !important; }
+@media (max-width: 600px) { .order-review-modal { max-height: 94vh; } .order-review-modal .modal-body { max-height: calc(94vh - 90px); padding: 16px; } .order-review-modal .order-detail-row { gap: 14px; align-items: flex-start; } .order-review-modal .order-detail-row strong { text-align: right; overflow-wrap: anywhere; } }
