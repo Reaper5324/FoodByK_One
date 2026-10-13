@@ -248,7 +248,10 @@ async function apiRequest(endpoint, options = {}) {
         }
 
         if (response.status === 428 && result?.data?.policy_acceptance_required) {
-            window.location.assign("/pages/auth/account.html?review-policies=1");
+            const accountPath = "/pages/auth/account.html";
+            if (!window.location.pathname.endsWith(accountPath)) {
+                window.location.assign(`${accountPath}?review-policies=1`);
+            }
             return { success: false, data: result.data, error: result.error, status: 428 };
         }
 

@@ -197,12 +197,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     policyForm?.addEventListener("submit", async (event) => {
         event.preventDefault();
+        const button = byId("savePolicyChoices");
+        button.disabled = true;
+        button.innerHTML = 'Saving your choices <span class="policy-button-spinner" aria-hidden="true"></span>';
         const result = await apiPost("/account/policies", {
             terms_accepted: byId("accountTermsAccepted").checked,
             privacy_notice_acknowledged: byId("accountPrivacyAcknowledged").checked
         });
         if (!result.success) {
             showMessage(policyMessage, result.error || "Unable to save your choices.", true);
+            button.disabled = false;
+            button.innerHTML = 'Continue to my account <span aria-hidden="true">→</span>';
             return;
         }
         window.location.replace("account.html");

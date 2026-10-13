@@ -26,3 +26,35 @@
   .account-address-actions { width: 100%; }
   .account-address-actions button { flex: 1 1 auto; }
 }
+.account-page { min-height: calc(100vh - 74px); padding: clamp(28px, 5vw, 64px) 20px 80px; background: radial-gradient(ellipse at 15% 0%, rgba(255,201,40,.13), transparent 34%), #f7f7f7; }
+.account-container { width: min(100%, 960px); margin: 0 auto; }
+.account-header { margin: 0 0 28px; padding: 8px 0 22px; border-bottom: 1px solid #e5e1dc; }
+.account-header h1 { margin: 0 0 9px; color: #171717; font-size: clamp(30px, 4vw, 42px); }
+.account-header p { color: #666; }
+.account-card { margin: 0 0 22px; padding: clamp(22px, 4vw, 34px); border: 1px solid #ebe7e2; border-radius: 18px; background: #fff; box-shadow: 0 14px 40px rgba(25,20,16,.07); }
+.account-card h2 { color: #171717; }
+.policy-review-card { position: relative; max-width: 760px; margin: 0 auto 28px; overflow: hidden; border: 1px solid #f0dfd5; box-shadow: 0 22px 60px rgba(61,35,20,.12); }
+.policy-review-card::before { position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, var(--food-red), #f28b21 70%, var(--food-yellow)); content: ""; }
+.policy-review-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; color: #a33b1d; font-size: 12px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.policy-review-icon { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; background: #fff1e7; color: var(--food-red); font-size: 15px; }
+.policy-review-card h2 { max-width: 620px; margin: 0 0 12px; font-size: clamp(25px, 4vw, 34px); line-height: 1.12; }
+.policy-review-intro { max-width: 650px; margin: 0; color: #5d5a57; font-size: 15px; line-height: 1.7; }
+.policy-document-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 24px 0 16px; }
+.policy-document-links a { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border: 1px solid #e8e1da; border-radius: 11px; background: #fffdfa; color: #252321; font-weight: 700; transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
+.policy-document-links a:hover { transform: translateY(-1px); border-color: #d98d6f; box-shadow: 0 6px 18px rgba(80,35,15,.08); }
+.policy-document-links a span:last-child { color: var(--food-red); font-size: 18px; }
+.policy-choice-note { display: flex; align-items: flex-start; gap: 11px; margin: 18px 0 20px; padding: 13px 15px; border-radius: 10px; background: #fff7e5; color: #625332; }
+.policy-choice-note > span { display: grid; flex: 0 0 20px; width: 20px; height: 20px; place-items: center; border-radius: 50%; background: #ffe39a; color: #604b0c; font-size: 12px; font-weight: 800; }
+.policy-choice-note p { margin: 0; font-size: 13px; line-height: 1.55; }
+.policy-acceptance-form { display: grid; gap: 13px; margin-top: 20px; }
+.policy-check { display: grid; grid-template-columns: 20px minmax(0,1fr); align-items: start; gap: 12px; margin: 0; padding: 14px 15px; border: 1px solid #e9e5e0; border-radius: 10px; background: #fff; color: #333; cursor: pointer; line-height: 1.5; }
+.policy-check:has(input:checked) { border-color: #d9987f; background: #fffaf7; }
+.policy-check input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--food-red); }
+.policy-check span { min-width: 0; }
+.policy-acceptance-form button { display: inline-flex; min-height: 50px; align-items: center; justify-content: center; gap: 10px; margin-top: 4px; border-radius: 10px; font-weight: 800; }
+.policy-acceptance-form button:disabled { cursor: wait; opacity: .75; }
+.policy-button-spinner { display: inline-block; width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: policy-spin .7s linear infinite; }
+.policy-review-footer { margin: 15px 0 0; color: #777; font-size: 12px; text-align: center; }
+.policy-message { border-radius: 8px; }
+@keyframes policy-spin { to { transform: rotate(360deg); } }
+@media(max-width:600px) { .account-page { padding: 24px 14px 55px; } .policy-review-card { padding: 23px 18px; border-radius: 14px; } .policy-document-links { grid-template-columns: 1fr; gap: 9px; margin-top: 20px; } .policy-check { padding: 13px 12px; gap: 10px; } }

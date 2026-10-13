@@ -97,7 +97,9 @@ function renderNavigationActions(nav, user) {
 }
 
 async function renderCustomerOrdersLink(nav, user) {
-    if (String(user?.role || "").toLowerCase() !== "customer" || typeof apiGet !== "function") return;
+    if (String(user?.role || "").toLowerCase() !== "customer"
+        || user?.policy_acceptance_required
+        || typeof apiGet !== "function") return;
 
     try {
         const result = await apiGet("/orders?limit=1");
