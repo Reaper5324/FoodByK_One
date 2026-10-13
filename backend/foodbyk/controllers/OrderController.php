@@ -55,6 +55,10 @@ class OrderController extends Controller {
         ));
     }
 
+public function staffShow(Request $request, array $params): Response {
+        return $this->respond((new OrderService())->getOrderForStaff((int) $this->param($params, 'id')), 200, 404);
+    }
+
     public function cancel(Request $request, array $params): Response {
         // Customer-initiated - staffId null. See earlier fix: OrderService::cancelOrder()
         // must verify $order->customer_id against this before allowing it.
