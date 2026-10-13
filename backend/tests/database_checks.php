@@ -25,7 +25,12 @@ function expectConstraintViolation(PDO $pdo, callable $operation, string $messag
     try {
         $operation();
     } catch (PDOException $exception) {
-        if (str_starts_with((string) $exception->getCode(), '23')) return;
+        $sqlState = (string) $exception->getCode();
+        $driverCode = (int) ($exception->errorInfo[1] ?? 0);
+
+        // MySQL reports CHECK violations as HY000 / 3819, while MariaDB
+        // reports them as 23000 / 4025. Other integrity violations use 23xxx.
+        if (str_starts_with($sqlState, '23') || in_array($driverCode, [3819, 4025], true)) return;
         throw $exception;
     }
     throw new RuntimeException($message);
