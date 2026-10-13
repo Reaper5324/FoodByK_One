@@ -7,7 +7,9 @@ class AuthController extends Controller {
             (string) $request->input('name', $request->input('full_name', '')),
             (string) $request->input('email', ''),
             (string) $request->input('password', ''),
-            $request->input('phone') === null ? null : (string) $request->input('phone')
+            $request->input('phone') === null ? null : (string) $request->input('phone'),
+            $request->input('terms_accepted') === true,
+            $request->input('privacy_notice_acknowledged') === true
         );
         return $this->respond($result, 201);
     }
@@ -27,6 +29,14 @@ class AuthController extends Controller {
 
     public function updateCustomerProfile(Request $request): Response {
         return $this->respond((new AuthService())->updateCustomerProfile($request->user(), $request->body));
+    }
+
+    public function acceptPolicies(Request $request): Response {
+        return $this->respond((new AuthService())->acceptCurrentPolicies($request->user(), $request->body));
+    }
+
+    public function deleteAccount(Request $request): Response {
+        return $this->respond((new AuthService())->deleteCustomerAccount($request->user(), (string) $request->input('password', '')));
     }
 
     public function requestPasswordReset(Request $request): Response {

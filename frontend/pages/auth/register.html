@@ -62,11 +62,11 @@
                         id="firstName"
                         name="firstName"
                         placeholder="Enter your first name"
+                        autocomplete="given-name"
                         required
                 >
 
             </div>
-
 
             <!-- Last Name -->
 
@@ -81,10 +81,24 @@
                         id="lastName"
                         name="lastName"
                         placeholder="Enter your last name"
+                        autocomplete="family-name"
                         required
                 >
 
             </div>
+
+            <fieldset class="form-group privacy-acceptance">
+                <legend>Before you create your account</legend>
+                <label class="policy-check" for="termsAccepted">
+                    <input type="checkbox" id="termsAccepted" required>
+                    <span>I agree to the <a href="../legal/terms.html" target="_blank" rel="noopener">Terms of Service</a>.</span>
+                </label>
+                <label class="policy-check" for="privacyAcknowledged">
+                    <input type="checkbox" id="privacyAcknowledged" required>
+                    <span>I acknowledge that I have read the <a href="../legal/privacy.html" target="_blank" rel="noopener">Privacy Notice</a>.</span>
+                </label>
+                <p class="policy-help">Cookie preferences are managed separately. Read our <a href="../legal/cookies.html">Cookie Policy</a>.</p>
+            </fieldset>
 
 
             <!-- Email -->
@@ -100,6 +114,7 @@
                         id="email"
                         name="email"
                         placeholder="Enter your email address"
+                        autocomplete="email"
                         required
                 >
 
@@ -114,13 +129,29 @@
                     Password
                 </label>
 
-                <input
+                <div class="password-input-wrap">
+                    <input
                         type="password"
                         id="password"
                         name="password"
                         placeholder="Create a password"
+                        autocomplete="new-password"
+                        minlength="12"
+                        maxlength="128"
+                        aria-describedby="passwordRequirements passwordProgress"
                         required
-                >
+                    >
+                    <button class="password-reveal" type="button" aria-label="Show password" aria-pressed="false" data-password-toggle="password">Show</button>
+                </div>
+                <ul class="password-requirements" id="passwordRequirements">
+                    <li data-password-rule="length">At least 12 characters</li>
+                    <li data-password-rule="lowercase">A lowercase letter</li>
+                    <li data-password-rule="uppercase">An uppercase letter</li>
+                    <li data-password-rule="number">A number</li>
+                    <li data-password-rule="symbol">A symbol</li>
+                    <li data-password-rule="spaces">No spaces</li>
+                </ul>
+                <p class="password-progress" id="passwordProgress" aria-live="polite">Use these checks to create a strong password.</p>
 
             </div>
 
@@ -133,13 +164,19 @@
                     Confirm Password
                 </label>
 
-                <input
+                <div class="password-input-wrap">
+                    <input
                         type="password"
                         id="confirmPassword"
                         name="confirmPassword"
                         placeholder="Confirm your password"
+                        autocomplete="new-password"
+                        aria-describedby="confirmPasswordStatus"
                         required
-                >
+                    >
+                    <button class="password-reveal" type="button" aria-label="Show confirm password" aria-pressed="false" data-password-toggle="confirmPassword">Show</button>
+                </div>
+                <p class="password-match" id="confirmPasswordStatus" aria-live="polite"></p>
 
             </div>
 
@@ -186,6 +223,7 @@
 <!-- Authentication Logic -->
 
 <script src="../../public assets/js/auth.js"></script>
+<script src="../../public assets/js/privacy.js"></script>
 
 </body>
 

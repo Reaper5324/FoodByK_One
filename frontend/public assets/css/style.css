@@ -82,6 +82,84 @@ a {
     text-decoration: none;
 }
 
+/* Draw interface arrows with CSS so iOS never substitutes emoji glyphs. */
+.ui-arrow {
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 1em;
+    height: 1em;
+    color: currentColor;
+    vertical-align: -.12em;
+}
+
+.ui-arrow-right::before {
+    position: absolute;
+    top: 50%;
+    left: .08em;
+    width: .72em;
+    height: 1.5px;
+    background: currentColor;
+    content: "";
+    transform: translateY(-50%);
+}
+
+.ui-arrow-right::after {
+    position: absolute;
+    top: 50%;
+    right: .13em;
+    width: .38em;
+    height: .38em;
+    border-top: 1.5px solid currentColor;
+    border-right: 1.5px solid currentColor;
+    content: "";
+    transform: translateY(-50%) rotate(45deg);
+}
+
+.ui-arrow-up-right::before {
+    position: absolute;
+    top: .05em;
+    right: .08em;
+    width: .64em;
+    height: .64em;
+    border-top: 1.5px solid currentColor;
+    border-right: 1.5px solid currentColor;
+    content: "";
+}
+
+.ui-arrow-up-right::after {
+    position: absolute;
+    top: .47em;
+    left: .05em;
+    width: .76em;
+    height: 1.5px;
+    background: currentColor;
+    content: "";
+    transform: rotate(-45deg);
+}
+
+.ui-arrow-up::before {
+    position: absolute;
+    top: .05em;
+    left: .5em;
+    width: 1.5px;
+    height: .78em;
+    background: currentColor;
+    content: "";
+}
+
+.ui-arrow-up::after {
+    position: absolute;
+    top: .08em;
+    left: .28em;
+    width: .42em;
+    height: .42em;
+    border-top: 1.5px solid currentColor;
+    border-left: 1.5px solid currentColor;
+    content: "";
+    transform: rotate(45deg);
+}
+
 
 /* =========================================
    4. TYPOGRAPHY

@@ -20,6 +20,7 @@ CREATE TABLE users (
     province         VARCHAR(100)  DEFAULT NULL,
     loyalty_points   INT UNSIGNED  NOT NULL DEFAULT 0,
     is_active        TINYINT(1)    NOT NULL DEFAULT 1,
+    deleted_at       DATETIME      DEFAULT NULL,
     created_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles(id),
@@ -219,4 +220,15 @@ CREATE TABLE login_attempts (
     attempted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_attempts_identifier_time (identifier, attempted_at),
     INDEX idx_login_attempts_time (attempted_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE policy_acceptances (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id         INT UNSIGNED NOT NULL,
+    policy_type     ENUM('terms', 'privacy_notice') NOT NULL,
+    policy_version  VARCHAR(30) NOT NULL,
+    accepted_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_policy_acceptances_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    UNIQUE KEY uq_policy_acceptance (user_id, policy_type, policy_version),
+    INDEX idx_policy_acceptance_user (user_id, accepted_at)
 ) ENGINE=InnoDB;

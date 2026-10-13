@@ -66,6 +66,24 @@
 
         </div>
 
+        <section class="account-card policy-review-card" id="policyAcceptanceCard" aria-labelledby="policyAcceptanceHeading" hidden>
+            <div class="policy-review-kicker"><span class="policy-review-icon" aria-hidden="true">✓</span><span>One quick step</span></div>
+            <h2 id="policyAcceptanceHeading">A quick review before you continue</h2>
+            <p class="policy-review-intro">We’ve updated the documents that explain how your account works and how Food by K handles your information. Please review and confirm both choices below.</p>
+            <div class="policy-document-links">
+                <a href="../legal/terms.html" target="_blank" rel="noopener"><span>Terms of Service</span><span class="ui-arrow ui-arrow-up-right" aria-hidden="true"></span></a>
+                <a href="../legal/privacy.html" target="_blank" rel="noopener"><span>Privacy Notice</span><span class="ui-arrow ui-arrow-up-right" aria-hidden="true"></span></a>
+            </div>
+            <div class="policy-choice-note"><span aria-hidden="true">i</span><p>Reading the privacy notice is separate from agreeing to the terms. This does not subscribe you to marketing messages. Cookie settings are managed separately.</p></div>
+            <div id="policyMessage" class="account-message policy-message" role="status" aria-live="polite" hidden></div>
+            <form id="policyAcceptanceForm" class="policy-acceptance-form">
+                <label class="policy-check"><input type="checkbox" id="accountTermsAccepted" required><span>I agree to the <strong>Terms of Service</strong>.</span></label>
+                <label class="policy-check"><input type="checkbox" id="accountPrivacyAcknowledged" required><span>I acknowledge that I have read the <strong>Privacy Notice</strong>.</span></label>
+                <button id="savePolicyChoices" type="submit" class="btn btn-primary">Continue to my account <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
+            </form>
+            <p class="policy-review-footer">Your choices are securely recorded with the versions you reviewed.</p>
+        </section>
+
 
         <!-- =========================================
              ACCOUNT INFORMATION
@@ -180,6 +198,18 @@
                 <div class="form-group"><label for="deliveryPostalCode">Postal code (optional)</label><input id="deliveryPostalCode" type="text" maxlength="20" autocomplete="postal-code"></div>
                 <label class="account-default-option"><input type="checkbox" id="deliveryAddressDefault"> Set as my default address</label>
                 <div class="account-actions"><button id="saveAddressButton" type="submit" class="btn btn-primary">Save address</button><button id="cancelAddressEdit" type="button" class="btn btn-secondary" hidden>Cancel edit</button></div>
+            </form>
+        </section>
+
+        <section class="account-card account-delete-card" aria-labelledby="deleteAccountHeading">
+            <h2 id="deleteAccountHeading">Delete my account</h2>
+            <p>Deletion removes your profile, saved addresses, cart and reusable payment token. Order and payment records that must be retained for business or legal purposes are kept with your identity details removed. Active orders must be resolved first.</p>
+            <div id="deleteAccountMessage" role="status" aria-live="polite" hidden></div>
+            <form id="deleteAccountForm">
+                <label for="deleteAccountPassword">Confirm your password</label>
+                <input id="deleteAccountPassword" type="password" autocomplete="current-password" required>
+                <label><input id="confirmAccountDeletion" type="checkbox" required> I understand this action cannot be undone.</label>
+                <button type="submit" class="btn btn-danger">Delete my account</button>
             </form>
         </section>
 
@@ -303,6 +333,7 @@
 <script src="../../public assets/js/auth.js"></script>
 <script src="../../public%20assets/js/account.js"></script>
 
+<script src="../../public assets/js/privacy.js"></script>
 </body>
 
 </html>

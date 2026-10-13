@@ -19,6 +19,8 @@ function registerRoutes(Router $router): void {
     $router->post('/assistant/ask', [AssistantController::class, 'ask'], [new RateLimitMiddleware('assistant', 10, 300)]);
 
     $customer = [new AuthMiddleware(), RoleMiddleware::customer(), new CsrfMiddleware()];
+    $customerProtected = [new AuthMiddleware(), RoleMiddleware::customer(), new CsrfMiddleware(), new CustomerPolicyMiddleware()];
+    $customerReadProtected = [new AuthMiddleware(), RoleMiddleware::customer(), new CustomerPolicyMiddleware()];
     $staff = [new AuthMiddleware(), RoleMiddleware::staffOrAdmin(), new CsrfMiddleware()];
     $admin = [new AuthMiddleware(), RoleMiddleware::admin(), new CsrfMiddleware()];
 
@@ -26,23 +28,25 @@ function registerRoutes(Router $router): void {
     $router->post('/auth/logout', [AuthController::class, 'logout'], $authenticated);
     $router->get('/auth/me', [AuthController::class, 'me'], [new AuthMiddleware(), new CsrfMiddleware()]);
     $router->put('/account/profile', [AuthController::class, 'updateCustomerProfile'], $customer);
+    $router->post('/account/policies', [AuthController::class, 'acceptPolicies'], $customer);
+    $router->delete('/account', [AuthController::class, 'deleteAccount'], $customer);
     $router->post('/auth/change-password', [AuthController::class, 'changePassword'], $authenticated);
 
-    $router->post('/cart/items', [CartController::class, 'add'], $customer);
-    $router->get('/cart', [CartController::class, 'view'], [new AuthMiddleware(), RoleMiddleware::customer(), new CsrfMiddleware()]);
-    $router->put('/cart/items/{id}', [CartController::class, 'updateQuantity'], $customer);
-    $router->delete('/cart/items/{id}', [CartController::class, 'removeItem'], $customer);
-    $router->delete('/cart', [CartController::class, 'clear'], $customer);
+    $router->post('/cart/items', [CartController::class, 'add'], $customerProtected);
+    $router->get('/cart', [CartController::class, 'view'], $customerReadProtected);
+    $router->put('/cart/items/{id}', [CartController::class, 'updateQuantity'], $customerProtected);
+    $router->delete('/cart/items/{id}', [CartController::class, 'removeItem'], $customerProtected);
+    $router->delete('/cart', [CartController::class, 'clear'], $customerProtected);
 
-    $router->post('/checkout/preview', [CheckoutController::class, 'preview'], $customer);
-    $router->get('/checkout/slots', [CheckoutController::class, 'slots'], [new AuthMiddleware(), RoleMiddleware::customer()]);
-    $router->post('/checkout/submit', [CheckoutController::class, 'submit'], $customer);
+    $router->post('/checkout/preview', [CheckoutController::class, 'preview'], $customerProtected);
+    $router->get('/checkout/slots', [CheckoutController::class, 'slots'], $customerReadProtected);
+    $router->post('/checkout/submit', [CheckoutController::class, 'submit'], $customerProtected);
 
-    $router->get('/addresses', [AddressController::class, 'index'], [new AuthMiddleware(), RoleMiddleware::customer()]);
-    $router->post('/addresses', [AddressController::class, 'create'], $customer);
-    $router->put('/addresses/{id}', [AddressController::class, 'update'], $customer);
-    $router->delete('/addresses/{id}', [AddressController::class, 'remove'], $customer);
-    $router->post('/addresses/{id}/default', [AddressController::class, 'setDefault'], $customer);
+    $router->get('/addresses', [AddressController::class, 'index'], $customerReadProtected);
+    $router->post('/addresses', [AddressController::class, 'create'], $customerProtected);
+    $router->put('/addresses/{id}', [AddressController::class, 'update'], $customerProtected);
+    $router->delete('/addresses/{id}', [AddressController::class, 'remove'], $customerProtected);
+    $router->post('/addresses/{id}/default', [AddressController::class, 'setDefault'], $customerProtected);
 
     $router->post('/payments/token-webhook', [PaymentController::class, 'tokenWebhook']);
     $router->post('/payments/charge-webhook', [PaymentController::class, 'chargeWebhook']);
@@ -59,9 +63,9 @@ function registerRoutes(Router $router): void {
     $router->post('/staff/orders/{id}/decline', [OrderController::class, 'decline'], $staff);
     $router->post('/staff/orders/{id}/advance', [OrderController::class, 'advance'], $staff);
 $router->get('/staff/orders/{id}', [OrderController::class, 'staffShow'], $staff);
-    $router->get('/orders', [OrderController::class, 'index'], [new AuthMiddleware(), RoleMiddleware::customer()]);
-    $router->get('/orders/{id}', [OrderController::class, 'show'], [new AuthMiddleware(), RoleMiddleware::customer()]);
-    $router->post('/orders/{id}/cancel', [OrderController::class, 'cancel'], $customer);
+    $router->get('/orders', [OrderController::class, 'index'], $customerReadProtected);
+    $router->get('/orders/{id}', [OrderController::class, 'show'], $customerReadProtected);
+    $router->post('/orders/{id}/cancel', [OrderController::class, 'cancel'], $customerProtected);
 
     $router->get('/admin/analytics', [AnalyticsController::class, 'adminSummary'], [new AuthMiddleware(), RoleMiddleware::admin()]);
     $router->get('/admin/staff', [AdminController::class, 'staff'], [new AuthMiddleware(), RoleMiddleware::admin()]);

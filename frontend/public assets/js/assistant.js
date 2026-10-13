@@ -5,12 +5,12 @@
     root.className = "foodbyk-assistant";
     root.dataset.foodbykAssistant = "true";
     root.innerHTML = `
-        <section class="foodbyk-assistant-panel" id="foodByKAssistantPanel" role="dialog" aria-modal="false" aria-labelledby="foodByKAssistantTitle" hidden>
+        <section class="foodbyk-assistant-panel" id="foodByKAssistantPanel" role="dialog" aria-modal="true" aria-labelledby="foodByKAssistantTitle" hidden>
             <header class="foodbyk-assistant-header">
-                <div><p class="foodbyk-assistant-kicker">FOOD BY K</p><h2 id="foodByKAssistantTitle">A little help?</h2></div>
+                <div><p class="foodbyk-assistant-kicker">FOOD BY K</p><h2 id="foodByKAssistantTitle">What can I help you find?</h2></div>
                 <button class="foodbyk-assistant-close" type="button" aria-label="Close assistant">×</button>
             </header>
-            <p class="foodbyk-assistant-intro">Ask about our menu or general Food by K FAQs. For orders, payments, or delivery questions, contact our team. Please don't share personal details.</p>
+            <p class="foodbyk-assistant-intro">Looking for something tasty or have a question about Food by K? Ask away. For help with an order or payment, our team can help directly. Please keep personal details out of this chat.</p>
             <div class="foodbyk-assistant-prompts" aria-label="Suggested questions">
                 <button type="button">What is on the menu?</button>
                 <button type="button">Where are you located?</button>
@@ -19,7 +19,7 @@
             <div class="foodbyk-assistant-messages" aria-live="polite" aria-relevant="additions"></div>
             <form class="foodbyk-assistant-form">
                 <label class="foodbyk-assistant-label" for="foodByKAssistantQuestion">Your question</label>
-                <textarea id="foodByKAssistantQuestion" maxlength="500" rows="2" placeholder="Ask about the menu or FAQs" required></textarea>
+                <textarea id="foodByKAssistantQuestion" maxlength="500" rows="2" placeholder="Ask me anything about the menu or FAQs" required></textarea>
                 <div class="foodbyk-assistant-form-footer">
                     <small>Menu and general FAQs only</small>
                     <button class="foodbyk-assistant-send" type="submit">Ask</button>
@@ -27,7 +27,7 @@
             </form>
             <div class="foodbyk-assistant-links">
                 <a href="/src/index.html#contact">Contact the team</a>
-                <a href="/pages/customer/menu.html">Browse the menu <span aria-hidden="true">→</span></a>
+                <a href="/pages/customer/menu.html">Browse the menu <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></a>
             </div>
         </section>
         <button class="foodbyk-assistant-launcher" type="button" aria-controls="foodByKAssistantPanel" aria-expanded="false">
@@ -45,8 +45,9 @@
 
     function setOpen(open) {
         panel.hidden = !open;
+        root.classList.toggle("is-open", open);
         launcher.setAttribute("aria-expanded", String(open));
-        if (open) input.focus();
+        if (open) close.focus();
         else launcher.focus();
     }
 
@@ -65,18 +66,20 @@
         }
         messages.appendChild(message);
         messages.scrollTop = messages.scrollHeight;
+        message.scrollIntoView({ block: "nearest" });
         return message;
     }
 
     async function ask(question) {
         const cleaned = String(question || "").trim();
         if (!cleaned || cleaned.length > 500 || sendButton.disabled) return;
+        root.classList.add("has-conversation");
         addMessage(cleaned, "customer");
         input.value = "";
         input.disabled = true;
         sendButton.disabled = true;
         sendButton.textContent = "…";
-        const pending = addMessage("Checking the menu and FAQs…", "assistant is-pending");
+        const pending = addMessage("One moment, I’m checking the menu and FAQs for you…", "assistant is-pending");
 
         try {
             const result = await apiPost("/assistant/ask", { question: cleaned });
@@ -99,6 +102,9 @@
 
     launcher.addEventListener("click", () => setOpen(true));
     close.addEventListener("click", () => setOpen(false));
+    root.addEventListener("click", (event) => {
+        if (event.target === root && !panel.hidden) setOpen(false);
+    });
     form.addEventListener("submit", (event) => {
         event.preventDefault();
         ask(input.value);
@@ -107,6 +113,23 @@
         button.addEventListener("click", () => ask(button.textContent));
     });
     document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && !panel.hidden) setOpen(false);
+        if (panel.hidden) return;
+        if (event.key === "Escape") {
+            setOpen(false);
+            return;
+        }
+        if (event.key !== "Tab") return;
+
+        const focusable = [...panel.querySelectorAll("button, textarea, a[href]")]
+            .filter((element) => !element.disabled && element.getClientRects().length > 0);
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+        }
     });
 })();

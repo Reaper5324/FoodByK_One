@@ -35,7 +35,7 @@ async function updateCustomerNavigation() {
             const result = await getCurrentUser();
             if (result?.success && result.data) {
                 user = result.data;
-                localStorage.setItem("foodByKUser", JSON.stringify(user));
+                localStorage.setItem("foodByKUser", JSON.stringify({ id: user.id, role: user.role }));
             } else if (result?.status === 0) {
                 user = getStoredUser();
             } else {
@@ -97,7 +97,9 @@ function renderNavigationActions(nav, user) {
 }
 
 async function renderCustomerOrdersLink(nav, user) {
-    if (String(user?.role || "").toLowerCase() !== "customer" || typeof apiGet !== "function") return;
+    if (String(user?.role || "").toLowerCase() !== "customer"
+        || user?.policy_acceptance_required
+        || typeof apiGet !== "function") return;
 
     try {
         const result = await apiGet("/orders?limit=1");

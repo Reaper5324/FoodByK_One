@@ -17,6 +17,18 @@ const CSRF_EXEMPT_ENDPOINTS = [
 
 const SESSION_TOKEN_KEY = "foodByKSessionToken";
 
+// Remove the former persistent credential and discard cached profile fields
+// from older releases immediately on page load.
+try {
+    localStorage.removeItem(SESSION_TOKEN_KEY);
+    const cachedUser = JSON.parse(localStorage.getItem("foodByKUser") || "null");
+    if (cachedUser && cachedUser.id && cachedUser.role) {
+        localStorage.setItem("foodByKUser", JSON.stringify({ id: cachedUser.id, role: cachedUser.role }));
+    } else {
+        localStorage.removeItem("foodByKUser");
+    }
+} catch (_) {}
+
 let csrfTokenRequest = null;
 
 async function ensureCsrfToken() {
@@ -51,16 +63,16 @@ async function ensureCsrfToken() {
 // this header lets the backend resume the session directly instead of
 // depending on the cookie arriving at all - see bootstrap.php.
 function buildSessionHeaders() {
-    const token = localStorage.getItem(SESSION_TOKEN_KEY);
+    const token = sessionStorage.getItem(SESSION_TOKEN_KEY);
     return token ? { "X-Session-Token": token } : {};
 }
 
 function storeSessionToken(token) {
-    if (token) localStorage.setItem(SESSION_TOKEN_KEY, token);
+    if (token) sessionStorage.setItem(SESSION_TOKEN_KEY, token);
 }
 
 function clearSessionToken() {
-    localStorage.removeItem(SESSION_TOKEN_KEY);
+    sessionStorage.removeItem(SESSION_TOKEN_KEY);
 }
 
 
@@ -235,6 +247,14 @@ async function apiRequest(endpoint, options = {}) {
             };
         }
 
+        if (response.status === 428 && result?.data?.policy_acceptance_required) {
+            const accountPath = "/pages/auth/account.html";
+            if (!window.location.pathname.endsWith(accountPath)) {
+                window.location.assign(`${accountPath}?review-policies=1`);
+            }
+            return { success: false, data: result.data, error: result.error, status: 428 };
+        }
+
 
         /* -----------------------------------------
            Handle server errors
@@ -336,9 +356,10 @@ async function apiPut(endpoint, data) {
 }
 
 
-async function apiDelete(endpoint) {
+async function apiDelete(endpoint, data = undefined) {
 
     return apiRequest(endpoint, {
-        method: "DELETE"
+        method: "DELETE",
+        ...(data === undefined ? {} : { body: JSON.stringify(data) })
     });
 }

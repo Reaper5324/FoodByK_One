@@ -19,20 +19,31 @@ logger = logging.getLogger("foodbyk-rag")
 app = FastAPI(title="Food by K Customer FAQ", docs_url=None, redoc_url=None)
 
 TRANSACTIONAL_PATTERN = re.compile(
-    r"\b(orders?|payment|payfast|refund|charge|charged|card|checkout|"
-    r"delivery|deliver|collection|collect|cancel|tracking|track|status|"
-    r"time slot|delivery fee|account|my details)\b",
+    r"\b(payment|payfast|refund|charge|charged|card|checkout|"
+    r"collection|collect|tracking|track|status|time slot|delivery fee|"
+    r"delivery area|delivery availability|delivery eligibility|delivery time|"
+    r"account|my details)\b|"
+    r"\b(my|the)\s+orders?\b|\borders?\s+(status|tracking|update|progress|history|number)\b|"
+    r"\b(where is|track|cancel|change|check)\s+(my|the)\s+orders?\b|"
+    r"\b(do you deliver|deliver to (me|my|this)|is delivery available)\b|"
+    r"\b(how do|how can) i (place|submit|make) an? order\b",
     re.IGNORECASE,
 )
 PRODUCT_PATTERN = re.compile(
     r"\b(menu|menus|food|product|products|item|items|price|prices|cost|"
     r"sell|serve|offer|offers|burger|kota|fries|wings|chicken|chips|drink|platter|"
-    r"ingredients?|allergens?|contains?|how much)\b",
+    r"ingredients?|allergens?|contains?|how much|recommend(?:ation|ed)?|suggest(?:ion|ed)?|"
+    r"filling|hearty|satisfying|hungry|meal|something to eat|good to eat|cheap|cheapest|affordable|budget)\b|"
+    r"\bwhat (?:would you|do you) recommend\b|"
+    r"\bwhat(?:'s| is) good\b|\bwhat should i (?:get|try|eat)\b|"
+    r"\b(?:i am|i'm|im) (?:hungry|starving)\b|\blooking for something to eat\b",
     re.IGNORECASE,
 )
 POLICY_PATTERN = re.compile(
-    r"\b(open|opening|hours|close|closing|location|located|address|contact|"
-    r"phone|whatsapp|instagram|about|business|restaurant|shop|reach)\b|where are you|where is the shop",
+    r"\b(open|opening|hours?|close[sd]?|closing|trading|location|located|address|contact|"
+    r"phone|whatsapp|instagram|facebook|tiktok|about|business|restaurant|shop|reach)\b|"
+    r"\b(what time|which days|when do you open|when do you close|what times do they close)\b|"
+    r"where are you|where is the shop",
     re.IGNORECASE,
 )
 PERSONAL_DATA_PATTERN = re.compile(
@@ -41,6 +52,22 @@ PERSONAL_DATA_PATTERN = re.compile(
     r"\b\d{13,19}\b|\b(?:my|home|delivery)\s+address\b|"
     r"\b\d{1,5}\s+[A-Z0-9.'-]+\s+(?:street|st|road|rd|avenue|ave|drive|dr|lane|ln|close|crescent|way)\b",
     re.IGNORECASE,
+)
+CAPABILITY_PATTERN = re.compile(
+    r"\bwhat\s+(?:can|do)\s+(?:you|this assistant|the assistant)\s+(?:answer|help with|know)\b|"
+    r"\bwhat questions?\s+(?:can|should)\s+(?:i|we)\s+ask\b|"
+    r"\bwhat can\s+(?:i|we)\s+ask(?:\s+about)?\b|"
+    r"\bhow can\s+(?:you|this assistant|the assistant)\s+help\b|"
+    r"\bwhat do\s+(?:you|this assistant|the assistant)\s+know\b|"
+    r"\bwhat can (?:you|u) help (?:me )?with\b|\bwhat are you able to help with\b",
+    re.IGNORECASE,
+)
+CAPABILITY_REPLY = (
+    "I can answer questions about the current menu, including item descriptions, "
+    "prices and availability, suggest a meal based on its description, and share "
+    "Food by K's published hours, location and contact details. I can't check or "
+    "change orders, payments, delivery or collection decisions, or customer accounts. "
+    "Try asking: ‘What can I get for a filling meal?’ or ‘What time do you close?’"
 )
 TRANSACTIONAL_REPLY = (
     "I can help with Food by K's menu and approved general FAQs. "
@@ -96,6 +123,9 @@ def ask(
     if PERSONAL_DATA_PATTERN.search(question):
         return {"answer": PRIVACY_REPLY, "sources": []}
 
+    if CAPABILITY_PATTERN.search(question):
+        return {"answer": CAPABILITY_REPLY, "sources": []}
+
     if TRANSACTIONAL_PATTERN.search(question):
         return {"answer": TRANSACTIONAL_REPLY, "sources": []}
 
@@ -115,7 +145,11 @@ def ask(
             text, metadata = product_to_document(product)
             chunks.append({"text": text, **metadata})
 
-    if is_policy_question:
+    # Natural customer phrasing may not match a fixed policy keyword. Run
+    # lightweight document retrieval for other non-transactional questions;
+    # the model still receives only retrieved approved context and may not
+    # make unsupported claims.
+    if is_policy_question or not is_product_question:
         chunks.extend(retrieve(question))
 
     if not chunks:

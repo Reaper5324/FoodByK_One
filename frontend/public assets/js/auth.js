@@ -109,6 +109,11 @@ if (loginForm) {
                     return;
                 }
 
+                if (userResult.data?.policy_acceptance_required) {
+                    window.location.href = "account.html?review-policies=1";
+                    return;
+                }
+
 
                 /* ---------- Store User Information ---------- */
 
@@ -117,7 +122,7 @@ if (loginForm) {
 
                 localStorage.setItem(
                     "foodByKUser",
-                    JSON.stringify(user)
+                    JSON.stringify({ id: user.id, role: user.role })
                 );
 
 
@@ -200,6 +205,67 @@ const registerForm =
     document.getElementById("registerForm");
 
 if (registerForm) {
+
+    const passwordInput = document.getElementById("password");
+    const confirmPasswordInput = document.getElementById("confirmPassword");
+    const passwordProgress = document.getElementById("passwordProgress");
+    const confirmPasswordStatus = document.getElementById("confirmPasswordStatus");
+    const passwordRuleElements = [...registerForm.querySelectorAll("[data-password-rule]")];
+
+    function updatePasswordGuidance() {
+        if (!passwordInput) return;
+        const value = passwordInput.value;
+        const rules = {
+            length: value.length >= 12 && value.length <= 128,
+            lowercase: /[a-z]/.test(value),
+            uppercase: /[A-Z]/.test(value),
+            number: /\d/.test(value),
+            symbol: /[^A-Za-z0-9]/.test(value),
+            spaces: value.length > 0 && !/\s/.test(value),
+        };
+        let met = 0;
+        passwordRuleElements.forEach((element) => {
+            const satisfied = rules[element.dataset.passwordRule] === true;
+            element.classList.toggle("is-met", satisfied);
+            if (satisfied) met += 1;
+        });
+        if (passwordProgress) {
+            passwordProgress.textContent = value
+                ? `${met} of ${passwordRuleElements.length} password checks complete.`
+                : "Use these checks to create a strong password.";
+        }
+        updatePasswordMatch();
+    }
+
+    function updatePasswordMatch() {
+        if (!confirmPasswordInput || !confirmPasswordStatus) return;
+        const confirmation = confirmPasswordInput.value;
+        const password = passwordInput?.value || "";
+        confirmPasswordStatus.classList.remove("is-matched", "is-unmatched");
+        if (!confirmation) {
+            confirmPasswordStatus.textContent = "";
+        } else if (confirmation === password) {
+            confirmPasswordStatus.textContent = "Passwords match.";
+            confirmPasswordStatus.classList.add("is-matched");
+        } else {
+            confirmPasswordStatus.textContent = "Passwords do not match yet.";
+            confirmPasswordStatus.classList.add("is-unmatched");
+        }
+    }
+
+    passwordInput?.addEventListener("input", updatePasswordGuidance);
+    confirmPasswordInput?.addEventListener("input", updatePasswordMatch);
+    registerForm.querySelectorAll("[data-password-toggle]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const input = document.getElementById(button.dataset.passwordToggle);
+            if (!input) return;
+            const reveal = input.type === "password";
+            input.type = reveal ? "text" : "password";
+            button.textContent = reveal ? "Hide" : "Show";
+            button.setAttribute("aria-label", `${reveal ? "Hide" : "Show"} ${input.id === "confirmPassword" ? "confirm password" : "password"}`);
+            button.setAttribute("aria-pressed", String(reveal));
+        });
+    });
 
     registerForm.addEventListener(
         "submit",
@@ -323,7 +389,9 @@ if (registerForm) {
                         email,
 
                     password:
-                        password
+                        password,
+                    terms_accepted: document.getElementById("termsAccepted")?.checked === true,
+                    privacy_notice_acknowledged: document.getElementById("privacyAcknowledged")?.checked === true
 
                 };
 
@@ -339,7 +407,7 @@ if (registerForm) {
 
                     localStorage.setItem(
                         "foodByKUser",
-                        JSON.stringify(result.data)
+                        JSON.stringify({ id: result.data.id, role: result.data.role })
                     );
 
 
