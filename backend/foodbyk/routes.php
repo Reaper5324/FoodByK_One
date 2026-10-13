@@ -57,6 +57,7 @@ function registerRoutes(Router $router): void {
     $router->post('/staff/orders/{id}/confirm', [OrderController::class, 'confirm'], $staff);
     $router->post('/staff/orders/{id}/decline', [OrderController::class, 'decline'], $staff);
     $router->post('/staff/orders/{id}/advance', [OrderController::class, 'advance'], $staff);
+$router->get('/staff/orders/{id}', [OrderController::class, 'staffShow'], $staff);
     $router->get('/orders', [OrderController::class, 'index'], [new AuthMiddleware(), RoleMiddleware::customer()]);
     $router->get('/orders/{id}', [OrderController::class, 'show'], [new AuthMiddleware(), RoleMiddleware::customer()]);
     $router->post('/orders/{id}/cancel', [OrderController::class, 'cancel'], $customer);
