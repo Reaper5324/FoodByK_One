@@ -19,20 +19,29 @@ logger = logging.getLogger("foodbyk-rag")
 app = FastAPI(title="Food by K Customer FAQ", docs_url=None, redoc_url=None)
 
 TRANSACTIONAL_PATTERN = re.compile(
-    r"\b(orders?|payment|payfast|refund|charge|charged|card|checkout|"
-    r"delivery|deliver|collection|collect|cancel|tracking|track|status|"
-    r"time slot|delivery fee|account|my details)\b",
+    r"\b(payment|payfast|refund|charge|charged|card|checkout|"
+    r"collection|collect|tracking|track|status|time slot|delivery fee|"
+    r"delivery area|delivery availability|delivery eligibility|delivery time|"
+    r"account|my details)\b|"
+    r"\b(my|the)\s+orders?\b|\borders?\s+(status|tracking|update|progress|history|number)\b|"
+    r"\b(where is|track|cancel|change|check)\s+(my|the)\s+orders?\b|"
+    r"\b(do you deliver|deliver to (me|my|this)|is delivery available)\b|"
+    r"\b(how do|how can) i (place|submit|make) an? order\b",
     re.IGNORECASE,
 )
 PRODUCT_PATTERN = re.compile(
     r"\b(menu|menus|food|product|products|item|items|price|prices|cost|"
     r"sell|serve|offer|offers|burger|kota|fries|wings|chicken|chips|drink|platter|"
-    r"ingredients?|allergens?|contains?|how much)\b",
+    r"ingredients?|allergens?|contains?|how much|recommend(?:ation|ed)?|suggest(?:ion|ed)?|"
+    r"filling|hearty|satisfying|hungry|meal|something to eat)\b|"
+    r"\bwhat (?:would you|do you) recommend\b",
     re.IGNORECASE,
 )
 POLICY_PATTERN = re.compile(
-    r"\b(open|opening|hours|close|closing|location|located|address|contact|"
-    r"phone|whatsapp|instagram|about|business|restaurant|shop|reach)\b|where are you|where is the shop",
+    r"\b(open|opening|hours?|close[sd]?|closing|trading|location|located|address|contact|"
+    r"phone|whatsapp|instagram|facebook|tiktok|about|business|restaurant|shop|reach)\b|"
+    r"\b(what time|which days|when do you open|when do you close|what times do they close)\b|"
+    r"where are you|where is the shop",
     re.IGNORECASE,
 )
 PERSONAL_DATA_PATTERN = re.compile(

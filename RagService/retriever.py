@@ -42,8 +42,9 @@ def retrieve(question: str, n_results: int = 3) -> list[dict]:
     chunks = []
     for text, metadata, distance in zip(documents, metadatas, distances):
         metadata = metadata or {}
-        # Avoid sending weakly related policy text to the language model.
-        if distance is not None and float(distance) > 1.25:
+        # Keep a wider candidate range for natural-language paraphrases. The
+        # model still has to ground every answer in the retrieved source text.
+        if distance is not None and float(distance) > 1.6:
             continue
         chunks.append({
             "text": str(text)[:700],

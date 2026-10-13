@@ -10,8 +10,9 @@ the backend proxies requests to this service.
 - Current product name, description, category, price, and public availability
   are fetched from Food by K's public PHP API. The short in-memory cache lasts
   30 seconds. Product data is not stored in Chroma.
-- Chroma contains only policy/FAQ documents from `documents/` (`.pdf`, `.md`,
-  and `.txt`). Add only business-approved customer information.
+- Chroma contains public FAQ documents from `documents/` (`.pdf`, `.md`, and
+  `.txt`). Keep them grounded in Food by K's own public statements; flag
+  third-party sources and never use them for dynamic menu or policy decisions.
 - If no relevant source is found, the service returns a fixed fallback without
   calling the language model. Responses are limited to 260 generated tokens.
 - Email addresses, phone numbers, card-like number sequences, and explicit
@@ -19,9 +20,10 @@ the backend proxies requests to this service.
 - Orders, payments, refunds, delivery, collection, and account requests receive
   a deterministic handoff response without a model call.
 
-`documents/customer_faq_draft.md` is explicitly marked **not approved** and is
-provided for retrieval testing. Replace or approve its content before using it
-as a production FAQ source.
+`documents/foodbyk_public_faq.md` contains public facts from the customer
+website and citations for corroborating online references. Recheck those facts
+when the website changes. The live menu API remains authoritative for menu
+details and prices.
 
 ## Configuration
 
