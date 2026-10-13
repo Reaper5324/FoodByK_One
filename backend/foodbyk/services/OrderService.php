@@ -507,6 +507,33 @@ class OrderService {
         return $result;
     }
 
+public function getOrderForStaff(int $orderId): array {
+        $order = Order::findById($orderId);
+        if (!$order) {
+            return $this->failure('Order not found.');
+        }
+
+        $items = $order->getItems();
+        $productService = new ProductService();
+        foreach ($items as $item) {
+            $product = Product::findById($item->product_id);
+            if ($product !== null) {
+                if (trim($item->product_name) === '') $item->product_name = $product->name;
+                $item->image_url = $productService->imageUrlForOrderItem($product);
+            }
+        }
+
+        return $this->success([
+            'order'    => $order,
+            'items'    => $items,
+            'payment'  => $order->getPayment(),
+            'address'  => $order->getAddress(),
+            'customer' => $order->getCustomer(),
+            'history'  => OrderStatusHistory::findBy('order_id', $orderId),
+            'total'    => $order->total(), // computed - won't serialize on its own, Order::total() is a method not a property
+        ]);
+    }
+
     private function success(mixed $data): array {
         return ['success' => true, 'data' => $data, 'error' => null];
     }
