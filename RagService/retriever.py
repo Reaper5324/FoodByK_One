@@ -21,7 +21,7 @@ def retrieve(question: str, n_results: int = 3) -> list[dict]:
 
     try:
         collection = client.get_collection(name=collection_name)
-        count = collection.count(where={"doc_type": "policy"})
+        count = collection.count()
         if count == 0:
             return []
 
