@@ -1,5 +1,7 @@
 <?php
 
+//Review Login and Register
+//Manual session header retrieval and IOS login problem
 class AuthService {
 
     public function listStaffAccounts(): array {
