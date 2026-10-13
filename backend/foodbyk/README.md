@@ -223,3 +223,14 @@ the frontend API URL, and verify production credentials and callback URLs.
 Customer order tracking polls for updates while the page is open. The
 frontend uses loading skeletons during asynchronous data requests and should
 retain accessible loading/status announcements and reduced-motion behavior.
+
+## Customer FAQ assistant
+
+The customer FAQ widget calls `POST /assistant/ask` through this PHP API. The
+backend checks the browser origin, enforces a per-IP limit of 10 questions per
+five minutes, then proxies to the RAG service. Configure `RAG_SERVICE_URL` and
+`RAG_SERVICE_API_KEY` on the backend; set the same API key and
+`FOODBYK_API_URL` on the RAG Railway service. Never expose the key in frontend
+configuration. See `RagService/README.md` for deployment and knowledge document
+ingestion instructions. The bundled FAQ is draft test content and needs
+business approval before it is treated as an authoritative policy source.

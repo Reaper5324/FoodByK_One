@@ -16,6 +16,7 @@ function registerRoutes(Router $router): void {
     $router->get('/categories/{id}/products', [CategoryController::class, 'products']);
     $router->get('/products/category/{id}', [ProductController::class, 'byCategory']);
     $router->get('/promotions/active', [PromotionController::class, 'active']);
+    $router->post('/assistant/ask', [AssistantController::class, 'ask'], [new RateLimitMiddleware('assistant', 10, 300)]);
 
     $customer = [new AuthMiddleware(), RoleMiddleware::customer(), new CsrfMiddleware()];
     $staff = [new AuthMiddleware(), RoleMiddleware::staffOrAdmin(), new CsrfMiddleware()];

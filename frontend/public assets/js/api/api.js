@@ -11,7 +11,8 @@ const CSRF_EXEMPT_ENDPOINTS = [
     "/auth/login",
     "/auth/register",
     "/auth/forgot-password",
-    "/auth/reset-password"
+    "/auth/reset-password",
+    "/assistant/ask"
 ];
 
 const SESSION_TOKEN_KEY = "foodByKSessionToken";

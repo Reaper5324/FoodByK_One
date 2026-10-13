@@ -1,7 +1,27 @@
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", updateCustomerNavigation, { once: true });
+    document.addEventListener("DOMContentLoaded", () => {
+        updateCustomerNavigation();
+        installFoodByKAssistant();
+    }, { once: true });
 } else {
     updateCustomerNavigation();
+    installFoodByKAssistant();
+}
+
+function installFoodByKAssistant() {
+    if (!document.querySelector(".navbar") || document.querySelector("[data-foodbyk-assistant]")) return;
+    const navigationScript = document.querySelector('script[src*="navigation.js"]');
+    if (!navigationScript?.src) return;
+
+    const stylesheet = document.createElement("link");
+    stylesheet.rel = "stylesheet";
+    stylesheet.href = new URL("../css/assistant.css", navigationScript.src).href;
+    document.head.appendChild(stylesheet);
+
+    const script = document.createElement("script");
+    script.src = new URL("assistant.js", navigationScript.src).href;
+    script.defer = true;
+    document.body.appendChild(script);
 }
 
 async function updateCustomerNavigation() {

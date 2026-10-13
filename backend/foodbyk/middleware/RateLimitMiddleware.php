@@ -6,7 +6,7 @@ class RateLimitMiddleware implements Middleware {
         private int $maxAttempts = 5,
         private int $windowSeconds = 300
     ) {
-        if (!in_array($this->scope, ['login', 'reset', 'request'], true)
+        if (!in_array($this->scope, ['login', 'reset', 'request', 'assistant'], true)
             || $this->maxAttempts < 1 || $this->windowSeconds < 1) {
             throw new InvalidArgumentException('Invalid rate-limit configuration.');
         }
@@ -28,7 +28,7 @@ class RateLimitMiddleware implements Middleware {
         }
 
         // Password-reset email requests are limited as requests to prevent email abuse.
-        if ($this->scope === 'request') {
+        if (in_array($this->scope, ['request', 'assistant'], true)) {
             self::storeKeys($db, $keys);
         }
         return null;
@@ -51,6 +51,7 @@ class RateLimitMiddleware implements Middleware {
         $ip = self::clientIp();
         if ($this->scope === 'reset') return ['reset:ip:' . $ip];
         if ($this->scope === 'request') return ['request:ip:' . $ip];
+        if ($this->scope === 'assistant') return ['assistant:ip:' . $ip];
 
         $email = strtolower(trim((string) $request->input('email', '')));
         $keys = ['login:ip:' . $ip];

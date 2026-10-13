@@ -20,6 +20,8 @@ define('PAYFAST_NOTIFY_URL', getenv('PAYFAST_NOTIFY_URL') ?: '');
 define('PAYFAST_SANDBOX', getenv('PAYFAST_SANDBOX') ?: '');
 define('PAYFAST_PASSPHRASE', getenv('PAYFAST_PASSPHRASE') ?: '');
 define('FRONTEND_URL', getenv('FRONTEND_URL') ?: '');
+define('RAG_SERVICE_URL', rtrim(getenv('RAG_SERVICE_URL') ?: '', '/'));
+define('RAG_SERVICE_API_KEY', getenv('RAG_SERVICE_API_KEY') ?: '');
 define('RESEND_API_KEY', getenv('RESEND_API_KEY') ?: '');
 define('RESEND_FROM_EMAIL', getenv('RESEND_FROM_EMAIL') ?: 'Food by K <onboarding@resend.dev>');
 define('TWILIO_SID', getenv('TWILIO_SID') ?: '');

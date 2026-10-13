@@ -1,0 +1,294 @@
+.foodbyk-assistant {
+    --assistant-red: #d71920;
+    --assistant-ink: #171717;
+    --assistant-muted: #565656;
+    --assistant-border: #dedbd7;
+    position: fixed;
+    z-index: 1200;
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    font-family: inherit;
+}
+
+.foodbyk-assistant button,
+.foodbyk-assistant textarea {
+    font: inherit;
+}
+
+.foodbyk-assistant-launcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 54px;
+    padding: 8px 18px 8px 9px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--assistant-ink);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 8px 28px rgb(0 0 0 / 24%);
+    cursor: pointer;
+    transition: background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.foodbyk-assistant-launcher:hover {
+    background: var(--assistant-red);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 28%);
+    transform: translateY(-2px);
+}
+
+.foodbyk-assistant-launcher:focus-visible,
+.foodbyk-assistant button:focus-visible,
+.foodbyk-assistant textarea:focus-visible,
+.foodbyk-assistant a:focus-visible {
+    outline: 3px solid #ffc928;
+    outline-offset: 3px;
+}
+
+.foodbyk-assistant-launcher-mark {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--assistant-red);
+    color: #fff;
+    font-family: Georgia, serif;
+    font-size: 21px;
+}
+
+.foodbyk-assistant-panel {
+    position: absolute;
+    right: 0;
+    bottom: 68px;
+    display: flex;
+    flex-direction: column;
+    width: min(390px, calc(100vw - 28px));
+    max-height: min(620px, calc(100dvh - 110px));
+    padding: 20px;
+    overflow: hidden;
+    border: 1px solid var(--assistant-border);
+    border-radius: 18px;
+    background: #fff;
+    color: var(--assistant-ink);
+    box-shadow: 0 18px 60px rgb(0 0 0 / 24%);
+}
+
+.foodbyk-assistant-panel[hidden] {
+    display: none;
+}
+
+.foodbyk-assistant-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.foodbyk-assistant-kicker {
+    margin: 0 0 4px;
+    color: var(--assistant-red);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .14em;
+}
+
+.foodbyk-assistant-header h2 {
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.15;
+}
+
+.foodbyk-assistant-close {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--assistant-border);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--assistant-ink);
+    font-size: 23px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.foodbyk-assistant-intro {
+    margin: 12px 0;
+    color: var(--assistant-muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.foodbyk-assistant-prompts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 12px;
+}
+
+.foodbyk-assistant-prompts button {
+    padding: 7px 10px;
+    border: 1px solid var(--assistant-border);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--assistant-ink);
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.foodbyk-assistant-prompts button:hover {
+    border-color: var(--assistant-red);
+    background: #fff6f5;
+}
+
+.foodbyk-assistant-messages {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 9px;
+    min-height: 70px;
+    max-height: 250px;
+    padding: 2px 3px 10px 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.foodbyk-assistant-message {
+    align-self: flex-start;
+    max-width: 94%;
+    padding: 10px 12px;
+    border-radius: 12px 12px 12px 3px;
+    background: #f5f3f0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.foodbyk-assistant-message.is-customer {
+    align-self: flex-end;
+    border-radius: 12px 12px 3px 12px;
+    background: #191919;
+    color: #fff;
+}
+
+.foodbyk-assistant-message strong,
+.foodbyk-assistant-message p {
+    display: block;
+    margin: 0;
+}
+
+.foodbyk-assistant-message strong {
+    margin-bottom: 3px;
+    font-size: 11px;
+}
+
+.foodbyk-assistant-message small {
+    display: block;
+    margin-top: 7px;
+    opacity: .78;
+    font-size: 10px;
+}
+
+.foodbyk-assistant-message.is-error {
+    border: 1px solid #efb9b9;
+    background: #fff5f5;
+}
+
+.foodbyk-assistant-form {
+    border-top: 1px solid var(--assistant-border);
+    padding-top: 11px;
+}
+
+.foodbyk-assistant-label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.foodbyk-assistant-form textarea {
+    display: block;
+    width: 100%;
+    min-height: 58px;
+    padding: 10px 11px;
+    resize: vertical;
+    border: 1px solid #aaa6a0;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--assistant-ink);
+    font-size: 14px;
+}
+
+.foodbyk-assistant-form-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.foodbyk-assistant-form-footer small {
+    color: var(--assistant-muted);
+    font-size: 11px;
+}
+
+.foodbyk-assistant-send {
+    min-width: 72px;
+    min-height: 38px;
+    padding: 8px 15px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--assistant-red);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.foodbyk-assistant-send:hover {
+    background: #a90f15;
+}
+
+.foodbyk-assistant-send:disabled {
+    cursor: wait;
+    opacity: .65;
+}
+
+.foodbyk-assistant-links {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.foodbyk-assistant-links a {
+    color: #8d1117;
+    text-decoration: none;
+}
+
+.foodbyk-assistant-links a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 520px) {
+    .foodbyk-assistant {
+        right: max(12px, env(safe-area-inset-right));
+        bottom: max(12px, env(safe-area-inset-bottom));
+    }
+
+    .foodbyk-assistant-panel {
+        position: fixed;
+        right: 10px;
+        bottom: calc(76px + env(safe-area-inset-bottom));
+        width: calc(100vw - 20px);
+        max-height: calc(100dvh - 105px - env(safe-area-inset-bottom));
+        padding: 17px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .foodbyk-assistant-launcher,
+    .foodbyk-assistant-prompts button {
+        transition: none;
+    }
+}

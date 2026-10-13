@@ -9,4 +9,5 @@
 frontend/node_modules/
 frontend/playwright-report/
 frontend/test-results/
-RagService/
+# Keep the RAG service source and its safe, secret-free environment template trackable.
+!RagService/.env.example
