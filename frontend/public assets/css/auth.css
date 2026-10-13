@@ -775,3 +775,171 @@ body.auth-page {
         gap: 12px;
     }
 }
+
+/* Registration policy choices and password guidance */
+#registerForm .privacy-acceptance {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--food-border);
+    background: var(--food-white);
+}
+
+#registerForm .privacy-acceptance legend {
+    max-width: 100%;
+    padding: 0 7px;
+    color: var(--food-black);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    line-height: 1.45;
+    text-transform: uppercase;
+    white-space: normal;
+}
+
+#registerForm .privacy-acceptance .policy-check {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    margin: 10px 0;
+    color: var(--food-black) !important;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.55;
+    text-transform: none;
+    overflow-wrap: anywhere;
+}
+
+#registerForm .privacy-acceptance .policy-check input {
+    width: 18px;
+    height: 18px;
+    margin: 1px 0 0;
+    accent-color: var(--food-red);
+}
+
+#registerForm .privacy-acceptance .policy-check span {
+    min-width: 0;
+}
+
+#registerForm .privacy-acceptance a {
+    color: var(--food-red);
+    font-weight: 700;
+    text-underline-offset: 2px;
+}
+
+#registerForm .policy-help {
+    margin: 12px 0 0;
+    color: var(--food-grey);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+#registerForm .password-input-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+}
+
+#registerForm .password-input-wrap input[type="password"],
+#registerForm .password-input-wrap input[type="text"] {
+    width: 100%;
+    min-width: 0;
+    min-height: 50px;
+    padding: 15px 14px;
+    border: 1px solid #ccc;
+    border-radius: 0;
+    background: var(--food-white) !important;
+    color: var(--food-black) !important;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+#registerForm .password-input-wrap input[type="text"]:focus {
+    border-color: var(--food-red);
+    box-shadow: 0 0 0 2px rgba(215, 25, 32, .1);
+    outline: none;
+}
+
+#registerForm .password-reveal {
+    min-width: 62px;
+    min-height: 50px;
+    padding: 0 11px;
+    border: 1px solid #ccc;
+    border-left: 0;
+    background: var(--food-white);
+    color: var(--food-red);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+#registerForm .password-reveal:focus-visible,
+#registerForm .privacy-acceptance input:focus-visible {
+    outline: 3px solid var(--food-yellow);
+    outline-offset: 2px;
+}
+
+#registerForm .password-requirements {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+#registerForm .password-requirements li {
+    position: relative;
+    padding-left: 23px;
+    color: var(--food-grey);
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+#registerForm .password-requirements li::before {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: grid;
+    width: 16px;
+    height: 16px;
+    place-items: center;
+    border: 1px solid #aaa;
+    border-radius: 50%;
+    content: "";
+}
+
+#registerForm .password-requirements li.is-met {
+    color: #236b3b;
+}
+
+#registerForm .password-requirements li.is-met::before {
+    border-color: #236b3b;
+    background: #236b3b;
+    color: #fff;
+    content: "✓";
+    font-size: 11px;
+    font-weight: 800;
+}
+
+#registerForm .password-progress,
+#registerForm .password-match {
+    min-height: 18px;
+    margin: 7px 0 0;
+    color: var(--food-grey);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+#registerForm .password-match.is-matched {
+    color: #236b3b;
+}
+
+#registerForm .password-match.is-unmatched {
+    color: var(--food-red);
+}
