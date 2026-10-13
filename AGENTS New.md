@@ -48,3 +48,16 @@ source control or documentation; use deployment environment variables.
 For local commands, database setup, and CI checks, use the current
 `backend/foodbyk/README.md`. Verify files and configuration in the repository
 before relying on older conversation notes.
+
+## Test boundaries
+
+- CI runs PHP syntax checks, database-free domain/data-validation tests,
+  payment-token security checks, MySQL 8 database/API integration checks, and
+  Playwright Chromium checks for customer page behavior.
+- Database and API integration scripts only run against a database named
+  exactly `foodbyk_test`. Do not point them at a developer or production
+  database.
+- Provider callbacks, real payment outcomes, email/WhatsApp delivery, full
+  staff workflow acceptance, assistive technology, and physical-device
+  behavior are covered by the manual checklist in
+  `backend/tests/USER_ACCEPTANCE.md`, not claimed as automated CI coverage.

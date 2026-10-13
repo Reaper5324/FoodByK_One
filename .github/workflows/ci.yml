@@ -10,25 +10,104 @@ permissions:
   contents: read
 
 jobs:
-  backend-checks:
-    name: Backend Checks
+  backend-unit-and-security:
+    name: Backend unit, validation, and security checks
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-
+          extensions: curl, pdo_mysql, openssl
       - name: Lint PHP files
         shell: bash
         run: |
+          set -euo pipefail
           while IFS= read -r -d '' file; do
             php -l "$file"
           done < <(find backend -type f -name '*.php' -print0)
-
-      - name: Run model checks
+      - name: Run domain and data-validation checks
         run: php backend/tests/model_checks.php
+      - name: Run payment-token security checks
+        run: php backend/tests/security_checks.php
+
+  database-and-api-integration:
+    name: Database, API integration, and authorization tests
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: foodbyk_test_password
+          MYSQL_DATABASE: foodbyk_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pfoodbyk_test_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      APP_ENV: testing
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: foodbyk_test
+      DB_USER: root
+      DB_PASS: foodbyk_test_password
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: 3306
+      TEST_DB_NAME: foodbyk_test
+      TEST_DB_USER: root
+      TEST_DB_PASS: foodbyk_test_password
+      PAYMENT_TOKEN_ENCRYPTION_KEY: a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=
+      FRONTEND_URL: https://foodbyks.netlify.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: curl, pdo_mysql, openssl
+      - name: Apply schema to disposable CI database
+        run: mysql -h 127.0.0.1 -uroot -p"$DB_PASS" "$DB_NAME" < backend/foodbyk/database/migration.sql
+      - name: Verify schema constraints and transactional behavior
+        run: php backend/tests/database_checks.php
+      - name: Start local API server
+        shell: bash
+        run: |
+          php -S 127.0.0.1:8080 -t backend/public backend/public/router.php > /tmp/foodbyk-api.log 2>&1 &
+          echo $! > /tmp/foodbyk-api.pid
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:8080/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/foodbyk-api.log
+          exit 1
+      - name: Verify API behavior, sessions, CSRF, roles, and CORS
+        env:
+          API_BASE_URL: http://127.0.0.1:8080
+        run: php backend/tests/api_integration_checks.php
+
+  customer-ui:
+    name: Customer UI browser tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install UI test dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Run customer UI tests
+        run: npm run test:ui
+      - name: Upload browser traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: customer-ui-traces
+          path: frontend/test-results/
+          if-no-files-found: ignore

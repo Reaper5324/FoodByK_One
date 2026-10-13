@@ -140,9 +140,9 @@ For a new database, run `database/migration.sql`. Existing databases should be b
 
 Payment tokens are encrypted by the `Payment` model using AES-256-GCM. Generate `PAYMENT_TOKEN_ENCRYPTION_KEY` with `php -r "echo base64_encode(random_bytes(32)), PHP_EOL;"`; store it in the deployment secret manager and keep a protected backup. Existing plaintext tokens are encrypted when their payment rows are next saved. `Payment` JSON omits the token.
 
-## Local Checks
+## Testing
 
-Run the same checks used by GitHub Actions from the repository root:
+Run the database-free checks from the repository root:
 
 ```powershell
 Get-ChildItem backend -Recurse -Filter *.php | ForEach-Object {
@@ -151,16 +151,62 @@ Get-ChildItem backend -Recurse -Filter *.php | ForEach-Object {
 }
 
 php backend/tests/model_checks.php
+php backend/tests/security_checks.php
 ```
 
-The test runner covers order totals/transitions, coordinate validation, promotion types and expiry, password policy, and product-input validation. It intentionally does not need a database.
+These checks cover order totals/transitions, address coordinates, promotions,
+password and product input validation, and payment-token encryption/JSON
+exposure. They need PHP and OpenSSL but do not need a database.
+
+Database and HTTP integration tests require a **disposable** MySQL 8 database
+created from `backend/foodbyk/database/migration.sql`. The scripts refuse to
+run unless `TEST_DB_NAME` is exactly `foodbyk_test`:
+
+```text
+TEST_DB_HOST=127.0.0.1
+TEST_DB_PORT=3306
+TEST_DB_NAME=foodbyk_test
+TEST_DB_USER=root
+TEST_DB_PASS=...
+```
+
+Run `php backend/tests/database_checks.php` to verify schema seeds, unique and
+foreign-key constraints, check constraints, and rollback behavior. Start the
+API with the same database configured in `DB_HOST`, `DB_PORT`, `DB_NAME`,
+`DB_USER`, and `DB_PASS`, then run
+`php backend/tests/api_integration_checks.php` with `API_BASE_URL` set. It
+checks JSON health/catalogue responses, customer registration/session
+handling, CSRF enforcement, role restrictions, and allowed/blocked CORS
+origins. The integration script creates a uniquely named test customer and
+deletes it when finished.
+
+Customer browser tests use Playwright and run against a local static server
+with mocked API calls:
+
+```sh
+cd frontend
+npm install
+npx playwright install chromium
+npm run test:ui
+```
+
+They verify product loading, cart skeleton removal (including the case where
+two real items must produce exactly two rows), and delivery-specific order
+progress labels. They do not validate real PayFast, Resend, or Twilio
+accounts.
+
+Use [USER_ACCEPTANCE.md](../tests/USER_ACCEPTANCE.md) for end-to-end business
+and device checks that require a human, staging credentials, real provider
+callbacks, or physical device/accessibility review. UAT is intentionally a
+release checklist, not a CI pass/fail claim.
 
 ## CI
 
 GitHub Actions runs on pushes and pull requests to `main`:
 
-1. PHP syntax lint for every backend PHP file.
-2. `backend/tests/model_checks.php`.
+1. PHP syntax lint, domain/data-validation checks, and payment-token security checks.
+2. MySQL 8 schema/constraint tests and local HTTP API integration/security tests.
+3. Chromium customer-page browser tests using Playwright.
 
 See [.github/workflows/ci.yml](.github/workflows/ci.yml).
 

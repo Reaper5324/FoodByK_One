@@ -6,3 +6,7 @@
 /menuitems.md
 /foodbyks.netlify.app.har
 /Agent_Conversation.md
+frontend/node_modules/
+frontend/playwright-report/
+frontend/test-results/
+RagService/

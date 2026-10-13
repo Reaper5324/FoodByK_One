@@ -18,11 +18,18 @@ $order = new Order(subtotal: 100.0, locked_discount: 15.0, delivery_fee: 10.0);
 expect($order->total() === 95.0, 'Order total must apply the locked discount.');
 expect($order->canTransitionTo(Order::STATUS_ACCEPTED), 'Submitted order must be accepted.');
 expect(!$order->canTransitionTo(Order::STATUS_PAID), 'Submitted order cannot be paid directly.');
+$completedOrder = new Order(status: Order::STATUS_COMPLETED);
+expect(!$completedOrder->canTransitionTo(Order::STATUS_PREPARING), 'Completed orders must be terminal.');
+$paidOrder = new Order(status: Order::STATUS_PAID);
+expect(!$paidOrder->canTransitionTo(Order::STATUS_CANCELLED), 'Paid orders must not be cancelled through the normal state machine.');
 
 $address = new Address(latitude: -26.2041, longitude: 28.0473);
 expect($address->hasCoordinates(), 'Valid coordinates must be accepted.');
 $address->latitude = 91.0;
 expect(!$address->hasCoordinates(), 'Out-of-range coordinates must be rejected.');
+$address->latitude = -26.2;
+$address->longitude = null;
+expect(!$address->hasCoordinates(), 'Incomplete coordinate pairs must be rejected.');
 
 $items = [
     ['product_id' => 1, 'quantity' => 3, 'unit_price' => 20.0],
@@ -31,6 +38,8 @@ $items = [
 
 $percentage = new Promotion(discount_type: Promotion::TYPE_PERCENTAGE, discount_value: 10.0);
 expect($percentage->calculateDiscount(100.0) === 10.0, 'Percentage promotion calculation failed.');
+$cappedPercentage = new Promotion(discount_type: Promotion::TYPE_PERCENTAGE, discount_value: 150.0);
+expect($cappedPercentage->calculateDiscount(100.0) === 100.0, 'Percentage discounts must not exceed the item subtotal.');
 
 $fixed = new Promotion(discount_type: Promotion::TYPE_FIXED_AMOUNT, discount_value: 25.0);
 expect($fixed->calculateDiscount(100.0) === 25.0, 'Fixed promotion calculation failed.');
@@ -65,6 +74,7 @@ $validProduct = $productService->validateProductInput([
     'is_available' => '1',
 ]);
 expect($validProduct['success'], 'Valid product input must be accepted.');
+expect($validProduct['data']['price'] === 49.99, 'Validated prices must be normalized to currency precision.');
 $invalidProduct = $productService->validateProductInput([
     'category_id' => 1,
     'name' => 'Classic Burger',
@@ -72,5 +82,24 @@ $invalidProduct = $productService->validateProductInput([
     'price' => '-1',
 ]);
 expect(!$invalidProduct['success'], 'Negative product prices must be rejected.');
+$invalidImageProduct = $productService->validateProductInput([
+    'category_id' => 1,
+    'name' => 'Classic Burger',
+    'description' => 'A burger',
+    'price' => '49.99',
+    'image_url' => 'javascript:alert(1)',
+]);
+expect(!$invalidImageProduct['success'], 'Unsafe product image URL schemes must be rejected.');
+$invalidCategoryProduct = $productService->validateProductInput([
+    'category_id' => 0,
+    'name' => 'Classic Burger',
+    'description' => 'A burger',
+    'price' => '49.99',
+]);
+expect(!$invalidCategoryProduct['success'], 'Invalid product category identifiers must be rejected.');
+
+expect($auth->validateRegistrationInput('Customer', 'bad-email', 'Str0ng!Passw0rd', null) !== null, 'Malformed registration email must be rejected.');
+expect($auth->validateRegistrationInput('Customer', 'customer@example.com', 'Str0ng!Passw0rd', '12345') !== null, 'Malformed international phone numbers must be rejected.');
+expect($auth->validateRegistrationInput('Customer', 'customer@example.com', 'Str0ng!Passw0rd', '+27820000000') === null, 'Valid international registration data must pass validation.');
 
 echo "Model checks passed.\n";
