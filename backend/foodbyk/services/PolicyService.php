@@ -5,13 +5,21 @@ class PolicyService {
     public const PRIVACY_VERSION = '2026-10-13';
 
     public function hasAcceptedCurrentVersions(int $userId): bool {
-        $statement = Database::getConnection()->prepare(
-            "SELECT COUNT(DISTINCT policy_type) FROM policy_acceptances
-             WHERE user_id = ? AND ((policy_type = 'terms' AND policy_version = ?)
-                OR (policy_type = 'privacy_notice' AND policy_version = ?))"
-        );
-        $statement->execute([$userId, self::TERMS_VERSION, self::PRIVACY_VERSION]);
-        return (int) $statement->fetchColumn() === 2;
+        try {
+            $statement = Database::getConnection()->prepare(
+                "SELECT COUNT(DISTINCT policy_type) FROM policy_acceptances
+                 WHERE user_id = ? AND ((policy_type = 'terms' AND policy_version = ?)
+                    OR (policy_type = 'privacy_notice' AND policy_version = ?))"
+            );
+            $statement->execute([$userId, self::TERMS_VERSION, self::PRIVACY_VERSION]);
+            return (int) $statement->fetchColumn() === 2;
+        } catch (PDOException $error) {
+            // A missing/unavailable policy table must not turn valid credentials
+            // into a 500. Treat the user as needing review and keep protected
+            // actions blocked until acceptance can actually be persisted.
+            error_log('Policy acceptance lookup failed; treating customer as requiring review. ' . $error->getMessage());
+            return false;
+        }
     }
 
     public function recordCurrentVersions(int $userId): void {
@@ -38,7 +46,7 @@ class PolicyService {
         } catch (Throwable $error) {
             if ($db->inTransaction()) $db->rollBack();
             error_log('Policy acceptance could not be recorded: ' . $error->getMessage());
-            return ['success' => false, 'data' => null, 'error' => 'Unable to save your policy choices. Please try again.'];
+            return ['success' => false, 'data' => null, 'error' => 'We could not save your policy choices right now. Please try again later or contact Food by K.'];
         }
     }
 }
