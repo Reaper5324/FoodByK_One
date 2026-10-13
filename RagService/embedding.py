@@ -1,10 +1,10 @@
 from functools import lru_cache
 
-from sentence_transformers import SentenceTransformer
-
 
 @lru_cache(maxsize=1)
-def get_model() -> SentenceTransformer:
+def get_model():
+    from sentence_transformers import SentenceTransformer
+
     return SentenceTransformer("all-MiniLM-L6-v2")
 
 
