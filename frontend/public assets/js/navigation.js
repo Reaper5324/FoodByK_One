@@ -35,7 +35,7 @@ async function updateCustomerNavigation() {
             const result = await getCurrentUser();
             if (result?.success && result.data) {
                 user = result.data;
-                localStorage.setItem("foodByKUser", JSON.stringify(user));
+                localStorage.setItem("foodByKUser", JSON.stringify({ id: user.id, role: user.role }));
             } else if (result?.status === 0) {
                 user = getStoredUser();
             } else {

@@ -66,6 +66,18 @@
 
         </div>
 
+        <section class="account-card" id="policyAcceptanceCard" aria-labelledby="policyAcceptanceHeading" hidden>
+            <h2 id="policyAcceptanceHeading">Review our current policies</h2>
+            <p>To continue using your customer account, please accept the current terms and acknowledge the privacy notice. This does not opt you into marketing.</p>
+            <p><a href="../legal/terms.html" target="_blank" rel="noopener">Read Terms of Service</a> · <a href="../legal/privacy.html" target="_blank" rel="noopener">Read Privacy Notice</a></p>
+            <div id="policyMessage" role="status" aria-live="polite" hidden></div>
+            <form id="policyAcceptanceForm">
+                <label><input type="checkbox" id="accountTermsAccepted" required> I agree to the Terms of Service.</label>
+                <label><input type="checkbox" id="accountPrivacyAcknowledged" required> I acknowledge that I have read the Privacy Notice.</label>
+                <button type="submit" class="btn btn-primary">Save my choices</button>
+            </form>
+        </section>
+
 
         <!-- =========================================
              ACCOUNT INFORMATION
@@ -180,6 +192,18 @@
                 <div class="form-group"><label for="deliveryPostalCode">Postal code (optional)</label><input id="deliveryPostalCode" type="text" maxlength="20" autocomplete="postal-code"></div>
                 <label class="account-default-option"><input type="checkbox" id="deliveryAddressDefault"> Set as my default address</label>
                 <div class="account-actions"><button id="saveAddressButton" type="submit" class="btn btn-primary">Save address</button><button id="cancelAddressEdit" type="button" class="btn btn-secondary" hidden>Cancel edit</button></div>
+            </form>
+        </section>
+
+        <section class="account-card account-delete-card" aria-labelledby="deleteAccountHeading">
+            <h2 id="deleteAccountHeading">Delete my account</h2>
+            <p>Deletion removes your profile, saved addresses, cart and reusable payment token. Order and payment records that must be retained for business or legal purposes are kept with your identity details removed. Active orders must be resolved first.</p>
+            <div id="deleteAccountMessage" role="status" aria-live="polite" hidden></div>
+            <form id="deleteAccountForm">
+                <label for="deleteAccountPassword">Confirm your password</label>
+                <input id="deleteAccountPassword" type="password" autocomplete="current-password" required>
+                <label><input id="confirmAccountDeletion" type="checkbox" required> I understand this action cannot be undone.</label>
+                <button type="submit" class="btn btn-danger">Delete my account</button>
             </form>
         </section>
 
@@ -303,6 +327,7 @@
 <script src="../../public assets/js/auth.js"></script>
 <script src="../../public%20assets/js/account.js"></script>
 
+<script src="../../public assets/js/privacy.js"></script>
 </body>
 
 </html>

@@ -204,6 +204,16 @@ class OrderService {
             $customerId, $fulfilmentType, $addressId,
             $requestedWindowStart, $requestedWindowEnd, $promotionCode
         ) {
+            // Serialize order creation against account erasure. The erasure
+            // service locks this same user row, then either waits for this
+            // transaction (and sees the new order) or disables the account
+            // before this transaction proceeds.
+            $customerLock = Database::getConnection()->prepare('SELECT is_active FROM users WHERE id = ? FOR UPDATE');
+            $customerLock->execute([$customerId]);
+            if ((int) $customerLock->fetchColumn() !== 1) {
+                throw new \Exception('This customer account is no longer active.');
+            }
+
             if (!in_array($fulfilmentType, [Order::TYPE_COLLECTION, Order::TYPE_DELIVERY], true)) {
                 throw new \Exception('Invalid fulfilment type.');
             }

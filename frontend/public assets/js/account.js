@@ -5,6 +5,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const addressList = byId("deliveryAddressList");
     const profileMessage = byId("profileMessage");
     const addressMessage = byId("addressMessage");
+    const policyCard = byId("policyAcceptanceCard");
+    const policyForm = byId("policyAcceptanceForm");
+    const policyMessage = byId("policyMessage");
+    const deleteForm = byId("deleteAccountForm");
+    const deleteMessage = byId("deleteAccountMessage");
     if (!profileForm || !addressForm || !addressList) return;
 
     let addresses = [];
@@ -173,7 +178,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         setProfile(result.data);
-        localStorage.setItem("foodByKUser", JSON.stringify(result.data));
+        if (result.data.policy_acceptance_required) {
+            policyCard.hidden = false;
+            document.querySelectorAll(".account-page > .account-container > .account-card:not(#policyAcceptanceCard)").forEach((card) => card.hidden = true);
+        }
+        localStorage.setItem("foodByKUser", JSON.stringify({ id: result.data.id, role: result.data.role }));
+        if (result.data.policy_acceptance_required) return;
         const addressesLoaded = await loadAddresses();
         if (addressesLoaded && addresses.length === 0 && (result.data.address || result.data.city || result.data.province)) {
             byId("deliveryStreet").value = result.data.address || "";
@@ -184,6 +194,37 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     loadAccount();
+
+    policyForm?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const result = await apiPost("/account/policies", {
+            terms_accepted: byId("accountTermsAccepted").checked,
+            privacy_notice_acknowledged: byId("accountPrivacyAcknowledged").checked
+        });
+        if (!result.success) {
+            showMessage(policyMessage, result.error || "Unable to save your choices.", true);
+            return;
+        }
+        window.location.replace("account.html");
+    });
+
+    deleteForm?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!byId("confirmAccountDeletion").checked) return;
+        const button = deleteForm.querySelector('button[type="submit"]');
+        button.disabled = true;
+        button.textContent = "Deleting...";
+        const result = await apiDelete("/account", { password: byId("deleteAccountPassword").value });
+        if (!result.success) {
+            showMessage(deleteMessage, result.error || "Unable to delete this account.", true);
+            button.disabled = false;
+            button.textContent = "Delete my account";
+            return;
+        }
+        localStorage.removeItem("foodByKUser");
+        clearSessionToken();
+        window.location.replace("../../src/index.html");
+    });
 
     profileForm.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -204,7 +245,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         setProfile(result.data);
-        localStorage.setItem("foodByKUser", JSON.stringify(result.data));
+        localStorage.setItem("foodByKUser", JSON.stringify({ id: result.data.id, role: result.data.role }));
         showMessage(profileMessage, "Your account details have been saved.");
     });
 

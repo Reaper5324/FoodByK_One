@@ -109,6 +109,11 @@ if (loginForm) {
                     return;
                 }
 
+                if (userResult.data?.policy_acceptance_required) {
+                    window.location.href = "account.html?review-policies=1";
+                    return;
+                }
+
 
                 /* ---------- Store User Information ---------- */
 
@@ -117,7 +122,7 @@ if (loginForm) {
 
                 localStorage.setItem(
                     "foodByKUser",
-                    JSON.stringify(user)
+                    JSON.stringify({ id: user.id, role: user.role })
                 );
 
 
@@ -323,7 +328,9 @@ if (registerForm) {
                         email,
 
                     password:
-                        password
+                        password,
+                    terms_accepted: document.getElementById("termsAccepted")?.checked === true,
+                    privacy_notice_acknowledged: document.getElementById("privacyAcknowledged")?.checked === true
 
                 };
 
@@ -339,7 +346,7 @@ if (registerForm) {
 
                     localStorage.setItem(
                         "foodByKUser",
-                        JSON.stringify(result.data)
+                        JSON.stringify({ id: result.data.id, role: result.data.role })
                     );
 
 

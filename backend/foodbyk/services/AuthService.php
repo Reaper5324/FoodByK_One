@@ -52,7 +52,10 @@ class AuthService {
     private const SESSION_ABSOLUTE_LIFETIME_SECONDS = 86400;
     private const DUMMY_PASSWORD_HASH = '$2y$12$Orrp0BWnrHGJxJKEbcr34OM4KZoAFhu7esQzaCO4SaTIAdTMNtbfe';
 
-    public function register(string $name, string $email, string $password, ?string $phone = null): array {
+    public function register(string $name, string $email, string $password, ?string $phone = null, bool $termsAccepted = false, bool $privacyAcknowledged = false): array {
+        if (!$termsAccepted || !$privacyAcknowledged) {
+            return $this->failure('Please accept the current terms and acknowledge the privacy notice to create an account.');
+        }
         $name = trim($name);
         $email = $this->normaliseEmail($email);
         $phone = $this->normalisePhone($phone);
@@ -82,6 +85,8 @@ class AuthService {
                 $db->rollBack();
                 return $this->failure('Unable to create the account.');
             }
+
+            (new PolicyService())->recordCurrentVersions((int) $user->id);
 
             $db->commit();
             $this->establishSession($user);
@@ -341,7 +346,65 @@ return $this->success(array_merge($this->publicUser($user), ['session_token' => 
             'city' => $user->city,
             'province' => $user->province,
             'role' => $role?->role_name,
+            'policy_acceptance_required' => $role?->role_name === Role::CUSTOMER
+                && !(new PolicyService())->hasAcceptedCurrentVersions((int) $user->id),
         ]);
+    }
+
+    public function acceptCurrentPolicies(User $user, array $input): array {
+        if ($user->getRole()?->role_name !== Role::CUSTOMER) return $this->failure('Customer account not found.');
+        return (new PolicyService())->acceptCurrent($user, $input);
+    }
+
+    public function deleteCustomerAccount(User $sessionUser, string $password): array {
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            $lock = $db->prepare('SELECT id, name, email, password_hash, role_id FROM users WHERE id = ? FOR UPDATE');
+            $lock->execute([(int) $sessionUser->id]);
+            $account = $lock->fetch(PDO::FETCH_ASSOC);
+            $customerRole = Role::customer();
+            if (!$account || !$customerRole || (int) $account['role_id'] !== (int) $customerRole->id
+                || !password_verify($password, $account['password_hash'])) {
+                $db->rollBack();
+                return $this->failure('The password is incorrect or the customer account was not found.');
+            }
+
+            $active = $db->prepare("SELECT COUNT(*) FROM orders WHERE customer_id = ? AND status IN ('submitted','accepted','adjusted','charge_pending','payment_failed','paid','preparing','ready')");
+            $active->execute([(int) $account['id']]);
+            if ((int) $active->fetchColumn() > 0) {
+                $db->rollBack();
+                return $this->failure('Your account cannot be deleted while an order is in progress. Contact Food by K to resolve the order first.');
+            }
+
+            $addressIds = $db->prepare('SELECT a.id FROM addresses a WHERE a.customer_id = ? AND EXISTS (SELECT 1 FROM orders o WHERE o.address_id = a.id)');
+            $addressIds->execute([(int) $account['id']]);
+            foreach ($addressIds->fetchAll(PDO::FETCH_COLUMN) as $addressId) {
+                $scrubAddress = $db->prepare("UPDATE addresses SET raw_address = 'Deleted customer address', street = NULL, postal_code = NULL, city = NULL, province = NULL, latitude = NULL, longitude = NULL, is_default = 0 WHERE id = ?");
+                $scrubAddress->execute([(int) $addressId]);
+            }
+            $db->prepare('DELETE FROM addresses WHERE customer_id = ? AND id NOT IN (SELECT address_id FROM orders WHERE address_id IS NOT NULL)')->execute([(int) $account['id']]);
+            $db->prepare('DELETE FROM cart_items WHERE customer_id = ?')->execute([(int) $account['id']]);
+            $db->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([(int) $account['id']]);
+            $db->prepare("UPDATE payments p JOIN orders o ON o.id = p.order_id SET p.gateway_token = NULL, p.status = IF(p.status = 'tokenized', 'voided', p.status) WHERE o.customer_id = ?")->execute([(int) $account['id']]);
+            $db->prepare('UPDATE orders SET decline_reason = NULL, cancel_reason = NULL WHERE customer_id = ?')->execute([(int) $account['id']]);
+            $db->prepare("UPDATE order_status_history h JOIN orders o ON o.id = h.order_id SET h.notes = NULL WHERE o.customer_id = ?")->execute([(int) $account['id']]);
+
+            $deletedEmail = 'deleted-' . (int) $account['id'] . '-' . bin2hex(random_bytes(8)) . '@account.invalid';
+            $deletedPassword = password_hash(bin2hex(random_bytes(32)), $this->passwordAlgorithm());
+            $db->prepare("UPDATE users SET name = 'Deleted customer', email = ?, password_hash = ?, phone = NULL, address = NULL, city = NULL, province = NULL, profile_picture = NULL, loyalty_points = 0, is_active = 0, deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+                ->execute([$deletedEmail, $deletedPassword, (int) $account['id']]);
+            $db->prepare('DELETE FROM login_attempts WHERE identifier = ?')->execute([
+                'login:email:' . hash('sha256', strtolower((string) $account['email'])),
+            ]);
+            $db->commit();
+            $this->destroySession();
+            return $this->success(['deleted' => true]);
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('Customer account deletion failed: ' . $error->getMessage());
+            return $this->failure('Unable to delete the account right now. Please contact Food by K.');
+        }
     }
 
     public function updateCustomerProfile(User $sessionUser, array $input): array {
@@ -516,9 +579,10 @@ return $this->success(array_merge($this->publicUser($user), ['session_token' => 
         return defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;
     }
 
-     private function publicUser(User $user): array {
+    private function publicUser(User $user): array {
         $role = Role::findById($user->role_id);
-        return ['id' => $user->id, 'full_name' => $user->full_name, 'email' => $user->email, 'phone' => $user->phone, 'role' => $role?->role_name];
+        return ['id' => $user->id, 'full_name' => $user->full_name, 'email' => $user->email, 'phone' => $user->phone, 'role' => $role?->role_name,
+            'policy_acceptance_required' => $role?->role_name === Role::CUSTOMER && !(new PolicyService())->hasAcceptedCurrentVersions((int) $user->id)];
     }
 
     private function success(mixed $data): array {
