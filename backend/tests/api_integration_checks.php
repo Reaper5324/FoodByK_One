@@ -116,7 +116,7 @@ try {
     apiExpect(!isset($blockedCors['headers']['access-control-allow-origin']), 'Untrusted origins must not receive CORS permission.');
 
     echo "API integration and security checks passed.\n";
-} } finally {
+} finally {
     $userId = $pdo->prepare('SELECT id FROM users WHERE email = ?');
     $userId->execute([$email]);
     $existingUserId = $userId->fetchColumn();
