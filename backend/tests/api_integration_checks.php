@@ -74,11 +74,13 @@ try {
     apiExpect($invalidRegistration['status'] >= 400 && $invalidRegistration['status'] < 500, 'Invalid registration data must be rejected by the API.');
 
     $registration = apiRequest('POST', '/auth/register', [
-        'name' => 'Integration Customer',
-        'email' => $email,
-        'password' => 'BlueRiver!9072',
-        'phone' => '+27820000000',
-    ], ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    'name' => 'Integration Customer',
+    'email' => $email,
+    'password' => 'BlueRiver!9072',
+    'phone' => '+27820000000',
+    'terms_accepted' => true,
+    'privacy_notice_acknowledged' => true,
+], ['Origin: https://foodbyks.netlify.app'], $cookieFile);
     apiExpect($registration['status'] === 201 && ($registration['json']['success'] ?? false), 'Valid customer registration must create a signed-in customer.');
     $sessionCookie = $registration['headers']['set-cookie'] ?? '';
     apiExpect(stripos($sessionCookie, 'httponly') !== false, 'Authentication session cookies must be HttpOnly.');
