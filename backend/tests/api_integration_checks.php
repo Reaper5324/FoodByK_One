@@ -116,8 +116,15 @@ try {
     apiExpect(!isset($blockedCors['headers']['access-control-allow-origin']), 'Untrusted origins must not receive CORS permission.');
 
     echo "API integration and security checks passed.\n";
-} finally {
-    $delete = $pdo->prepare('DELETE FROM users WHERE email = ?');
-    $delete->execute([$email]);
+} } finally {
+    $userId = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $userId->execute([$email]);
+    $existingUserId = $userId->fetchColumn();
+
+    if ($existingUserId !== false) {
+        $pdo->prepare('DELETE FROM policy_acceptances WHERE user_id = ?')->execute([$existingUserId]);
+        $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$existingUserId]);
+    }
+
     if (is_file($cookieFile)) unlink($cookieFile);
 }
