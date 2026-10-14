@@ -16,6 +16,27 @@ const STAFF_ALLOWED_PAGES = new Set([
 
 
 
+const uploadProductImage = async (file) => {
+    const csrfToken = await ensureCsrfToken();
+    const formData = new FormData();
+    formData.append("image", file);
+    try {
+        const response = await fetch(API_BASE_URL + "/admin/products/image", {
+            method: "POST",
+            body: formData,
+            credentials: "include",
+            headers: { ...buildSessionHeaders(), ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}) }
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result?.success) {
+            return { success: false, data: null, error: result?.error || "The image could not be uploaded." };
+        }
+        return { success: true, data: result.data, error: null };
+    } catch {
+        return { success: false, data: null, error: "The image could not be uploaded. Check your connection and try again." };
+    }
+};
+
 const initializeAdminLive = async () => {
     const page = location.pathname.split("/").pop();
     const loadingState = document.getElementById("adminLoadingState");
@@ -794,7 +815,14 @@ const initializeAdminLive = async () => {
         } else if (form.id === "menuForm") {
             event.preventDefault(); event.stopImmediatePropagation();
             const product = window.adminProducts?.find((item) => Number(item.id) === Number(id));
-            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: product?.description || "", price: Number(document.getElementById("itemPrice").value), image_url: document.getElementById("itemImage").value.trim() || null, is_available: product?.is_available ?? true, status: product?.status || "active" };
+            let imageUrl = document.getElementById("itemImage").value.trim() || null;
+            const imageFile = document.getElementById("itemImageFile")?.files?.[0];
+            if (imageFile) {
+                const upload = await uploadProductImage(imageFile);
+                if (!showResult(upload)) return;
+                imageUrl = upload.data.key;
+            }
+            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: product?.description || "", price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active" };
             result = id ? await apiPut(`/admin/products/${id}`, body) : await apiPost("/admin/products", body);
             if (showResult(result)) { closeModal("#menuModal"); await loadProducts(); }
         } else if (form.id === "promotionForm") {

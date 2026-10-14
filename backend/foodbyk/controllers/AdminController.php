@@ -23,6 +23,10 @@ class AdminController extends Controller {
         return $this->respond((new AuthService())->deactivateStaffAccount((int) $this->param($params, 'id')));
     }
 
+    public function uploadProductImage(Request $request): Response {
+        return $this->respond((new ProductService())->uploadImage($_FILES['image'] ?? []), 201);
+    }
+
     public function addProduct(Request $request): Response {
         return $this->respond((new ProductService())->create($request->body), 201);
     }
