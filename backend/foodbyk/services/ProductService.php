@@ -3,6 +3,8 @@
 class ProductService {
     private const MAX_NAME_LENGTH = 150;
     private const MAX_DESCRIPTION_LENGTH = 2000;
+    private const MAX_IMAGE_BYTES = 2097152; // matches PHP's default upload_max_filesize
+    private const IMAGE_TYPES = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
     private ?object $imageStorageClient = null;
 
     public function listAvailable(): array {
@@ -55,6 +57,43 @@ class ProductService {
             Product::search($query),
             fn(Product $product) => $this->isPubliclyAvailable($product)
         ))));
+    }
+
+    public function uploadImage(array $file): array {
+        $error = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+        if (in_array($error, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+            return $this->failure('Image is too large. Use a file under 2 MB.');
+        }
+        if ($error !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'] ?? '')) {
+            return $this->failure('Choose an image to upload.');
+        }
+        if (($file['size'] ?? 0) > self::MAX_IMAGE_BYTES) {
+            return $this->failure('Image is too large. Use a file under 2 MB.');
+        }
+        if (AWS_ENDPOINT_URL === '' || AWS_S3_BUCKET_NAME === '' || AWS_ACCESS_KEY_ID === '' || AWS_SECRET_ACCESS_KEY === '') {
+            return $this->failure('Image storage is not configured.');
+        }
+
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+        $extension = self::IMAGE_TYPES[$mime] ?? null;
+        if ($extension === null) {
+            return $this->failure('Image must be a JPEG, PNG or WebP file.');
+        }
+
+        $key = 'menu/' . bin2hex(random_bytes(16)) . '.' . $extension;
+        try {
+            $this->storageClient()->putObject([
+                'Bucket' => AWS_S3_BUCKET_NAME,
+                'Key' => $key,
+                'Body' => file_get_contents($file['tmp_name']),
+                'ContentType' => $mime,
+            ]);
+        } catch (Throwable $error) {
+            error_log('Unable to upload menu image: ' . $error->getMessage());
+            return $this->failure('Unable to upload product image.');
+        }
+
+        return $this->success(['key' => $key]);
     }
 
     public function create(array $input): array {
@@ -194,21 +233,11 @@ class ProductService {
         }
 
         try {
-            $this->imageStorageClient ??= new \Aws\S3\S3Client([
-                    'version' => 'latest',
-                    'region' => AWS_DEFAULT_REGION,
-                    'endpoint' => AWS_ENDPOINT_URL,
-                    'use_path_style_endpoint' => false,
-                    'credentials' => [
-                        'key' => AWS_ACCESS_KEY_ID,
-                        'secret' => AWS_SECRET_ACCESS_KEY,
-                    ],
-                ]);
-            $command = $this->imageStorageClient->getCommand('GetObject', [
+            $command = $this->storageClient()->getCommand('GetObject', [
                 'Bucket' => AWS_S3_BUCKET_NAME,
                 'Key' => $key,
             ]);
-            $request = $this->imageStorageClient->createPresignedRequest($command, '+1 hour');
+            $request = $this->storageClient()->createPresignedRequest($command, '+1 hour');
             $product->image_url = (string) $request->getUri();
         } catch (Throwable $error) {
             error_log('Unable to create a signed menu image URL.');
@@ -216,6 +245,19 @@ class ProductService {
         }
 
         return $product;
+    }
+
+    private function storageClient(): object {
+        return $this->imageStorageClient ??= new \Aws\S3\S3Client([
+            'version' => 'latest',
+            'region' => AWS_DEFAULT_REGION,
+            'endpoint' => AWS_ENDPOINT_URL,
+            'use_path_style_endpoint' => false,
+            'credentials' => [
+                'key' => AWS_ACCESS_KEY_ID,
+                'secret' => AWS_SECRET_ACCESS_KEY,
+            ],
+        ]);
     }
 
     private function isValidBucketKey(string $key): bool {

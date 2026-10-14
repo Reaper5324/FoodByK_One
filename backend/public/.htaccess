@@ -2,3 +2,7 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [L]
+
+# Menu image uploads (max 2 MB file)
+php_value upload_max_filesize 4M
+php_value post_max_size 6M
