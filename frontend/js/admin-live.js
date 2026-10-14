@@ -665,6 +665,27 @@ const initializeAdminLive = async () => {
     const openModal = (selector) => document.querySelector(selector)?.classList.add("show");
     let editingId = null;
 
+    
+    document.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-quick-action]");
+        if (!button) return;
+
+        event.preventDefault();
+
+        const pages = {
+            menu: "menu-items.html",
+            promotion: "promotions.html",
+            orders: "orders.html",
+            reports: "reports.html"
+        };
+
+        const page = pages[button.dataset.quickAction];
+        if (page) {
+            window.location.href = page;
+        }
+    });
+
+    
     document.addEventListener("click", async (event) => {
         const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn");
         if (!target) return;
