@@ -2883,3 +2883,103 @@ td {
 .order-review-modal .slot-help { font-size: .8rem; color: var(--grey); }
 .order-review-modal [hidden] { display: none !important; }
 @media (max-width: 600px) { .order-review-modal { max-height: 94vh; } .order-review-modal .modal-body { max-height: calc(94vh - 90px); padding: 16px; } .order-review-modal .order-detail-row { gap: 14px; align-items: flex-start; } .order-review-modal .order-detail-row strong { text-align: right; overflow-wrap: anywhere; } }
+
+
+
+
+
+/* Notification and account dropdowns */
+.topbar-right {
+    position: relative;
+}
+
+.notification-btn {
+    cursor: pointer;
+}
+
+.admin-profile {
+    cursor: pointer;
+    border-radius: 8px;
+}
+
+.admin-profile:focus-visible,
+.notification-btn:focus-visible {
+    outline: 2px solid var(--orange);
+    outline-offset: 4px;
+}
+
+.topbar-popover {
+    display: none;
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: 290px;
+    max-width: calc(100vw - 32px);
+    padding: 18px;
+    background: #fff;
+    color: #222;
+    border: 1px solid #e8e8e8;
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+    z-index: 1000;
+}
+
+.topbar-popover.is-open {
+    display: block;
+}
+
+.topbar-popover h3 {
+    margin: 0 0 12px;
+    font-size: 1rem;
+}
+
+.notification-panel p {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+}
+
+.notification-panel small,
+.account-panel small {
+    display: block;
+    margin-top: 5px;
+    color: #777;
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+}
+
+.account-panel-user {
+    padding-bottom: 14px;
+    border-bottom: 1px solid #eee;
+}
+
+.account-panel-user strong {
+    display: block;
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
+}
+
+.account-logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 7px;
+    background: #fff1eb;
+    color: #c84920;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.account-logout-btn:hover {
+    background: #ffe2d6;
+}
+
+@media (max-width: 480px) {
+    .topbar-popover {
+        right: -5px;
+    }
+}
