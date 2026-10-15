@@ -7,7 +7,7 @@
     --orange-light: #ff8c3a;
     --black: #101010;
     --sidebar: #161616;
-    --background: #f5f5f5;
+    --background: ##fffaf1;
     --white: #ffffff;
     --text: #202020;
     --grey: #777777;
@@ -41,7 +41,7 @@ button {
     z-index: 10000;
     display: grid;
     grid-template-columns: 260px minmax(0, 1fr);
-    background: #f5f5f5;
+    background: #fffaf1;
 }
 
 .admin-skeleton-sidebar {
@@ -77,7 +77,7 @@ button {
 .admin-loading-feedback p { margin: 0; }
 .admin-loading-feedback button { padding: 9px 16px; border: 0; border-radius: 7px; background: var(--orange); color: #fff; font-weight: 600; }
 .admin-loading-feedback button[hidden] { display: none; }
-.admin-page-skeleton.is-error { display: grid; grid-template-columns: 1fr; place-items: center; background: #f5f5f5; }
+.admin-page-skeleton.is-error { display: grid; grid-template-columns: 1fr; place-items: center; background: #fffaf1; }
 .admin-page-skeleton.is-error .admin-skeleton-app { display: none; }
 .admin-page-skeleton.is-error .admin-loading-feedback { position: static; transform: none; display: flex; flex-direction: column; text-align: center; padding: 24px; }
 @keyframes admin-skeleton-shimmer { to { background-position: -150% 0; } }
