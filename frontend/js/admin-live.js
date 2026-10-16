@@ -482,6 +482,9 @@ const initializeAdminLive = async () => {
             category.textContent = categoryNames.get(Number(product.category_id)) || "MENU ITEM";
             const title = document.createElement("h3");
             title.textContent = product.name;
+            const description = document.createElement("p");
+            description.className = "menu-description";
+            description.textContent = product.description || "";
             const price = document.createElement("p");
             price.className = "menu-price";
             price.textContent = "R" + Number(product.price).toFixed(2);
@@ -498,7 +501,7 @@ const initializeAdminLive = async () => {
             if (role === "admin") actions.append(edit);
             actions.append(availability);
             if (role === "admin") actions.append(remove);
-            content.append(category, title, price, actions);
+            content.append(category, title, description, price, actions);
             card.append(imageContainer, content);
             grid.appendChild(card);
         });
@@ -863,6 +866,7 @@ const initializeAdminLive = async () => {
             document.getElementById("itemCategory").value = record.category_id;
             document.getElementById("itemPrice").value = record.price;
             document.getElementById("itemImage").value = record.image_key || "";
+            document.getElementById("itemDescription").value = record.description || "";
             openModal("#menuModal");
         } else if (action === "category-delete" && confirm("Delete this category? It must have no products assigned.")) {
             const result = await apiDelete(`/admin/categories/${id}`); if (showResult(result)) await loadCategories();
@@ -976,7 +980,7 @@ const initializeAdminLive = async () => {
                 if (!showResult(upload)) return;
                 imageUrl = upload.data.key;
             }
-            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: product?.description || "", price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active" };
+            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: document.getElementById("itemDescription").value.trim(), price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active" };
             result = id ? await apiPut(`/admin/products/${id}`, body) : await apiPost("/admin/products", body);
             if (showResult(result)) { closeModal("#menuModal"); await loadProducts(); }
         } else if (form.id === "promotionForm") {
