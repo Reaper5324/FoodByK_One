@@ -157,12 +157,18 @@ class ProductService {
     public function validateProductInput(array $input, ?Product $existing = null): array {
         $categoryId = $input['category_id'] ?? $existing?->category_id;
         $name = trim((string) ($input['name'] ?? $existing?->name ?? ''));
-        $description = trim((string) ($input['description'] ?? $existing?->description ?? ''));
+        $descriptionInput = array_key_exists('description', $input)
+            ? $input['description']
+            : ($existing?->description ?? '');
         $price = $input['price'] ?? $existing?->price;
         $imageUrl = $input['image_url'] ?? $existing?->image_url;
         $isAvailable = $input['is_available'] ?? $existing?->is_available ?? true;
         $status = $input['status'] ?? $existing?->status ?? Product::STATUS_ACTIVE;
 
+        if ($descriptionInput !== null && !is_string($descriptionInput)) {
+            return $this->failure('Product description must be text.');
+        }
+        $description = trim($descriptionInput ?? '');
         if (filter_var($categoryId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
             return $this->failure('Invalid category.');
         }

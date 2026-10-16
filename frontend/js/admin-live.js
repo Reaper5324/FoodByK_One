@@ -95,6 +95,139 @@ const initializeAdminLive = async () => {
     }
 
 
+        // Notification and signed-in user menus
+    const topbarRight = document.querySelector(".topbar-right");
+    const notificationButton = document.querySelector(".notification-btn");
+    const profile = document.querySelector(".admin-profile");
+
+    const user = authResult.data.user || authResult.data;
+    const userName = user.name || user.full_name || user.username || "Signed-in user";
+    const userEmail = user.email || "";
+    const userRole = String(user.role || role).toLowerCase();
+
+    // Show the actual signed-in user
+    if (profile) {
+        const heading = profile.querySelector(".profile-info h4");
+        const subtitle = profile.querySelector(".profile-info p");
+        const avatar = profile.querySelector(".profile-image");
+
+        if (heading) heading.textContent = userName;
+        if (subtitle) {
+            subtitle.textContent =
+                userRole.charAt(0).toUpperCase() + userRole.slice(1);
+        }
+        if (avatar) avatar.textContent = userName.charAt(0).toUpperCase();
+
+        profile.setAttribute("role", "button");
+        profile.setAttribute("tabindex", "0");
+        profile.setAttribute("aria-expanded", "false");
+        profile.setAttribute("aria-label", "Open account menu");
+    }
+
+    // Create the notification panel
+    let notificationPanel = document.getElementById("notificationPanel");
+
+    if (!notificationPanel && topbarRight) {
+        notificationPanel = document.createElement("div");
+        notificationPanel.id = "notificationPanel";
+        notificationPanel.className = "topbar-popover notification-panel";
+        notificationPanel.innerHTML = `
+            <h3>Notifications</h3>
+            <p>No new notifications.</p>
+            <small>Notifications are not yet connected to the backend.</small>
+        `;
+        topbarRight.appendChild(notificationPanel);
+    }
+
+    // Create the account dropdown
+    let accountPanel = document.getElementById("accountPanel");
+
+    if (!accountPanel && topbarRight) {
+        accountPanel = document.createElement("div");
+        accountPanel.id = "accountPanel";
+        accountPanel.className = "topbar-popover account-panel";
+        accountPanel.innerHTML = `
+            <div class="account-panel-user">
+                <strong class="account-user-name"></strong>
+                <small class="account-user-email"></small>
+                <small class="account-user-role"></small>
+            </div>
+            <button type="button" class="account-logout-btn">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                Logout
+            </button>
+        `;
+        accountPanel.querySelector(".account-user-name").textContent = userName;
+        accountPanel.querySelector(".account-user-email").textContent = userEmail;
+        accountPanel.querySelector(".account-user-role").textContent =
+            userRole.charAt(0).toUpperCase() + userRole.slice(1);
+        topbarRight.appendChild(accountPanel);
+    }
+
+    const closeTopbarPanels = () => {
+        notificationPanel?.classList.remove("is-open");
+        accountPanel?.classList.remove("is-open");
+        profile?.setAttribute("aria-expanded", "false");
+    };
+
+    notificationButton?.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const shouldOpen = !notificationPanel?.classList.contains("is-open");
+        closeTopbarPanels();
+
+        if (shouldOpen) {
+            notificationPanel?.classList.add("is-open");
+        }
+    });
+
+    const toggleAccountPanel = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const shouldOpen = !accountPanel?.classList.contains("is-open");
+        closeTopbarPanels();
+
+        if (shouldOpen) {
+            accountPanel?.classList.add("is-open");
+            profile?.setAttribute("aria-expanded", "true");
+        }
+    };
+
+    profile?.addEventListener("click", toggleAccountPanel);
+
+    profile?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+            toggleAccountPanel(event);
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (
+            !event.target.closest(".notification-btn") &&
+            !event.target.closest(".admin-profile") &&
+            !event.target.closest(".topbar-popover")
+        ) {
+            closeTopbarPanels();
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeTopbarPanels();
+    });
+
+    accountPanel?.querySelector(".account-logout-btn")?.addEventListener(
+        "click",
+        async () => {
+            try {
+                await apiPost("/auth/logout", {});
+            } finally {
+                location.href = "../pages/auth/login.html";
+            }
+        }
+    );
+
     
         const paths = {
         "Dashboard": "dashboard.html",
@@ -349,6 +482,9 @@ const initializeAdminLive = async () => {
             category.textContent = categoryNames.get(Number(product.category_id)) || "MENU ITEM";
             const title = document.createElement("h3");
             title.textContent = product.name;
+            const description = document.createElement("p");
+            description.className = "menu-description";
+            description.textContent = product.description || "";
             const price = document.createElement("p");
             price.className = "menu-price";
             price.textContent = "R" + Number(product.price).toFixed(2);
@@ -365,7 +501,7 @@ const initializeAdminLive = async () => {
             if (role === "admin") actions.append(edit);
             actions.append(availability);
             if (role === "admin") actions.append(remove);
-            content.append(category, title, price, actions);
+            content.append(category, title, description, price, actions);
             card.append(imageContainer, content);
             grid.appendChild(card);
         });
@@ -730,6 +866,7 @@ const initializeAdminLive = async () => {
             document.getElementById("itemCategory").value = record.category_id;
             document.getElementById("itemPrice").value = record.price;
             document.getElementById("itemImage").value = record.image_key || "";
+            document.getElementById("itemDescription").value = record.description || "";
             openModal("#menuModal");
         } else if (action === "category-delete" && confirm("Delete this category? It must have no products assigned.")) {
             const result = await apiDelete(`/admin/categories/${id}`); if (showResult(result)) await loadCategories();
@@ -843,7 +980,7 @@ const initializeAdminLive = async () => {
                 if (!showResult(upload)) return;
                 imageUrl = upload.data.key;
             }
-            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: product?.description || "", price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active" };
+            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: document.getElementById("itemDescription").value.trim(), price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active" };
             result = id ? await apiPut(`/admin/products/${id}`, body) : await apiPost("/admin/products", body);
             if (showResult(result)) { closeModal("#menuModal"); await loadProducts(); }
         } else if (form.id === "promotionForm") {

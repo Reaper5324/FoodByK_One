@@ -111,3 +111,91 @@ jobs:
           name: customer-ui-traces
           path: frontend/test-results/
           if-no-files-found: ignore
+
+  load-test:
+    name: HTTP load and baseline performance test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: foodbyk_test_password
+          MYSQL_DATABASE: foodbyk_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pfoodbyk_test_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      APP_ENV: testing
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: foodbyk_test
+      DB_USER: root
+      DB_PASS: foodbyk_test_password
+      PAYMENT_TOKEN_ENCRYPTION_KEY: a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=
+      FRONTEND_URL: https://foodbyks.netlify.app
+      LOAD_TEST_BASE_URL: http://127.0.0.1:8080
+      LOAD_TEST_DURATION: 30
+      LOAD_TEST_WARMUP: 5
+      LOAD_TEST_CONCURRENCY: 5
+      LOAD_TEST_TIMEOUT: 10
+      LOAD_TEST_P95_LIMIT_MS: 1000
+      LOAD_TEST_ERROR_LIMIT_PERCENT: 1
+      LOAD_TEST_MIN_SAMPLES: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: curl, pdo_mysql, openssl
+
+      - name: Apply schema to disposable test database
+        run: |
+          mysql -h 127.0.0.1 -uroot -p"$DB_PASS" \
+            "$DB_NAME" < backend/foodbyk/database/migration.sql
+
+      - name: Start local API server
+        shell: bash
+        run: |
+          php -S 127.0.0.1:8080 \
+            -t backend/public \
+            backend/public/router.php \
+            > /tmp/foodbyk-load-api.log 2>&1 &
+          echo $! > /tmp/foodbyk-load-api.pid
+
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail \
+              http://127.0.0.1:8080/health > /dev/null; then
+              echo "API is ready."
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat /tmp/foodbyk-load-api.log
+          exit 1
+
+      - name: Run PHP syntax check
+        run: php -l backend/tests/load_test.php
+
+      - name: Run load test and generate KPI reports
+        run: php backend/tests/load_test.php
+
+      - name: Upload load-test KPI reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foodbyk-load-test-results
+          path: |
+            backend/tests/load-test-results.json
+            backend/tests/load-test-results.md
+          if-no-files-found: warn
+          retention-days: 30
