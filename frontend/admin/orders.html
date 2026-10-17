@@ -685,261 +685,65 @@
          ORDER MANAGEMENT MODAL
     ========================== -->
 
-    <div class="modal" id="orderModal">
-
-
-        <div class="modal-content">
-
-
-            <!-- MODAL HEADER -->
-
+    <div class="modal" id="orderModal" aria-hidden="true">
+        <div class="modal-content order-review-modal">
             <div class="modal-header">
-
                 <div>
-
-                    <p class="card-label">
-                        REVIEW ORDER
-                    </p>
-
-                    <h3 id="modalOrderId">
-                        #FBK-1024
-                    </h3>
-
+                    <p class="card-label">REVIEW ORDER</p>
+                    <h3 id="modalOrderId">Order details</h3>
                 </div>
-
-
-                <button class="close-modal">
-
-                    <i class="fa-solid fa-xmark"></i>
-
-                </button>
-
+                <button type="button" class="close-modal" aria-label="Close order review"><i class="fa-solid fa-xmark"></i></button>
             </div>
-
-
-            <!-- MODAL BODY -->
-
             <div class="modal-body">
+                <div class="order-detail-row"><span>Customer</span><strong id="modalCustomer">—</strong></div>
+                <div class="order-detail-row"><span>Customer contact</span><strong id="modalContact">—</strong></div>
+                <div class="order-detail-row"><span>Order placed</span><strong id="modalPlaced">—</strong></div>
+                <div class="order-detail-row"><span>Order type</span><strong id="modalType">—</strong></div>
+                <div class="order-detail-row"><span>Requested time</span><strong id="modalTime">—</strong></div>
+                <div class="order-detail-row" id="modalAddressRow"><span>Delivery address</span><strong id="modalAddress">—</strong></div>
 
+                <section class="order-items-section">
+                    <h4>Items ordered</h4>
+                    <div id="modalItems" class="order-items-list"><p>Loading order items…</p></div>
+                </section>
+                <section class="order-totals-section">
+                    <div class="order-total-row"><span>Subtotal</span><strong id="modalSubtotal">—</strong></div>
+                    <div class="order-total-row"><span>Discount</span><strong id="modalDiscount">—</strong></div>
+                    <div class="order-total-row"><span>Delivery fee</span><strong id="modalDeliveryFee">—</strong></div>
+                    <div class="order-total-row order-grand-total"><span>Total</span><strong id="modalTotal">—</strong></div>
+                </section>
+                <div class="order-detail-row"><span>Customer notes</span><strong id="modalNotes">None</strong></div>
 
-                <!-- ORDER DETAILS -->
-
-                <div class="order-detail-row">
-
-                    <span>Customer</span>
-
-                    <strong id="modalCustomer">
-                        Neo
-                    </strong>
-
-                </div>
-
-
-                <div class="order-detail-row">
-
-                    <span>Order Type</span>
-
-                    <strong id="modalType">
-                        Delivery
-                    </strong>
-
-                </div>
-
-
-                <div class="order-detail-row">
-
-                    <span>Requested Time</span>
-
-                    <strong id="modalTime">
-                        18:15
-                    </strong>
-
-                </div>
-
-
-                <div class="order-detail-row">
-
-                    <span>Total</span>
-
-                    <strong id="modalTotal">
-                        R245.00
-                    </strong>
-
-                </div>
-
-
-                <!-- =========================
-                     STAFF DECISION
-                ========================== -->
-
-                <div
-                    class="confirmation-section"
-                    id="confirmationSection"
-                >
-
-                    <p class="modal-section-title">
-                        STAFF DECISION
-                    </p>
-
-
-                    <p class="decision-text">
-
-                        Review the order and either accept it,
-                        adjust the requested fulfilment time,
-                        or decline the order.
-
-                    </p>
-
-
-                    <div class="decision-buttons">
-
-
-                        <button class="accept-order-btn">
-
-                            <i class="fa-solid fa-check"></i>
-
-                            Accept Order
-
-                        </button>
-
-
-                        <button class="adjust-time-btn">
-
-                            <i class="fa-solid fa-clock"></i>
-
-                            Adjust Time
-
-                        </button>
-
-
-                        <button class="decline-order-btn">
-
-                            <i class="fa-solid fa-xmark"></i>
-
-                            Decline Order
-
-                        </button>
-
-
+                <section id="confirmationSection" class="confirmation-section">
+                    <p class="modal-section-title">STAFF DECISION</p>
+                    <p class="decision-text">Check the items and requested time before choosing one of the final actions below.</p>
+                    <button type="button" class="accept-order-btn">Confirm as-is</button>
+                    <div class="adjustment-section show" id="adjustmentSection">
+                        <label for="slotDate">CHOOSE A DIFFERENT COLLECTION / DELIVERY SLOT</label>
+                        <input type="date" id="slotDate">
+                        <select id="slotSelect" aria-label="Available time slots"><option value="">Choose a date first</option></select>
+                        <button type="button" class="confirm-time-btn" disabled>Adjust &amp; Accept</button>
+                        <p class="slot-help" id="slotHelp" role="status"></p>
                     </div>
+                    <div class="decline-section show" id="declineSection">
+                        <label for="declineReason">REASON FOR DECLINING</label>
+                        <textarea id="declineReason" maxlength="255" placeholder="Enter the reason for declining this order…"></textarea>
+                        <button type="button" class="confirm-decline-btn">Decline Order</button>
+                    </div>
+                </section>
 
-                </div>
-
-
-                <!-- =========================
-                     ADJUST TIME
-                ========================== -->
-
-                <div
-                    class="adjustment-section"
-                    id="adjustmentSection"
-                >
-
-                    <label for="adjustedTime">
-
-                        NEW COLLECTION / DELIVERY TIME
-
-                    </label>
-
-
-                    <input
-                        type="time"
-                        id="adjustedTime"
-                    >
-
-
-                    <button class="confirm-time-btn">
-
-                        Confirm New Time
-
-                    </button>
-
-                </div>
-
-
-                <!-- =========================
-                     DECLINE ORDER
-                ========================== -->
-
-                <div
-                    class="decline-section"
-                    id="declineSection"
-                >
-
-                    <label for="declineReason">
-
-                        REASON FOR DECLINING
-
-                    </label>
-
-
-                    <textarea
-                        id="declineReason"
-                        placeholder="Enter the reason for declining this order..."
-                    ></textarea>
-
-
-                    <button class="confirm-decline-btn">
-
-                        Confirm Decline
-
-                    </button>
-
-                </div>
-
-
-                <!-- =========================
-                     STATUS UPDATE
-                ========================== -->
-
-                <div
-                    class="status-update"
-                    id="statusSection"
-                >
-
-                    <label for="statusSelect">
-
-                        UPDATE ORDER STATUS
-
-                    </label>
-
-
+                <section class="status-update" id="statusSection">
+                    <label for="statusSelect">UPDATE ORDER STATUS</label>
                     <select id="statusSelect">
-
-                        <option value="accepted">
-                            Accepted
-                        </option>
-
-                        <option value="preparing">
-                            Preparing
-                        </option>
-
-                        <option value="ready">
-                            Ready
-                        </option>
-
-                        <option value="completed">
-                            Completed
-                        </option>
-
+                        <option value="preparing">Preparing</option>
+                        <option value="ready">Ready</option>
+                        <option value="completed">Completed</option>
                     </select>
-
-
-                    <button class="save-status-btn">
-
-                        Update Status
-
-                    </button>
-
-                </div>
-
-
+                    <button type="button" class="save-status-btn">Update Status</button>
+                </section>
             </div>
-
         </div>
-
     </div>
-
 
     <!-- JAVASCRIPT -->
 

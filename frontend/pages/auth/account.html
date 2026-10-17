@@ -1,339 +1,941 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Account | Food by K</title>
 
-    <meta charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-    <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0"
-    >
+  <!-- Shared site stylesheet (arrows, base styles). Everything below is scoped to body.account-page-shell. -->
+  <link rel="stylesheet" href="../../public%20assets/css/style.css">
+  <!-- Kept so account.js keeps working. auth.css is intentionally NOT loaded. -->
+  <link rel="stylesheet" href="../../public%20assets/css/account.css">
+  <link rel="stylesheet" href="../../public%20assets/css/skeletons.css">
 
-    <title>My Account | Food by K</title>
+  <style>
+    /* ===== FOOD BY K ACCOUNT: same look as the menu page (cream page, black navbar, red + black) ===== */
 
+    body.account-page-shell {
+      --red: #d71920;
+      --red-dark: #b3131a;
+      --ink: #111111;
+      --cream: #fdf8f2;
+      --panel: #ffffff;
+      --tile: #faf5ee;
+      --line: #e3dbd0;
+      --muted: #5f5a54;
+      --gold: #f5b323;
 
-    <!-- Shared Website Styling -->
-    <link
-            rel="stylesheet"
-            href="../../public assets/css/style.css"
-    >
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--ink);
+      font: 400 16px/1.5 "Inter", system-ui, sans-serif;
+      letter-spacing: normal;
+      text-transform: none;
+      background: var(--cream);
+    }
 
-    <!-- Authentication Styling -->
-    <link
-            rel="stylesheet"
-            href="../../public assets/css/auth.css"
-    >
-    <link rel="stylesheet" href="../../public%20assets/css/account.css">
-    <link rel="stylesheet" href="../../public%20assets/css/skeletons.css">
+    html { scroll-behavior: smooth; }
+    body.account-page-shell [hidden] { display: none !important; }
 
+    /* ---------- navbar (black bar, same as the menu page) ---------- */
+    body.account-page-shell header.navbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      min-height: 76px;
+      margin: 0;
+      padding: 0 clamp(1.25rem, 6vw, 5.8rem);
+      box-sizing: border-box;
+      background: #0d0d0d;
+      border: 0;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    body.account-page-shell header.navbar .logo { margin: 0; padding: 0; }
+
+    body.account-page-shell header.navbar .logo a {
+      font: 900 1.9rem "Inter", system-ui, sans-serif;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: #fff;
+    }
+
+    body.account-page-shell header.navbar .logo a span { color: var(--red); }
+
+    body.account-page-shell header.navbar nav { display: flex; align-items: center; flex-wrap: wrap; gap: 2.1rem; }
+
+    body.account-page-shell header.navbar nav a {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      height: 76px;
+      padding: 0;
+      margin: 0;
+      font: 800 0.8rem "Inter", system-ui, sans-serif;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: #fff;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      transition: color 0.2s;
+    }
+
+    body.account-page-shell header.navbar nav a:not(.nav-register)::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 22px;
+      height: 3px;
+      background: var(--gold);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.2s;
+    }
+
+    body.account-page-shell header.navbar nav a:not(.nav-register):hover,
+    body.account-page-shell header.navbar nav a.active { color: var(--gold); }
+    body.account-page-shell header.navbar nav a:not(.nav-register):hover::after,
+    body.account-page-shell header.navbar nav a.active::after { transform: scaleX(1); }
+
+    body.account-page-shell header.navbar nav a.nav-register {
+      height: 44px;
+      padding: 0 1.1rem;
+      background: var(--red);
+      color: #fff;
+    }
+
+    body.account-page-shell header.navbar nav a.nav-register:hover { background: var(--red-dark); }
+    body.account-page-shell header.navbar nav a:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+
+    /* ---------- page layout ---------- */
+    body.account-page-shell main.account-page {
+      display: block;
+      min-height: 0;
+      padding: 3.4rem clamp(1.25rem, 6vw, 5.8rem) 5rem;
+      background: none;
+    }
+
+    body.account-page-shell .account-container {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      gap: 1.8rem 2.2rem;
+      align-items: start;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0;
+      background: none;
+      border: 0;
+      box-shadow: none;
+    }
+
+    body.account-page-shell .account-stack { display: flex; flex-direction: column; gap: 1.6rem; min-width: 0; }
+
+    /* ---------- page header ---------- */
+    body.account-page-shell .account-header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin: 0 0 0.6rem;
+      padding: 0;
+      text-align: left;
+      background: none;
+      border: 0;
+      box-shadow: none;
+    }
+
+    body.account-page-shell .account-hero-text { flex: 1 1 320px; min-width: 0; }
+
+    body.account-page-shell .account-header .section-tag {
+      margin: 0 0 0.9rem;
+      font: 800 0.72rem "Inter", system-ui, sans-serif;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--red);
+    }
+
+    body.account-page-shell .account-header h1 {
+      margin: 0 0 0.9rem;
+      font: 900 clamp(2.8rem, 8vw, 6rem) "Inter", system-ui, sans-serif;
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    body.account-page-shell .account-header h1 span { color: var(--red); }
+    body.account-page-shell .account-header p:not(.section-tag) { margin: 0; font-size: 1rem; color: var(--muted); }
+    body.account-page-shell .account-hero-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+
+    /* ---------- side menu ---------- */
+    body.account-page-shell .account-nav {
+      position: sticky;
+      top: 100px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding: 1rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    body.account-page-shell .account-nav-title {
+      margin: 0.1rem 0.2rem 0.4rem;
+      font: 800 0.7rem "Inter", system-ui, sans-serif;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--red);
+    }
+
+    body.account-page-shell .account-nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.8rem 0.9rem;
+      font: 800 0.74rem "Inter", system-ui, sans-serif;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink);
+      text-decoration: none;
+      background: #fff;
+      border: 1px solid var(--line);
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    body.account-page-shell .account-nav a:hover { border-color: var(--ink); }
+    body.account-page-shell .account-nav a.is-active { color: #fff; background: var(--ink); border-color: var(--ink); }
+
+    /* simple icons, no coloured boxes */
+    body.account-page-shell .chip { flex: 0 0 auto; display: inline-grid; place-items: center; width: 20px; height: 20px; color: var(--red); }
+    body.account-page-shell .account-nav a.is-active .chip { color: #fff; }
+
+    body.account-page-shell .chip svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ---------- section cards ---------- */
+    body.account-page-shell .account-card {
+      margin: 0;
+      padding: 2.1rem 2.3rem;
+      box-sizing: border-box;
+      scroll-margin-top: 100px;
+      color: var(--ink);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--ink);
+      border-radius: 0;
+      box-shadow: 0 10px 30px rgba(20, 15, 10, 0.06);
+    }
+
+    body.account-page-shell .account-card h2 {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin: 0 0 1.6rem;
+      padding: 0 0 1.1rem;
+      font: 900 1.15rem "Inter", system-ui, sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink);
+      border-bottom: 1px solid var(--line);
+    }
+
+    body.account-page-shell .account-card h3 {
+      margin: 1.6rem 0 1.1rem;
+      font: 900 1rem "Inter", system-ui, sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    body.account-page-shell .account-card p,
+    body.account-page-shell .account-card small { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+    body.account-page-shell .account-card small { display: block; margin-top: 0.4rem; font-size: 0.82rem; }
+    body.account-page-shell .account-card a:not(.btn) { color: var(--red); font-weight: 700; text-decoration: none; }
+    body.account-page-shell .account-card a:not(.btn):hover { text-decoration: underline; }
+
+    /* ---------- account info tiles ---------- */
+    body.account-page-shell .account-info { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-bottom: 2rem; }
+
+    body.account-page-shell .account-field {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      margin: 0;
+      padding: 1rem 1.2rem 1rem 1.4rem;
+      overflow: hidden;
+      background: var(--tile);
+      border: 1px solid var(--line);
+    }
+
+    body.account-page-shell .account-field::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: var(--red);
+    }
+
+    body.account-page-shell .account-label {
+      font: 800 0.68rem "Inter", system-ui, sans-serif;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    body.account-page-shell .account-value { font-size: 1.05rem; font-weight: 700; color: var(--ink); word-break: break-word; }
+
+    body.account-page-shell .account-value.skeleton,
+    body.account-page-shell .skeleton {
+      color: transparent !important;
+      border-radius: 4px;
+      background: linear-gradient(90deg, rgba(0, 0, 0, 0.06) 25%, rgba(0, 0, 0, 0.13) 50%, rgba(0, 0, 0, 0.06) 75%) !important;
+      background-size: 200% 100% !important;
+    }
+
+    /* ---------- forms ---------- */
+    body.account-page-shell .account-edit-form,
+    body.account-page-shell #changePasswordForm,
+    body.account-page-shell #deleteAccountForm,
+    body.account-page-shell .policy-acceptance-form { display: flex; flex-direction: column; gap: 1.1rem; margin: 0; }
+
+    body.account-page-shell .form-group { display: flex; flex-direction: column; gap: 0.45rem; margin: 0; }
+
+    body.account-page-shell .form-group label,
+    body.account-page-shell #deleteAccountForm > label[for] {
+      font: 800 0.7rem "Inter", system-ui, sans-serif;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    body.account-page-shell input[type="text"],
+    body.account-page-shell input[type="email"],
+    body.account-page-shell input[type="tel"],
+    body.account-page-shell input[type="password"] {
+      display: block;
+      width: 100%;
+      height: 52px;
+      margin: 0;
+      padding: 0 1rem;
+      box-sizing: border-box;
+      font: inherit;
+      letter-spacing: normal;
+      text-transform: none;
+      color: var(--ink);
+      caret-color: var(--ink);
+      color-scheme: light;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    body.account-page-shell input::placeholder { color: #8d867d; }
+
+    body.account-page-shell input[type="text"]:focus,
+    body.account-page-shell input[type="email"]:focus,
+    body.account-page-shell input[type="tel"]:focus,
+    body.account-page-shell input[type="password"]:focus {
+      border-color: var(--ink);
+      box-shadow: 0 0 0 3px rgba(215, 25, 32, 0.18);
+    }
+
+    /* browser autofill: keep it white with dark text */
+    body.account-page-shell input:-webkit-autofill,
+    body.account-page-shell input:-webkit-autofill:hover,
+    body.account-page-shell input:-webkit-autofill:focus,
+    body.account-page-shell input:-webkit-autofill:active {
+      -webkit-text-fill-color: var(--ink) !important;
+      caret-color: var(--ink);
+      box-shadow: 0 0 0 1000px #fff inset !important;
+      transition: background-color 600000s 0s, color 600000s 0s;
+    }
+
+    body.account-page-shell input:-webkit-autofill:focus {
+      border-color: var(--ink);
+      box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px rgba(215, 25, 32, 0.18) !important;
+    }
+
+    /* ---------- checkboxes ---------- */
+    body.account-page-shell input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 20px;
+      width: 20px;
+      height: 20px;
+      margin: 0;
+      background: #fff;
+      border: 2px solid var(--ink);
+      border-radius: 0;
+      cursor: pointer;
+    }
+
+    body.account-page-shell input[type="checkbox"]:checked { background: var(--red); border-color: var(--red); }
+
+    body.account-page-shell input[type="checkbox"]:checked::after {
+      content: "";
+      width: 5px;
+      height: 10px;
+      margin-top: -2px;
+      border: solid #fff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    body.account-page-shell input[type="checkbox"]:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+    body.account-page-shell .account-default-option,
+    body.account-page-shell .policy-check,
+    body.account-page-shell #deleteAccountForm > label:not([for]) {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      font-size: 0.95rem;
+      letter-spacing: normal;
+      text-transform: none;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    body.account-page-shell .policy-check { align-items: flex-start; }
+
+    /* ---------- buttons (square, like the menu page) ---------- */
+    body.account-page-shell .account-actions { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1.4rem; }
+
+    body.account-page-shell .btn,
+    body.account-page-shell .account-card button[type="submit"],
+    body.account-page-shell .account-card button[type="button"] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.7rem;
+      height: 50px;
+      padding: 0 1.7rem;
+      font: 800 0.8rem "Inter", system-ui, sans-serif;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      text-decoration: none;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    body.account-page-shell .btn-primary,
+    body.account-page-shell .account-card button[type="submit"] { color: #fff; background: var(--red); }
+    body.account-page-shell .btn-primary:hover,
+    body.account-page-shell .account-card button[type="submit"]:hover { background: var(--red-dark); }
+
+    body.account-page-shell .btn-secondary,
+    body.account-page-shell #logoutButton { color: #fff; background: var(--ink); border: 0; }
+    body.account-page-shell .btn-secondary:hover,
+    body.account-page-shell #logoutButton:hover { background: #2b2b2b; }
+
+    body.account-page-shell .btn:focus-visible,
+    body.account-page-shell .account-card button:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+    body.account-page-shell .btn:disabled,
+    body.account-page-shell .account-card button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ---------- messages: always readable ---------- */
+    body.account-page-shell :is(.account-message, #profileMessage, #policyMessage, #addressMessage, #passwordMessage, #deleteAccountMessage):not(:empty):not([hidden]) {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.7rem;
+      margin: 0 0 1.2rem;
+      padding: 0.9rem 1.1rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.45;
+      color: #7a0d12 !important;
+      background: #fdecec !important;
+      border: 1px solid var(--red) !important;
+      border-radius: 0;
+    }
+
+    body.account-page-shell :is(.account-message, #profileMessage, #policyMessage, #addressMessage, #passwordMessage, #deleteAccountMessage):not(:empty):not([hidden])::before {
+      content: "!";
+      flex: none;
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      margin-top: 1px;
+      border-radius: 50%;
+      font: 800 0.8rem/1 "Inter", sans-serif;
+      color: #fff;
+      background: var(--red);
+    }
+
+    body.account-page-shell :is(.account-message, #profileMessage, #policyMessage, #addressMessage, #passwordMessage, #deleteAccountMessage):not(:empty) * {
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      color: inherit !important;
+      font: inherit !important;
+    }
+
+    body.account-page-shell :is(.account-message, #profileMessage, #policyMessage, #addressMessage, #passwordMessage, #deleteAccountMessage):is(.success, .is-success, .message-success, .alert-success, .msg-success, .text-success, .account-message-success, [data-type="success"], [data-status="success"]):not(:empty):not([hidden]),
+    body.account-page-shell :is(.account-message, #profileMessage, #policyMessage, #addressMessage, #passwordMessage, #deleteAccountMessage):has(.success, .is-success, .message-success, .alert-success, .msg-success, .text-success):not(:empty):not([hidden]) {
+      color: #14532d !important;
+      background: #eaf6ef !important;
+      border-color: #2ea05a !important;
+    }
+
+    body.account-page-shell :is(.account-message, #profileMessage, #policyMessage, #addressMessage, #passwordMessage, #deleteAccountMessage):is(.success, .is-success, .message-success, .alert-success, .msg-success, .text-success, .account-message-success, [data-type="success"], [data-status="success"]):not(:empty):not([hidden])::before,
+    body.account-page-shell :is(.account-message, #profileMessage, #policyMessage, #addressMessage, #passwordMessage, #deleteAccountMessage):has(.success, .is-success, .message-success, .alert-success, .msg-success, .text-success):not(:empty):not([hidden])::before {
+      content: "\2713";
+      background: #2ea05a;
+    }
+
+    /* ---------- delivery addresses ---------- */
+    body.account-page-shell .account-address-list { display: flex; flex-direction: column; gap: 0.9rem; margin-bottom: 1.2rem; }
+
+    body.account-page-shell .account-address-list > * {
+      padding: 1.1rem 1.3rem 1.1rem 1.5rem;
+      color: var(--ink);
+      background: var(--tile);
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--red);
+      border-radius: 0;
+    }
+
+    body.account-page-shell .account-address-list button {
+      height: 38px;
+      padding: 0 1rem;
+      font-size: 0.7rem;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--ink);
+    }
+
+    body.account-page-shell .account-address-list button:hover { color: #fff; background: var(--ink); }
+    body.account-page-shell .account-address-form { padding-top: 0.4rem; border-top: 1px solid var(--line); }
+
+    /* ---------- policy review card ---------- */
+    body.account-page-shell .policy-review-card { border-top-color: var(--red); }
+
+    body.account-page-shell .policy-review-kicker {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin-bottom: 0.8rem;
+      font: 800 0.72rem "Inter", system-ui, sans-serif;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--red);
+    }
+
+    body.account-page-shell .policy-review-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-size: 0.78rem;
+      letter-spacing: 0;
+      color: #fff;
+      background: var(--red);
+    }
+
+    body.account-page-shell .policy-document-links { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1.2rem 0; }
+
+    body.account-page-shell .policy-document-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.75rem 1.1rem;
+      font-weight: 700;
+      color: var(--ink);
+      text-decoration: none;
+      background: #fff;
+      border: 1px solid var(--ink);
+    }
+
+    body.account-page-shell .policy-document-links a:hover { color: #fff; background: var(--ink); text-decoration: none; }
+
+    body.account-page-shell .policy-choice-note {
+      display: flex;
+      gap: 0.8rem;
+      margin-bottom: 1.2rem;
+      padding: 0.9rem 1rem;
+      background: var(--tile);
+      border: 1px solid var(--line);
+    }
+
+    body.account-page-shell .policy-choice-note > span {
+      flex: 0 0 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--red);
+      border: 1px solid var(--red);
+      border-radius: 50%;
+    }
+
+    body.account-page-shell .policy-choice-note p { margin: 0; font-size: 0.88rem; }
+    body.account-page-shell .policy-review-footer { margin: 1rem 0 0; font-size: 0.82rem; text-align: center; }
+
+    /* ---------- delete card ---------- */
+    body.account-page-shell .account-delete-card { border-top-color: var(--red); }
+    body.account-page-shell .account-delete-card h2 { color: var(--red); }
+
+    body.account-page-shell .btn-danger,
+    body.account-page-shell .account-delete-card button[type="submit"] {
+      color: var(--red);
+      background: #fff;
+      border: 2px solid var(--red);
+    }
+
+    body.account-page-shell .btn-danger:hover,
+    body.account-page-shell .account-delete-card button[type="submit"]:hover { color: #fff; background: var(--red); }
+
+    body.account-page-shell .ui-arrow { color: currentColor; }
+
+    /* ---------- responsive ---------- */
+    @media (max-width: 900px) {
+      body.account-page-shell .account-container { grid-template-columns: 1fr; }
+
+      body.account-page-shell .account-nav {
+        top: 76px;
+        z-index: 20;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      body.account-page-shell .account-nav::-webkit-scrollbar { display: none; }
+      body.account-page-shell .account-nav-title { display: none; }
+      body.account-page-shell .account-nav a { flex: 0 0 auto; white-space: nowrap; }
+      body.account-page-shell .account-card { scroll-margin-top: 150px; }
+    }
+
+    @media (max-width: 860px) {
+      body.account-page-shell header.navbar { justify-content: center; padding: 0.8rem 1rem; gap: 0.6rem; }
+      body.account-page-shell header.navbar nav { justify-content: center; gap: 1.1rem; }
+      body.account-page-shell header.navbar nav a { height: 40px; font-size: 0.72rem; }
+      body.account-page-shell header.navbar nav a:not(.nav-register)::after { bottom: 4px; }
+      body.account-page-shell header.navbar nav a.nav-register { height: 38px; }
+    }
+
+    @media (max-width: 720px) {
+      body.account-page-shell .account-nav { top: 120px; }
+      body.account-page-shell main.account-page { padding: 2rem 1rem 4rem; }
+      body.account-page-shell .account-card { padding: 1.6rem 1.2rem; }
+      body.account-page-shell .account-info { grid-template-columns: 1fr; }
+      body.account-page-shell .account-actions .btn,
+      body.account-page-shell .account-actions button { width: 100%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      body.account-page-shell * { transition: none !important; }
+    }
+  </style>
 </head>
 
+<body class="account-page-shell">
 
-<body>
+<header class="navbar">
+  <div class="logo"><a href="../../src/index.html" aria-label="Food by K - home">FOOD<span>BY K</span></a></div>
 
-<header class="navbar" id="navigation">
-    <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
-    <nav aria-label="Main navigation">
-        <a href="../../src/index.html">Home</a>
-        <a href="../customer/menu.html">Menu</a>
-        <a href="../customer/cart.html">Cart</a>
-        <a href="../../src/index.html#contact">Contact</a>
-        <a href="login.html" class="nav-auth-action">Login</a>
-        <a href="register.html" class="nav-register nav-auth-action">Register</a>
-    </nav>
+  <nav aria-label="Main navigation">
+    <a href="../../src/index.html">Home</a>
+    <a href="../customer/menu.html">Menu</a>
+    <a href="../../src/index.html#contact">Contact</a>
+    <a href="../customer/cart.html">Cart</a>
+    <a href="login.html" class="nav-auth-action">Login</a>
+    <a href="register.html" class="nav-register nav-auth-action">Register</a>
+  </nav>
 </header>
 
 
 <main class="account-page">
 
-    <section class="account-container">
+  <section class="account-container">
+
+    <!-- PAGE HEADER -->
+    <header class="account-header">
+      <div class="account-hero-text">
+        <p class="section-tag">Your Food by K account</p>
+        <h1 id="accountGreeting">My <span>account.</span></h1>
+        <p>View and manage your Food by K account.</p>
+      </div>
+
+      <div class="account-hero-actions">
+        <a class="btn btn-secondary" href="../customer/cart.html">View cart <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></a>
+      </div>
+    </header>
 
 
-        <!-- =========================================
-             PAGE HEADING
-             ========================================= -->
+    <!-- SIDE MENU (jump links) -->
+    <nav class="account-nav" id="accountNav" aria-label="Account sections">
+      <p class="account-nav-title">Manage</p>
 
-        <div class="account-header">
+      <a href="#sec-details" class="is-active">
+        <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></span>
+        Account details
+      </a>
 
-            <h1>
-                My Account
-            </h1>
+      <a href="#sec-addresses">
+        <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-5.6 7-11a7 7 0 0 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+        Delivery addresses
+      </a>
 
-            <p>
-                View and manage your Food by K account.
-            </p>
+      <a href="#sec-password">
+        <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+        Password
+      </a>
+
+      <a href="#sec-delete">
+        <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>
+        Delete account
+      </a>
+    </nav>
+
+
+    <!-- CARD STACK -->
+    <div class="account-stack">
+
+      <!-- POLICY REVIEW (shown by privacy.js / account.js when needed) -->
+      <section class="account-card policy-review-card" id="policyAcceptanceCard" aria-labelledby="policyAcceptanceHeading" hidden>
+        <div class="policy-review-kicker"><span class="policy-review-icon" aria-hidden="true">✓</span><span>One quick step</span></div>
+        <h2 id="policyAcceptanceHeading">A quick review before you continue</h2>
+        <p class="policy-review-intro">We’ve updated the documents that explain how your account works and how Food by K handles your information. Please review and confirm both choices below.</p>
+        <div class="policy-document-links">
+          <a href="../legal/terms.html" target="_blank" rel="noopener"><span>Terms of Service</span><span class="ui-arrow ui-arrow-up-right" aria-hidden="true"></span></a>
+          <a href="../legal/privacy.html" target="_blank" rel="noopener"><span>Privacy Notice</span><span class="ui-arrow ui-arrow-up-right" aria-hidden="true"></span></a>
+        </div>
+        <div class="policy-choice-note"><span aria-hidden="true">i</span><p>Reading the privacy notice is separate from agreeing to the terms. This does not subscribe you to marketing messages. Cookie settings are managed separately.</p></div>
+        <div id="policyMessage" class="account-message policy-message" role="status" aria-live="polite" hidden></div>
+        <form id="policyAcceptanceForm" class="policy-acceptance-form">
+          <label class="policy-check"><input type="checkbox" id="accountTermsAccepted" required><span>I agree to the <strong>Terms of Service</strong>.</span></label>
+          <label class="policy-check"><input type="checkbox" id="accountPrivacyAcknowledged" required><span>I acknowledge that I have read the <strong>Privacy Notice</strong>.</span></label>
+          <button id="savePolicyChoices" type="submit" class="btn btn-primary">Continue to my account <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
+        </form>
+        <p class="policy-review-footer">Your choices are securely recorded with the versions you reviewed.</p>
+      </section>
+
+
+      <!-- ACCOUNT INFORMATION -->
+      <section class="account-card" id="sec-details">
+
+        <h2>
+          <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></span>
+          Account Information
+        </h2>
+
+        <div class="account-info" aria-busy="true">
+
+          <div class="account-field">
+            <span class="account-label">First Name</span>
+            <span id="accountFirstName" class="account-value skeleton skeleton-line">Loading...</span>
+          </div>
+
+          <div class="account-field">
+            <span class="account-label">Last Name</span>
+            <span id="accountLastName" class="account-value skeleton skeleton-line">Loading...</span>
+          </div>
+
+          <div class="account-field">
+            <span class="account-label">Email Address</span>
+            <span id="accountEmail" class="account-value skeleton skeleton-line">Loading...</span>
+          </div>
+
+          <div class="account-field">
+            <span class="account-label">Phone number</span>
+            <span id="accountPhone" class="account-value skeleton skeleton-line">Loading...</span>
+          </div>
 
         </div>
 
-        <section class="account-card policy-review-card" id="policyAcceptanceCard" aria-labelledby="policyAcceptanceHeading" hidden>
-            <div class="policy-review-kicker"><span class="policy-review-icon" aria-hidden="true">✓</span><span>One quick step</span></div>
-            <h2 id="policyAcceptanceHeading">A quick review before you continue</h2>
-            <p class="policy-review-intro">We’ve updated the documents that explain how your account works and how Food by K handles your information. Please review and confirm both choices below.</p>
-            <div class="policy-document-links">
-                <a href="../legal/terms.html" target="_blank" rel="noopener"><span>Terms of Service</span><span class="ui-arrow ui-arrow-up-right" aria-hidden="true"></span></a>
-                <a href="../legal/privacy.html" target="_blank" rel="noopener"><span>Privacy Notice</span><span class="ui-arrow ui-arrow-up-right" aria-hidden="true"></span></a>
-            </div>
-            <div class="policy-choice-note"><span aria-hidden="true">i</span><p>Reading the privacy notice is separate from agreeing to the terms. This does not subscribe you to marketing messages. Cookie settings are managed separately.</p></div>
-            <div id="policyMessage" class="account-message policy-message" role="status" aria-live="polite" hidden></div>
-            <form id="policyAcceptanceForm" class="policy-acceptance-form">
-                <label class="policy-check"><input type="checkbox" id="accountTermsAccepted" required><span>I agree to the <strong>Terms of Service</strong>.</span></label>
-                <label class="policy-check"><input type="checkbox" id="accountPrivacyAcknowledged" required><span>I acknowledge that I have read the <strong>Privacy Notice</strong>.</span></label>
-                <button id="savePolicyChoices" type="submit" class="btn btn-primary">Continue to my account <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
-            </form>
-            <p class="policy-review-footer">Your choices are securely recorded with the versions you reviewed.</p>
-        </section>
-
-
-        <!-- =========================================
-             ACCOUNT INFORMATION
-             ========================================= -->
-
-        <section class="account-card">
-
-            <h2>
-                Account Information
-            </h2>
-
-
-            <!-- User Information -->
-
-            <div class="account-info" aria-busy="true">
-
-
-                <div class="account-field">
-
-                        <span class="account-label">
-                            First Name
-                        </span>
-
-                    <span
-                            id="accountFirstName"
-                            class="account-value skeleton skeleton-line"
-                    >
-                            Loading...
-                        </span>
-
-                </div>
-
-
-                <div class="account-field">
-
-                        <span class="account-label">
-                            Last Name
-                        </span>
-
-                    <span
-                            id="accountLastName"
-                            class="account-value skeleton skeleton-line"
-                    >
-                            Loading...
-                        </span>
-
-                </div>
-
-
-                <div class="account-field">
-
-                        <span class="account-label">
-                            Email Address
-                        </span>
-
-                    <span
-                            id="accountEmail"
-                            class="account-value skeleton skeleton-line"
-                    >
-                            Loading...
-                    </span>
-
-                </div>
-
-                <div class="account-field">
-                    <span class="account-label">Phone number</span>
-                    <span id="accountPhone" class="account-value skeleton skeleton-line">Loading...</span>
-                </div>
-
-
-            </div>
-
-
-            <div id="profileMessage" class="account-message" role="status" aria-live="polite" hidden></div>
-            <form id="profileForm" class="account-edit-form">
-                <div class="form-group"><label for="profileName">Full name</label><input type="text" id="profileName" name="full_name" maxlength="120" autocomplete="name" required></div>
-                <div class="form-group"><label for="profileEmail">Email address</label><input type="email" id="profileEmail" name="email" maxlength="150" autocomplete="email" required></div>
-                <div class="form-group"><label for="profilePhone">Phone number</label><input type="tel" id="profilePhone" name="phone" maxlength="20" autocomplete="tel" placeholder="082 123 4567 or +27 82 123 4567"><small>South African numbers can be entered with or without +27.</small></div>
-                <button id="saveProfileButton" type="submit" class="btn btn-primary">Save account details</button>
-            </form>
-
-            <!-- Account Actions -->
-
-            <div class="account-actions">
-
-                <button
-                        type="button"
-                        id="logoutButton"
-                        class="btn btn-primary"
-                >
-                    Logout
-                </button>
-
-            </div>
-
-
-        </section>
-
-
-
-        <section class="account-card" aria-labelledby="deliveryAddressesHeading">
-            <h2 id="deliveryAddressesHeading">Delivery addresses</h2>
-            <p class="account-address-intro">Enter each part separately so we can save and check your delivery address correctly. Choose a default for faster ordering.</p>
-            <div id="addressMessage" class="account-message" role="status" aria-live="polite" hidden></div>
-            <div id="deliveryAddressList" class="account-address-list" aria-live="polite" aria-busy="true"></div>
-            <form id="deliveryAddressForm" class="account-edit-form account-address-form">
-                <h3 id="addressFormHeading">Add a delivery address</h3>
-                <input type="hidden" id="deliveryAddressId" value="">
-                <div class="form-group"><label for="deliveryStreet">Street address, building, and unit</label><input id="deliveryStreet" type="text" maxlength="255" autocomplete="street-address" required></div>
-                <div class="form-group"><label for="deliveryCity">Suburb / town / city</label><input id="deliveryCity" type="text" maxlength="100" autocomplete="address-level2" required></div>
-                <div class="form-group"><label for="deliveryProvince">Province</label><input id="deliveryProvince" type="text" maxlength="100" autocomplete="address-level1" required></div>
-                <div class="form-group"><label for="deliveryPostalCode">Postal code (optional)</label><input id="deliveryPostalCode" type="text" maxlength="20" autocomplete="postal-code"></div>
-                <label class="account-default-option"><input type="checkbox" id="deliveryAddressDefault"> Set as my default address</label>
-                <div class="account-actions"><button id="saveAddressButton" type="submit" class="btn btn-primary">Save address</button><button id="cancelAddressEdit" type="button" class="btn btn-secondary" hidden>Cancel edit</button></div>
-            </form>
-        </section>
-
-        <section class="account-card account-delete-card" aria-labelledby="deleteAccountHeading">
-            <h2 id="deleteAccountHeading">Delete my account</h2>
-            <p>Deletion removes your profile, saved addresses, cart and reusable payment token. Order and payment records that must be retained for business or legal purposes are kept with your identity details removed. Active orders must be resolved first.</p>
-            <div id="deleteAccountMessage" role="status" aria-live="polite" hidden></div>
-            <form id="deleteAccountForm">
-                <label for="deleteAccountPassword">Confirm your password</label>
-                <input id="deleteAccountPassword" type="password" autocomplete="current-password" required>
-                <label><input id="confirmAccountDeletion" type="checkbox" required> I understand this action cannot be undone.</label>
-                <button type="submit" class="btn btn-danger">Delete my account</button>
-            </form>
-        </section>
-
-        <!-- =========================================
-             CHANGE PASSWORD
-             ========================================= -->
-
-        <section class="account-card">
-
-            <h2>
-                Change Password
-            </h2>
-
-
-            <!-- Password Messages -->
-
-            <div id="passwordMessage"></div>
-
-
-            <form id="changePasswordForm">
-
-
-                <!-- Current Password -->
-
-                <div class="form-group">
-
-                    <label for="currentPassword">
-                        Current Password
-                    </label>
-
-                    <input
-                            type="password"
-                            id="currentPassword"
-                            name="current_password"
-                            placeholder="Enter your current password"
-                            autocomplete="current-password"
-                            required
-                    >
-
-                </div>
-
-
-                <!-- New Password -->
-
-                <div class="form-group">
-
-                    <label for="newPassword">
-                        New Password
-                    </label>
-
-                    <input
-                            type="password"
-                            id="newPassword"
-                            name="new_password"
-                            placeholder="Enter your new password"
-                            autocomplete="new-password"
-                            required
-                    >
-
-                </div>
-
-
-                <!-- Confirm New Password -->
-
-                <div class="form-group">
-
-                    <label for="confirmNewPassword">
-                        Confirm New Password
-                    </label>
-
-                    <input
-                            type="password"
-                            id="confirmNewPassword"
-                            name="confirm_new_password"
-                            placeholder="Confirm your new password"
-                            autocomplete="new-password"
-                            required
-                    >
-
-                </div>
-
-
-                <!-- Submit -->
-
-                <button
-                        type="submit"
-                        class="btn btn-primary"
-                >
-                    Change Password
-                </button>
-
-
-            </form>
-
-        </section>
-
-
-    </section>
+        <div id="profileMessage" class="account-message" role="status" aria-live="polite" hidden></div>
+        <form id="profileForm" class="account-edit-form">
+          <div class="form-group"><label for="profileName">Full name</label><input type="text" id="profileName" name="full_name" maxlength="120" autocomplete="name" required></div>
+          <div class="form-group"><label for="profileEmail">Email address</label><input type="email" id="profileEmail" name="email" maxlength="150" autocomplete="email" required></div>
+          <div class="form-group"><label for="profilePhone">Phone number</label><input type="tel" id="profilePhone" name="phone" maxlength="20" autocomplete="tel" placeholder="082 123 4567 or +27 82 123 4567"><small>South African numbers can be entered with or without +27.</small></div>
+          <button id="saveProfileButton" type="submit" class="btn btn-primary">Save account details</button>
+        </form>
+
+        <div class="account-actions">
+          <button type="button" id="logoutButton" class="btn btn-secondary">Logout</button>
+        </div>
+
+      </section>
+
+
+      <!-- DELIVERY ADDRESSES -->
+      <section class="account-card" id="sec-addresses" aria-labelledby="deliveryAddressesHeading">
+        <h2 id="deliveryAddressesHeading">
+          <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-5.6 7-11a7 7 0 0 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span>
+          Delivery addresses
+        </h2>
+        <p class="account-address-intro">Enter each part separately so we can save and check your delivery address correctly. Choose a default for faster ordering.</p>
+        <div id="addressMessage" class="account-message" role="status" aria-live="polite" hidden></div>
+        <div id="deliveryAddressList" class="account-address-list" aria-live="polite" aria-busy="true"></div>
+        <form id="deliveryAddressForm" class="account-edit-form account-address-form">
+          <h3 id="addressFormHeading">Add a delivery address</h3>
+          <input type="hidden" id="deliveryAddressId" value="">
+          <div class="form-group"><label for="deliveryStreet">Street address, building, and unit</label><input id="deliveryStreet" type="text" maxlength="255" autocomplete="street-address" required></div>
+          <div class="form-group"><label for="deliveryCity">Suburb / town / city</label><input id="deliveryCity" type="text" maxlength="100" autocomplete="address-level2" required></div>
+          <div class="form-group"><label for="deliveryProvince">Province</label><input id="deliveryProvince" type="text" maxlength="100" autocomplete="address-level1" required></div>
+          <div class="form-group"><label for="deliveryPostalCode">Postal code (optional)</label><input id="deliveryPostalCode" type="text" maxlength="20" autocomplete="postal-code"></div>
+          <label class="account-default-option"><input type="checkbox" id="deliveryAddressDefault"> Set as my default address</label>
+          <div class="account-actions"><button id="saveAddressButton" type="submit" class="btn btn-primary">Save address</button><button id="cancelAddressEdit" type="button" class="btn btn-secondary" hidden>Cancel edit</button></div>
+        </form>
+      </section>
+
+
+      <!-- CHANGE PASSWORD -->
+      <section class="account-card" id="sec-password">
+
+        <h2>
+          <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+          Change Password
+        </h2>
+
+        <div id="passwordMessage"></div>
+
+        <form id="changePasswordForm">
+
+          <div class="form-group">
+            <label for="currentPassword">Current Password</label>
+            <input type="password" id="currentPassword" name="current_password" placeholder="Enter your current password" autocomplete="current-password" required>
+          </div>
+
+          <div class="form-group">
+            <label for="newPassword">New Password</label>
+            <input type="password" id="newPassword" name="new_password" placeholder="Enter your new password" autocomplete="new-password" required>
+          </div>
+
+          <div class="form-group">
+            <label for="confirmNewPassword">Confirm New Password</label>
+            <input type="password" id="confirmNewPassword" name="confirm_new_password" placeholder="Confirm your new password" autocomplete="new-password" required>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Change Password</button>
+
+        </form>
+
+      </section>
+
+
+      <!-- DELETE ACCOUNT -->
+      <section class="account-card account-delete-card" id="sec-delete" aria-labelledby="deleteAccountHeading">
+        <h2 id="deleteAccountHeading">
+          <span class="chip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>
+          Delete my account
+        </h2>
+        <p>Deletion removes your profile, saved addresses, cart and reusable payment token. Order and payment records that must be retained for business or legal purposes are kept with your identity details removed. Active orders must be resolved first.</p>
+        <div id="deleteAccountMessage" role="status" aria-live="polite" hidden></div>
+        <form id="deleteAccountForm">
+          <label for="deleteAccountPassword">Confirm your password</label>
+          <input id="deleteAccountPassword" type="password" autocomplete="current-password" required>
+          <label><input id="confirmAccountDeletion" type="checkbox" required> I understand this action cannot be undone.</label>
+          <button type="submit" class="btn btn-danger">Delete my account</button>
+        </form>
+      </section>
+
+    </div>
+
+  </section>
 
 </main>
 
 
-
-<!-- =========================================
-     JAVASCRIPT
-     ========================================= -->
-
-<!-- API Configuration -->
 <script src="../../public%20assets/js/config.js"></script>
-
-<!-- Central API Client -->
 <script src="../../public%20assets/js/api/api.js"></script>
-
-<!-- Authentication API Service -->
 <script src="../../public%20assets/js/api/auth.js"></script>
-
-<!-- Navigation -->
-<script src="../../public assets/js/navigation.js"></script>
-
-<!-- Authentication Page Logic -->
-<script src="../../public assets/js/auth.js"></script>
+<script src="../../public%20assets/js/auth.js"></script>
+<script src="../../public%20assets/js/navigation.js"></script>
 <script src="../../public%20assets/js/account.js"></script>
+<script src="../../public%20assets/js/privacy.js"></script>
 
-<script src="../../public assets/js/privacy.js"></script>
+<!-- Visual only: greeting once account.js has filled in the name, and active side-menu link.
+     It only READS the page, it never changes your account data. -->
+<script>
+  (function () {
+    var first = document.getElementById('accountFirstName');
+    var greeting = document.getElementById('accountGreeting');
+
+    function clean(el) {
+      var t = el ? (el.textContent || '').trim() : '';
+      return (!t || /^loading/i.test(t) || t === '-' || t === '\u2014') ? '' : t;
+    }
+
+    function refresh() {
+      var f = clean(first);
+      if (!f || !greeting) return;
+      greeting.textContent = 'Hello, ';
+      var s = document.createElement('span');
+      s.textContent = f + '.';
+      greeting.appendChild(s);
+    }
+
+    if (first && window.MutationObserver) {
+      new MutationObserver(refresh).observe(first, { childList: true, characterData: true, subtree: true });
+    }
+    refresh();
+
+    var links = document.querySelectorAll('#accountNav a[href^="#sec-"]');
+    if (!links.length || !('IntersectionObserver' in window)) return;
+    var map = {};
+    links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting && map[en.target.id]) {
+          links.forEach(function (a) { a.classList.remove('is-active'); });
+          map[en.target.id].classList.add('is-active');
+        }
+      });
+    }, { rootMargin: '-35% 0px -55% 0px' });
+
+    Object.keys(map).forEach(function (id) {
+      var s = document.getElementById(id);
+      if (s) io.observe(s);
+    });
+  })();
+</script>
+
 </body>
-
 </html>

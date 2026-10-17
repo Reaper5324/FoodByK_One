@@ -75,6 +75,44 @@ $validProduct = $productService->validateProductInput([
 ]);
 expect($validProduct['success'], 'Valid product input must be accepted.');
 expect($validProduct['data']['price'] === 49.99, 'Validated prices must be normalized to currency precision.');
+$productWithoutDescription = $productService->validateProductInput([
+    'category_id' => 1,
+    'name' => 'Classic Burger',
+    'price' => '49.99',
+]);
+expect($productWithoutDescription['success'], 'Product descriptions may be omitted when creating a product.');
+expect($productWithoutDescription['data']['description'] === '', 'Omitted product descriptions must default to an empty string.');
+$existingProduct = new Product(category_id: 1, name: 'Classic Burger', description: 'Original description', price: 49.99);
+$productWithoutDescriptionUpdate = $productService->validateProductInput([
+    'category_id' => 1,
+    'name' => 'Classic Burger',
+    'price' => '49.99',
+], $existingProduct);
+expect($productWithoutDescriptionUpdate['success'], 'Product updates may omit the description.');
+expect($productWithoutDescriptionUpdate['data']['description'] === 'Original description', 'Omitting a description during update must preserve its current value.');
+$updatedProductDescription = $productService->validateProductInput([
+    'category_id' => 1,
+    'name' => 'Classic Burger',
+    'description' => '  Updated description  ',
+    'price' => '49.99',
+], $existingProduct);
+expect($updatedProductDescription['success'], 'Product descriptions must be editable.');
+expect($updatedProductDescription['data']['description'] === 'Updated description', 'Updated product descriptions must be trimmed and preserved.');
+$clearedProductDescription = $productService->validateProductInput([
+    'category_id' => 1,
+    'name' => 'Classic Burger',
+    'description' => null,
+    'price' => '49.99',
+], $existingProduct);
+expect($clearedProductDescription['success'], 'Product descriptions must be clearable with null.');
+expect($clearedProductDescription['data']['description'] === '', 'A null product description must clear the current value.');
+$invalidProductDescription = $productService->validateProductInput([
+    'category_id' => 1,
+    'name' => 'Classic Burger',
+    'description' => ['not', 'text'],
+    'price' => '49.99',
+]);
+expect(!$invalidProductDescription['success'], 'Non-text product descriptions must be rejected.');
 $invalidProduct = $productService->validateProductInput([
     'category_id' => 1,
     'name' => 'Classic Burger',

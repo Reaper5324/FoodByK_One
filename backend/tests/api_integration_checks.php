@@ -74,11 +74,13 @@ try {
     apiExpect($invalidRegistration['status'] >= 400 && $invalidRegistration['status'] < 500, 'Invalid registration data must be rejected by the API.');
 
     $registration = apiRequest('POST', '/auth/register', [
-        'name' => 'Integration Customer',
-        'email' => $email,
-        'password' => 'BlueRiver!9072',
-        'phone' => '+27820000000',
-    ], ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    'name' => 'Integration Customer',
+    'email' => $email,
+    'password' => 'BlueRiver!9072',
+    'phone' => '+27820000000',
+    'terms_accepted' => true,
+    'privacy_notice_acknowledged' => true,
+], ['Origin: https://foodbyks.netlify.app'], $cookieFile);
     apiExpect($registration['status'] === 201 && ($registration['json']['success'] ?? false), 'Valid customer registration must create a signed-in customer.');
     $sessionCookie = $registration['headers']['set-cookie'] ?? '';
     apiExpect(stripos($sessionCookie, 'httponly') !== false, 'Authentication session cookies must be HttpOnly.');
@@ -115,7 +117,14 @@ try {
 
     echo "API integration and security checks passed.\n";
 } finally {
-    $delete = $pdo->prepare('DELETE FROM users WHERE email = ?');
-    $delete->execute([$email]);
+    $userId = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $userId->execute([$email]);
+    $existingUserId = $userId->fetchColumn();
+
+    if ($existingUserId !== false) {
+        $pdo->prepare('DELETE FROM policy_acceptances WHERE user_id = ?')->execute([$existingUserId]);
+        $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$existingUserId]);
+    }
+
     if (is_file($cookieFile)) unlink($cookieFile);
 }

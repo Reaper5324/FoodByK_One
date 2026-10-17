@@ -77,6 +77,7 @@ $router->get('/staff/orders/{id}', [OrderController::class, 'staffShow'], $staff
     $router->post('/admin/staff', [AdminController::class, 'addStaff'], $admin);
     $router->put('/admin/staff/{id}', [AdminController::class, 'updateStaff'], $admin);
     $router->delete('/admin/staff/{id}', [AdminController::class, 'removeStaff'], $admin);
+    $router->post('/admin/products/image', [AdminController::class, 'uploadProductImage'], $admin);
     $router->post('/admin/products', [AdminController::class, 'addProduct'], $admin);
     $router->put('/admin/products/{id}', [AdminController::class, 'updateProduct'], $admin);
     $router->delete('/admin/products/{id}', [AdminController::class, 'removeProduct'], $admin);

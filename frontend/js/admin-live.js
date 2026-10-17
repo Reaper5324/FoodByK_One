@@ -16,6 +16,27 @@ const STAFF_ALLOWED_PAGES = new Set([
 
 
 
+const uploadProductImage = async (file) => {
+    const csrfToken = await ensureCsrfToken();
+    const formData = new FormData();
+    formData.append("image", file);
+    try {
+        const response = await fetch(API_BASE_URL + "/admin/products/image", {
+            method: "POST",
+            body: formData,
+            credentials: "include",
+            headers: { ...buildSessionHeaders(), ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}) }
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result?.success) {
+            return { success: false, data: null, error: result?.error || "The image could not be uploaded." };
+        }
+        return { success: true, data: result.data, error: null };
+    } catch {
+        return { success: false, data: null, error: "The image could not be uploaded. Check your connection and try again." };
+    }
+};
+
 const initializeAdminLive = async () => {
     const page = location.pathname.split("/").pop();
     const loadingState = document.getElementById("adminLoadingState");
@@ -73,6 +94,139 @@ const initializeAdminLive = async () => {
         return;
     }
 
+
+        // Notification and signed-in user menus
+    const topbarRight = document.querySelector(".topbar-right");
+    const notificationButton = document.querySelector(".notification-btn");
+    const profile = document.querySelector(".admin-profile");
+
+    const user = authResult.data.user || authResult.data;
+    const userName = user.name || user.full_name || user.username || "Signed-in user";
+    const userEmail = user.email || "";
+    const userRole = String(user.role || role).toLowerCase();
+
+    // Show the actual signed-in user
+    if (profile) {
+        const heading = profile.querySelector(".profile-info h4");
+        const subtitle = profile.querySelector(".profile-info p");
+        const avatar = profile.querySelector(".profile-image");
+
+        if (heading) heading.textContent = userName;
+        if (subtitle) {
+            subtitle.textContent =
+                userRole.charAt(0).toUpperCase() + userRole.slice(1);
+        }
+        if (avatar) avatar.textContent = userName.charAt(0).toUpperCase();
+
+        profile.setAttribute("role", "button");
+        profile.setAttribute("tabindex", "0");
+        profile.setAttribute("aria-expanded", "false");
+        profile.setAttribute("aria-label", "Open account menu");
+    }
+
+    // Create the notification panel
+    let notificationPanel = document.getElementById("notificationPanel");
+
+    if (!notificationPanel && topbarRight) {
+        notificationPanel = document.createElement("div");
+        notificationPanel.id = "notificationPanel";
+        notificationPanel.className = "topbar-popover notification-panel";
+        notificationPanel.innerHTML = `
+            <h3>Notifications</h3>
+            <p>No new notifications.</p>
+            <small>Notifications are not yet connected to the backend.</small>
+        `;
+        topbarRight.appendChild(notificationPanel);
+    }
+
+    // Create the account dropdown
+    let accountPanel = document.getElementById("accountPanel");
+
+    if (!accountPanel && topbarRight) {
+        accountPanel = document.createElement("div");
+        accountPanel.id = "accountPanel";
+        accountPanel.className = "topbar-popover account-panel";
+        accountPanel.innerHTML = `
+            <div class="account-panel-user">
+                <strong class="account-user-name"></strong>
+                <small class="account-user-email"></small>
+                <small class="account-user-role"></small>
+            </div>
+            <button type="button" class="account-logout-btn">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                Logout
+            </button>
+        `;
+        accountPanel.querySelector(".account-user-name").textContent = userName;
+        accountPanel.querySelector(".account-user-email").textContent = userEmail;
+        accountPanel.querySelector(".account-user-role").textContent =
+            userRole.charAt(0).toUpperCase() + userRole.slice(1);
+        topbarRight.appendChild(accountPanel);
+    }
+
+    const closeTopbarPanels = () => {
+        notificationPanel?.classList.remove("is-open");
+        accountPanel?.classList.remove("is-open");
+        profile?.setAttribute("aria-expanded", "false");
+    };
+
+    notificationButton?.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const shouldOpen = !notificationPanel?.classList.contains("is-open");
+        closeTopbarPanels();
+
+        if (shouldOpen) {
+            notificationPanel?.classList.add("is-open");
+        }
+    });
+
+    const toggleAccountPanel = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const shouldOpen = !accountPanel?.classList.contains("is-open");
+        closeTopbarPanels();
+
+        if (shouldOpen) {
+            accountPanel?.classList.add("is-open");
+            profile?.setAttribute("aria-expanded", "true");
+        }
+    };
+
+    profile?.addEventListener("click", toggleAccountPanel);
+
+    profile?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+            toggleAccountPanel(event);
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (
+            !event.target.closest(".notification-btn") &&
+            !event.target.closest(".admin-profile") &&
+            !event.target.closest(".topbar-popover")
+        ) {
+            closeTopbarPanels();
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeTopbarPanels();
+    });
+
+    accountPanel?.querySelector(".account-logout-btn")?.addEventListener(
+        "click",
+        async () => {
+            try {
+                await apiPost("/auth/logout", {});
+            } finally {
+                location.href = "../pages/auth/login.html";
+            }
+        }
+    );
 
     
         const paths = {
@@ -175,10 +329,15 @@ const initializeAdminLive = async () => {
             setMessageRow(body, orders.error || "Unable to load incoming orders.", 7);
             return;
         }
-        const records = orders.data || [];
+        const today = new Date();
+        const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+        const records = (orders.data || []).filter((order) => {
+            const requestedDate = String(order.requested_window_start || "").slice(0, 10);
+            return order.status === "submitted" && requestedDate === todayKey;
+        });
         const pending = document.getElementById("dashboardPendingCount");
         if (pending) pending.textContent = String(records.length);
-        if (!records.length) return setMessageRow(body, "There are no orders awaiting review.", 7);
+        if (!records.length) return setMessageRow(body, "There are no orders due for review today.", 7);
         body.replaceChildren();
         records.slice(0, 5).forEach((order) => {
             const row = document.createElement("tr");
@@ -323,6 +482,9 @@ const initializeAdminLive = async () => {
             category.textContent = categoryNames.get(Number(product.category_id)) || "MENU ITEM";
             const title = document.createElement("h3");
             title.textContent = product.name;
+            const description = document.createElement("p");
+            description.className = "menu-description";
+            description.textContent = product.description || "";
             const price = document.createElement("p");
             price.className = "menu-price";
             price.textContent = "R" + Number(product.price).toFixed(2);
@@ -339,7 +501,7 @@ const initializeAdminLive = async () => {
             if (role === "admin") actions.append(edit);
             actions.append(availability);
             if (role === "admin") actions.append(remove);
-            content.append(category, title, price, actions);
+            content.append(category, title, description, price, actions);
             card.append(imageContainer, content);
             grid.appendChild(card);
         });
@@ -437,18 +599,136 @@ const initializeAdminLive = async () => {
         const body = document.querySelector("#ordersTable tbody");
         if (!body) return;
         body.replaceChildren();
-        result.data.forEach((order) => {
+        const records = Array.isArray(result.data) ? result.data : [];
+        if (!records.length) {
+            setMessageRow(body, "No orders were found.", 7);
+            window.adminOrders = [];
+            return;
+        }
+        records.forEach((order) => {
             const row = document.createElement("tr");
             row.dataset.status = order.status === "submitted" ? "awaiting" : order.status;
             row.dataset.id = order.id;
-            makeCell(row, `#${order.id}`); makeCell(row, order.customer_name);
-            makeCell(row, order.fulfilment_type); makeCell(row, order.confirmed_window_start || order.requested_window_start);
-            makeCell(row, "R" + Number(order.total).toFixed(2)); makeCell(row, order.status.replaceAll("_", " "));
+            const requested = order.confirmed_window_start || order.requested_window_start;
+            makeCell(row, `#${order.id}`); makeCell(row, order.customer_name || "Customer");
+            makeCell(row, String(order.fulfilment_type || "").replaceAll("_", " "));
+            makeCell(row, requested ? new Date(requested).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—");
+            const total = order.total ?? (Math.max(0, Number(order.subtotal || 0) - Number(order.locked_discount || 0)) + Number(order.delivery_fee || 0));
+            makeCell(row, "R" + Number(total).toFixed(2));
+            makeCell(row, String(order.status || "unknown").replaceAll("_", " "));
             const actions = document.createElement("td");
-            addAction(actions, "Review", "order-review", order.id);
+            addAction(actions, order.status === "submitted" ? "Review" : "View / Manage", "order-review", order.id);
             row.appendChild(actions); body.appendChild(row);
         });
-        window.adminOrders = result.data;
+        window.adminOrders = records;
+    };
+
+    let currentReviewOrderId = null;
+    let currentReviewData = null;
+    const money = (value) => "R" + Number(value || 0).toFixed(2);
+    const displayDateTime = (value) => {
+        if (!value) return "—";
+        const date = new Date(String(value).replace(" ", "T"));
+        return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+    };
+    const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value == null || value === "" ? "—" : String(value);
+    };
+    const localDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const loadReviewSlots = async () => {
+        const dateInput = document.getElementById("slotDate");
+        const select = document.getElementById("slotSelect");
+        const button = document.querySelector(".confirm-time-btn");
+        const help = document.getElementById("slotHelp");
+        if (!dateInput || !select) return;
+        select.replaceChildren();
+        const placeholder = document.createElement("option");
+        placeholder.value = ""; placeholder.textContent = "Loading available times…"; select.appendChild(placeholder);
+        if (button) button.disabled = true;
+        if (help) help.textContent = "";
+        const result = await apiGet(`/checkout/slots?date=${encodeURIComponent(dateInput.value)}`);
+        select.replaceChildren();
+        if (!result.success) {
+            const failed = document.createElement("option"); failed.value = ""; failed.textContent = "Unable to load times"; select.appendChild(failed);
+            if (help) help.textContent = result.error || "Unable to load available times.";
+            return;
+        }
+        const slots = (Array.isArray(result.data) ? result.data : []).filter((slot) => slot.available);
+        const choose = document.createElement("option"); choose.value = ""; choose.textContent = slots.length ? "Choose an available slot" : "No available slots for this date"; select.appendChild(choose);
+        slots.forEach((slot) => {
+            const option = document.createElement("option");
+            // Preserve the exact ISO format returned by /checkout/slots (Y-m-dTH:i:s, no timezone suffix).
+            option.value = JSON.stringify({ start: slot.start, end: slot.end });
+            option.textContent = `${new Date(slot.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} – ${new Date(slot.end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+            select.appendChild(option);
+        });
+        if (help && !slots.length) help.textContent = "Choose another date to see available slots.";
+        if (button) button.disabled = true;
+    };
+    const renderOrderItems = (items) => {
+        const container = document.getElementById("modalItems");
+        if (!container) return;
+        container.replaceChildren();
+        if (!Array.isArray(items) || !items.length) {
+            const empty = document.createElement("p"); empty.textContent = "No item details were returned for this order."; container.appendChild(empty); return;
+        }
+        items.forEach((item) => {
+            const row = document.createElement("div"); row.className = "order-item-line";
+            const name = document.createElement("div"); name.className = "order-item-name";
+            const title = document.createElement("strong"); title.textContent = item.product_name || item.name || `Menu item #${item.product_id || "?"}`; name.appendChild(title);
+            const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} × ${money(item.unit_price ?? item.price)}`; name.appendChild(detail);
+            const total = document.createElement("strong"); total.textContent = money(item.line_total ?? (Number(item.quantity || 0) * Number(item.unit_price ?? item.price ?? 0)));
+            row.append(name, total); container.appendChild(row);
+        });
+    };
+    const openOrderReview = async (id) => {
+        currentReviewOrderId = id;
+        currentReviewData = null;
+        setText("modalOrderId", `Order #${id}`);
+        setText("modalItems", "Loading order items…");
+        openModal("#orderModal");
+        const result = await apiGet(`/staff/orders/${id}`);
+        if (!showResult(result)) return;
+        const data = result.data || {};
+        const order = data.order || data;
+        currentReviewData = { ...data, order };
+        const customer = data.customer || {};
+        const address = data.address || {};
+        setText("modalOrderId", `Order #${order.id || id}`);
+        setText("modalCustomer", customer.full_name || customer.name || order.customer_name || "Customer");
+        setText("modalContact", [customer.email, customer.phone].filter(Boolean).join(" · ") || "—");
+        setText("modalPlaced", displayDateTime(order.created_at));
+        setText("modalType", String(order.fulfilment_type || "—").replaceAll("_", " "));
+        setText("modalTime", `${displayDateTime(order.confirmed_window_start || order.requested_window_start)}${order.confirmed_window_start ? " (confirmed)" : " (requested)"}`);
+        const addressText = [address.address_line1, address.address_line2, address.suburb, address.city, address.postal_code].filter(Boolean).join(", ") || address.address || address.formatted_address || "No address supplied";
+        const addressRow = document.getElementById("modalAddressRow");
+        if (addressRow) addressRow.hidden = order.fulfilment_type !== "delivery";
+        setText("modalAddress", addressText);
+        renderOrderItems(data.items || order.items || []);
+        setText("modalSubtotal", money(order.subtotal));
+        setText("modalDiscount", money(order.locked_discount));
+        setText("modalDeliveryFee", money(order.delivery_fee));
+        setText("modalTotal", money(data.total ?? (Math.max(0, Number(order.subtotal || 0) - Number(order.locked_discount || 0)) + Number(order.delivery_fee || 0))));
+        setText("modalNotes", order.customer_notes || order.special_instructions || order.notes || "None");
+        const pending = order.status === "submitted";
+        const confirmation = document.getElementById("confirmationSection");
+        const status = document.getElementById("statusSection");
+        if (confirmation) confirmation.hidden = !pending;
+        if (status) status.classList.toggle("show", !pending && ["paid", "preparing", "ready"].includes(order.status));
+        const statusSelect = document.getElementById("statusSelect");
+        if (statusSelect) statusSelect.value = ({ paid: "preparing", preparing: "ready", ready: "completed" })[order.status] || "preparing";
+        const dateInput = document.getElementById("slotDate");
+        if (dateInput) {
+            const requested = String(order.requested_window_start || "").slice(0, 10);
+            const today = localDateKey(new Date());
+            dateInput.min = today;
+            dateInput.value = requested >= today ? requested : today;
+        }
+        const reason = document.getElementById("declineReason"); if (reason) reason.value = "";
+        const slotSelect = document.getElementById("slotSelect"); if (slotSelect) slotSelect.replaceChildren();
+        const slotButton = document.querySelector(".confirm-time-btn"); if (slotButton) slotButton.disabled = true;
+        if (pending) await loadReviewSlots();
     };
 
     const loadSettings = async () => {
@@ -521,11 +801,32 @@ const initializeAdminLive = async () => {
     const openModal = (selector) => document.querySelector(selector)?.classList.add("show");
     let editingId = null;
 
+    
+    document.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-quick-action]");
+        if (!button) return;
+
+        event.preventDefault();
+
+        const pages = {
+            menu: "menu-items.html",
+            promotion: "promotions.html",
+            orders: "orders.html",
+            reports: "reports.html"
+        };
+
+        const page = pages[button.dataset.quickAction];
+        if (page) {
+            window.location.href = page;
+        }
+    });
+
+    
     document.addEventListener("click", async (event) => {
-        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn");
+        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn");
         if (!target) return;
         const action = target.dataset.adminAction;
-        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn")) return;
+        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn")) return;
         event.preventDefault(); event.stopImmediatePropagation();
 
         if (target.matches(".close-category-modal")) return closeModal("#categoryModal");
@@ -547,12 +848,12 @@ const initializeAdminLive = async () => {
         if (target.matches("#addUserBtn")) { editingId = null; document.getElementById("userForm")?.reset(); openModal("#userModal"); return; }
 
         const id = Number(target.dataset.id);
-        const record = action.startsWith("product-") ? window.adminProducts?.find((item) => Number(item.id) === id)
-            : action.startsWith("category-") ? null
-            : action.startsWith("promotion-") ? window.adminPromotions?.find((item) => Number(item.id) === id)
-            : action.startsWith("staff-") ? window.adminStaff?.find((item) => Number(item.id) === id)
-            : action.startsWith("customer-") ? window.adminCustomers?.find((item) => Number(item.id) === id)
-            : action.startsWith("order-") ? window.adminOrders?.find((item) => Number(item.id) === id) : null;
+        const record = (action || "").startsWith("product-") ? window.adminProducts?.find((item) => Number(item.id) === id)
+            : (action || "").startsWith("category-") ? null
+            : (action || "").startsWith("promotion-") ? window.adminPromotions?.find((item) => Number(item.id) === id)
+            : (action || "").startsWith("staff-") ? window.adminStaff?.find((item) => Number(item.id) === id)
+            : (action || "").startsWith("customer-") ? window.adminCustomers?.find((item) => Number(item.id) === id)
+            : (action || "").startsWith("order-") ? window.adminOrders?.find((item) => Number(item.id) === id) : null;
 
         if (action === "product-toggle" && record) {
             const result = await apiPut(`/staff/products/${id}/availability`, { is_available: !record.is_available });
@@ -565,6 +866,7 @@ const initializeAdminLive = async () => {
             document.getElementById("itemCategory").value = record.category_id;
             document.getElementById("itemPrice").value = record.price;
             document.getElementById("itemImage").value = record.image_key || "";
+            document.getElementById("itemDescription").value = record.description || "";
             openModal("#menuModal");
         } else if (action === "category-delete" && confirm("Delete this category? It must have no products assigned.")) {
             const result = await apiDelete(`/admin/categories/${id}`); if (showResult(result)) await loadCategories();
@@ -611,24 +913,38 @@ const initializeAdminLive = async () => {
             document.getElementById("detailSpent").textContent = "R" + Number(record.total_spent).toFixed(2);
             openModal("#customerModal");
         } else if (action === "order-review" && record) {
-            const status = record.status;
-            if (status === "submitted") {
-                const choice = prompt("Type CONFIRM to accept, DECLINE to decline, or CANCEL to close.");
-                if (choice?.toUpperCase() === "CONFIRM") {
-                    const result = await apiPost(`/staff/orders/${id}/confirm`, {}); showResult(result);
-                } else if (choice?.toUpperCase() === "DECLINE") {
-                    const reason = prompt("Reason for declining this order:");
-                    if (reason?.trim()) { const result = await apiPost(`/staff/orders/${id}/decline`, { reason: reason.trim() }); showResult(result); }
-                }
-            } else if (["paid", "preparing", "ready"].includes(status)) {
-                const next = { paid: "preparing", preparing: "ready", ready: "completed" }[status];
-                if (confirm(`Move order #${id} to ${next}?`)) {
-                    const result = await apiPost(`/staff/orders/${id}/advance`, { status: next }); showResult(result);
-                }
-            } else {
-                alert(`Order #${id} is currently ${status.replaceAll("_", " ")}.`);
-            }
-            await loadOrders();
+            await openOrderReview(id);
+        } else if (target.matches(".accept-order-btn") && currentReviewOrderId) {
+            const order = currentReviewData?.order;
+            if (!order || order.status !== "submitted") return;
+            target.disabled = true;
+            const result = await apiPost(`/staff/orders/${currentReviewOrderId}/confirm`, {});
+            target.disabled = false;
+            if (showResult(result)) { closeModal("#orderModal"); await loadOrders(); }
+        } else if (target.matches(".confirm-time-btn") && currentReviewOrderId) {
+            const select = document.getElementById("slotSelect");
+            if (!select?.value) return alert("Choose an available slot first.");
+            const selected = JSON.parse(select.value);
+            target.disabled = true;
+            const result = await apiPost(`/staff/orders/${currentReviewOrderId}/confirm`, {
+                confirmed_window_start: selected.start,
+                confirmed_window_end: selected.end
+            });
+            target.disabled = false;
+            if (showResult(result)) { closeModal("#orderModal"); await loadOrders(); }
+        } else if (target.matches(".confirm-decline-btn") && currentReviewOrderId) {
+            const reason = document.getElementById("declineReason")?.value.trim() || "";
+            if (!reason) return alert("Please enter a reason for declining this order.");
+            if (reason.length > 255) return alert("The decline reason must be 255 characters or fewer.");
+            target.disabled = true;
+            const result = await apiPost(`/staff/orders/${currentReviewOrderId}/decline`, { reason });
+            target.disabled = false;
+            if (showResult(result)) { closeModal("#orderModal"); await loadOrders(); }
+        } else if (target.matches(".save-status-btn") && currentReviewOrderId) {
+            const next = document.getElementById("statusSelect")?.value;
+            if (!next) return;
+            const result = await apiPost(`/staff/orders/${currentReviewOrderId}/advance`, { status: next });
+            if (showResult(result)) { closeModal("#orderModal"); await loadOrders(); }
         }
     }, true);
 
@@ -657,7 +973,14 @@ const initializeAdminLive = async () => {
         } else if (form.id === "menuForm") {
             event.preventDefault(); event.stopImmediatePropagation();
             const product = window.adminProducts?.find((item) => Number(item.id) === Number(id));
-            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: product?.description || "", price: Number(document.getElementById("itemPrice").value), image_url: document.getElementById("itemImage").value.trim() || null, is_available: product?.is_available ?? true, status: product?.status || "active" };
+            let imageUrl = document.getElementById("itemImage").value.trim() || null;
+            const imageFile = document.getElementById("itemImageFile")?.files?.[0];
+            if (imageFile) {
+                const upload = await uploadProductImage(imageFile);
+                if (!showResult(upload)) return;
+                imageUrl = upload.data.key;
+            }
+            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: document.getElementById("itemDescription").value.trim(), price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active" };
             result = id ? await apiPut(`/admin/products/${id}`, body) : await apiPost("/admin/products", body);
             if (showResult(result)) { closeModal("#menuModal"); await loadProducts(); }
         } else if (form.id === "promotionForm") {
@@ -690,6 +1013,11 @@ const initializeAdminLive = async () => {
     } finally {
         isInitialPageLoad = false;
     }
+    document.getElementById("slotDate")?.addEventListener("change", loadReviewSlots);
+    document.getElementById("slotSelect")?.addEventListener("change", () => {
+        const button = document.querySelector(".confirm-time-btn");
+        if (button) button.disabled = !document.getElementById("slotSelect")?.value;
+    });
     document.getElementById("reportPeriod")?.addEventListener("change", loadReports);
 
     const filterRows = (bodySelector, searchSelector, statusSelector, roleSelector) => {
