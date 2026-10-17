@@ -57,7 +57,7 @@
             <a href="orders.html" class="menu-item active">
                 <i class="fa-solid fa-receipt"></i>
                 <span>Orders</span>
-                <span class="notification">12</span>
+                <span class="notification" id="ordersPendingBadge" aria-label="Orders awaiting confirmation">—</span>
             </a>
 
 
@@ -186,8 +186,8 @@
                 <div class="order-summary-card">
 
                     <div>
-                        <p>All Orders</p>
-                        <h3>124</h3>
+                        <p>Orders Today</p>
+                        <h3 id="ordersTodayMetric">—</h3>
                     </div>
 
                     <i class="fa-solid fa-receipt"></i>
@@ -199,7 +199,7 @@
 
                     <div>
                         <p>Awaiting Confirmation</p>
-                        <h3>12</h3>
+                        <h3 id="ordersPendingMetric">—</h3>
                     </div>
 
                     <i class="fa-solid fa-clock"></i>
@@ -207,11 +207,11 @@
                 </div>
 
 
-                <div class="order-summary-card preparing-summary">
+                <div class="order-summary-card ready-summary">
 
                     <div>
-                        <p>Preparing</p>
-                        <h3>8</h3>
+                        <p>Completed Today</p>
+                        <h3 id="ordersCompletedMetric">—</h3>
                     </div>
 
                     <i class="fa-solid fa-fire"></i>
@@ -219,14 +219,14 @@
                 </div>
 
 
-                <div class="order-summary-card ready-summary">
+                <div class="order-summary-card">
 
                     <div>
-                        <p>Ready</p>
-                        <h3>6</h3>
+                        <p>Paid Today</p>
+                        <h3 id="ordersPaidTodayMetric">—</h3>
                     </div>
 
-                    <i class="fa-solid fa-circle-check"></i>
+                    <i class="fa-solid fa-money-bill-wave"></i>
 
                 </div>
 

@@ -596,7 +596,24 @@ const initializeAdminLive = async () => {
     };
 
     const loadOrders = async () => {
-        const result = await apiGet("/staff/orders");
+        const [result, analytics] = await Promise.all([
+            apiGet("/staff/orders"),
+            apiGet("/staff/analytics")
+        ]);
+        if (analytics.success) {
+            const summary = analytics.data || {};
+            const setMetric = (id, value) => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = String(value);
+            };
+            setMetric("ordersTodayMetric", summary.orders_today ?? 0);
+            setMetric("ordersPendingMetric", summary.pending_orders ?? 0);
+            setMetric("ordersCompletedMetric", summary.completed_today ?? 0);
+            setMetric("ordersPaidTodayMetric", "R" + Number(summary.revenue_today || 0).toFixed(2));
+            setMetric("ordersPendingBadge", summary.pending_orders ?? 0);
+        } else {
+            showResult(analytics);
+        }
         if (!showResult(result)) return;
         const body = document.querySelector("#ordersTable tbody");
         if (!body) return;

@@ -70,14 +70,6 @@ function installFoodByKAssistant() {
     const navigationScript = document.querySelector('script[src*="navigation.js"]');
     if (!navigationScript?.src) return;
 
-    if (!document.querySelector("[data-mobile-navigation-styles]")) {
-        const navigationStyles = document.createElement("link");
-        navigationStyles.rel = "stylesheet";
-        navigationStyles.href = new URL("../css/mobile-navigation.css", navigationScript.src).href;
-        navigationStyles.dataset.mobileNavigationStyles = "true";
-        document.head.appendChild(navigationStyles);
-    }
-
     if (document.querySelector("[data-foodbyk-assistant]")) return;
 
     const stylesheet = document.createElement("link");

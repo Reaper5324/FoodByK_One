@@ -12,3 +12,5 @@ frontend/test-results/
 # Keep the RAG service source and its safe, secret-free environment template trackable.
 !RagService/.env.example
 backend/foodbyk/database/popia_compliance.sql
+/SystemDesignIssues.md
+/The_Cleanup.md
