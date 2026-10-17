@@ -24,7 +24,20 @@ A Loyalty  rewards page is needed for user visibility
 -it should show the total points acummulated by the customer
 -List past orders (does not have to be detailed) and the points accumulated from that order 
 
+Task 2.1: Checkout repeated lookup problem
+The current code fetches products individually while claculating the subtotal, validating promotion and when creating an order. recommened fix: bulk-load the products once then reuse
+be midful of  safegurads and existing code
+check that every requested product ID exixts in the result
+preserve the active/available checks
+continue calculating prices on the server
+preserve historical product names and unit prices
+ensure promotion calculations use  exactly the same validated product prices as the subtotal calculation
 
+This solves fewer database round trips
+
+Task 2.2: Order-detail retrieval has an N+1  query pattern
+locations OrderService::getOrderByID() and OrderService::getOrderForStaff()
+Low risk fix: add a bulk product lookup and reuse it in both methods. alternatively retrieve item and product fields through a joined query while retaining the order-item snapshot fields
 Task 3: Detailed Menu Item page
 
 When a customer clicks on a menu item image, they get to see a detailed view of the menu item. The detailed view include the menu item image, the name, description, a back button to go back to the menu and an add to cart button

@@ -141,54 +141,72 @@ document.addEventListener("DOMContentLoaded", async () => {
     const renderProduct = (product) => {
         const card = document.createElement("article");
         card.className = "menu-card";
-        const image = product.image_url || "../../images/menu-placeholder.jpg";
-        card.innerHTML = `
-            <img class="menu-card-image" src="${image}" alt="${escapeHtml(product.name)}" onerror="this.style.display='none'">
-            <div class="menu-card-body">
-                <h2>${escapeHtml(product.name)}</h2>
-                <p>${escapeHtml(product.description || "A Food by K favourite.")}</p>
-                <div class="menu-card-footer">
-                    <span class="menu-price">R${Number(product.price).toFixed(2)}</span>
-                    <button class="btn btn-primary add-to-cart" type="button">Add to cart</button>
-                </div>
-            </div>`;
-  card.querySelector(".add-to-cart").addEventListener("click", async (event) => {
-      const button = event.currentTarget;
-      button.disabled = true;
+        const detailUrl = `menu-item.html?id=${encodeURIComponent(product.id)}`;
+        const imageLink = document.createElement("a");
+        imageLink.className = "menu-card-detail-link";
+        imageLink.href = detailUrl;
+        imageLink.setAttribute("aria-label", `View details for ${product.name}`);
 
-      const result = await apiPost("/cart/items", {
-          product_id: product.id,
-          quantity: 1
-      });
+        const image = document.createElement("img");
+        image.className = "menu-card-image";
+        image.src = product.image_url || "";
+        image.alt = product.name || "Food by K menu item";
+        image.loading = "lazy";
+        image.addEventListener("error", () => {
+            const placeholder = document.createElement("div");
+            placeholder.className = "menu-card-image menu-image-placeholder";
+            placeholder.textContent = "Image unavailable";
+            image.replaceWith(placeholder);
+        }, { once: true });
+        imageLink.appendChild(image);
 
-      if (result.success) {
-          const originalLabel = button.textContent;
-          button.textContent = "Added";
-          showCartNotification(`${product.name} added to your cart`);
-          setTimeout(() => {
-              button.textContent = originalLabel;
-              button.disabled = false;
-          }, 900);
-          return;
-      }
+        const body = document.createElement("div");
+        body.className = "menu-card-body";
+        const titleLink = document.createElement("a");
+        titleLink.className = "menu-card-title-link";
+        titleLink.href = detailUrl;
+        const title = document.createElement("h2");
+        title.textContent = product.name || "Menu item";
+        titleLink.appendChild(title);
 
-      button.disabled = false;
-      showMessage(
-          result.status === 401
-              ? "Please log in or create an account before adding items to your cart."
-              : (result.error || "Unable to add this item to your cart."),
-          true
-      );
-  });
+        const description = document.createElement("p");
+        description.textContent = product.description || "A Food by K favourite.";
+        const footer = document.createElement("div");
+        footer.className = "menu-card-footer";
+        const price = document.createElement("span");
+        price.className = "menu-price";
+        price.textContent = `R${Number(product.price).toFixed(2)}`;
+        const addButton = document.createElement("button");
+        addButton.className = "btn btn-primary add-to-cart";
+        addButton.type = "button";
+        addButton.textContent = "Add to cart";
+        addButton.addEventListener("click", async () => {
+            addButton.disabled = true;
+            const result = await apiPost("/cart/items", { product_id: product.id, quantity: 1 });
+            if (result.success) {
+                addButton.textContent = "Added";
+                showCartNotification(`${product.name} added to your cart`);
+                setTimeout(() => {
+                    addButton.textContent = "Add to cart";
+                    addButton.disabled = false;
+                }, 900);
+                return;
+            }
+
+            addButton.disabled = false;
+            showMessage(
+                result.status === 401
+                    ? "Please log in or create an account before adding items to your cart."
+                    : (result.error || "Unable to add this item to your cart."),
+                true
+            );
+        });
+
+        footer.append(price, addButton);
+        body.append(titleLink, description, footer);
+        card.append(imageLink, body);
         menuGrid.appendChild(card);
     };
-
-    const escapeHtml = (value) => String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
 
     searchForm.addEventListener("submit", (event) => {
         event.preventDefault();
