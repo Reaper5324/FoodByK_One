@@ -52,6 +52,19 @@ class OrderController extends Controller {
         return $this->respond((new OrderService())->declineOrder((int) $this->param($params, 'id'), $request->user()->id, $request->input('reason')));
     }
 
+    public function refund(Request $request, array $params): Response {
+        return $this->respond((new OrderService())->refundOrder(
+            (int) $this->param($params, 'id'),
+            $request->user()->id,
+            $request->input('amount'),
+            $request->input('reason')
+        ));
+    }
+
+    public function refundStatus(Request $request, array $params): Response {
+        return $this->respond((new OrderService())->refreshRefundStatus((int) $this->param($params, 'id')));
+    }
+
     public function adjust(Request $request, array $params): Response {
         $items = $request->input('adjusted_items');
         if ($items !== null && !is_array($items)) return Response::error('Adjusted items must be an array.', 400);

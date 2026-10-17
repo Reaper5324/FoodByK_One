@@ -245,6 +245,146 @@ class PaymentService {
         return md5($paramString);
     }
 
+    /** Create a guarded refund against the successful charge, never against its token. */
+    public function refundOrder(int $orderId, int $staffId, mixed $amount, mixed $reason): array {
+        if (!is_numeric($amount) || !is_string($reason)) {
+            return ['success' => false, 'error' => 'Enter a valid refund amount and reason.'];
+        }
+        $amount = (float) $amount;
+        $reason = trim($reason);
+        if ($amount <= 0 || strlen($reason) < 3 || strlen($reason) > 255) {
+            return ['success' => false, 'error' => 'Refund amount must be positive and the reason must be 3 to 255 characters.'];
+        }
+        if (abs($amount - round($amount, 2)) > 0.00000001) {
+            return ['success' => false, 'error' => 'Refund amount can have at most two decimal places.'];
+        }
+        $amount = round($amount, 2);
+        $amountCents = (int) round($amount * 100);
+
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            $order = Order::lockById($orderId);
+            $payment = $order?->getPayment();
+            if (!$order || !$payment || $payment->status !== Payment::STATUS_SUCCESS
+                || !$payment->gateway_reference || $order->status === Order::STATUS_CANCELLED
+                || $order->status === Order::STATUS_DECLINED) {
+                throw new RuntimeException('Only a successfully paid, non-cancelled order can be refunded.');
+            }
+            $inFlight = $db->prepare(
+                "SELECT COUNT(*) FROM payment_refunds WHERE payment_id = ? AND status IN ('pending', 'submitted')"
+            );
+            $inFlight->execute([$payment->id]);
+            if ((int) $inFlight->fetchColumn() > 0) {
+                throw new RuntimeException('A refund for this payment is already being processed. Check its status before requesting another.');
+            }
+            $sum = $db->prepare("SELECT COALESCE(SUM(amount_cents), 0) FROM payment_refunds WHERE payment_id = ? AND status IN ('submitted', 'completed')");
+            $sum->execute([$payment->id]);
+            if ($amountCents + (int) $sum->fetchColumn() > (int) round($payment->amount * 100)) {
+                throw new RuntimeException('The refund amount exceeds the remaining amount paid.');
+            }
+            $refund = new PaymentRefund((int) $payment->id, $staffId, $amountCents, $reason);
+            if (!$refund->save()) throw new RuntimeException('Unable to record the refund request.');
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) $db->rollBack();
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+
+        // PayFast requires eligibility details before each refund. If the API
+        // call has an uncertain outcome, leave this request pending to prevent
+        // an accidental duplicate charge-back.
+        try {
+            $query = $this->postJson(
+                $this->apiUrl('/refunds/query/' . rawurlencode($payment->gateway_reference)),
+                [], $this->apiHeaders([]), 'GET'
+            );
+            $details = $query['data']['response'] ?? $query['data'] ?? $query;
+            $available = (int) ($details['amount_available_for_refund'] ?? -1);
+            $fullMethod = $details['refund_full']['method'] ?? 'NOT_AVAILABLE';
+            $partialMethod = $details['refund_partial']['method'] ?? 'NOT_AVAILABLE';
+            if (($details['status'] ?? '') !== 'REFUNDABLE' || $available < $amountCents) {
+                $this->setRefundStatus((int) $refund->id, 'failed');
+                return ['success' => false, 'error' => 'PayFast reports that this payment is not refundable for that amount.'];
+            }
+            $refundMethod = $amountCents === $available ? $fullMethod : $partialMethod;
+            if ($refundMethod !== 'PAYMENT_SOURCE') {
+                $this->setRefundStatus((int) $refund->id, 'failed');
+                return ['success' => false, 'error' => 'PayFast requires a bank payout for this payment. Process it in PayFast and record it there; bank details are not collected by this platform.'];
+            }
+
+            $response = $this->postJson(
+                $this->apiUrl('/refunds/' . rawurlencode($payment->gateway_reference)),
+                ['amount' => $amountCents, 'reason' => $reason, 'notify_buyer' => true, 'notify_merchant' => true],
+                $this->apiHeaders(['amount' => $amountCents, 'reason' => $reason, 'notify_buyer' => true, 'notify_merchant' => true])
+            );
+            $accepted = $response['data']['response'] ?? null;
+            if (($response['status'] ?? '') === 'failed'
+                || (($response['status'] ?? '') === 'success' && in_array($accepted, [false, 0, '0'], true))) {
+                $this->setRefundStatus((int) $refund->id, 'failed');
+                return ['success' => false, 'error' => $response['data']['message'] ?? 'PayFast did not accept the refund.'];
+            }
+            if (($response['status'] ?? '') !== 'success' || !in_array($accepted, [true, 1, '1'], true)) {
+                throw new RuntimeException('PayFast returned an unclear refund result.');
+            }
+            $this->setRefundStatus((int) $refund->id, 'submitted');
+            return ['success' => true, 'data' => PaymentRefund::findById((int) $refund->id)];
+        } catch (Throwable $e) {
+            error_log('PayFast refund outcome is uncertain for order ' . $orderId . ', refund ' . $refund->id . ': ' . $e->getMessage());
+            return ['success' => false, 'error' => 'The refund request could not be confirmed. Do not submit it again until its status is checked in PayFast.'];
+        }
+    }
+
+    public function refreshRefundStatus(int $orderId): array {
+        $order = Order::findById($orderId);
+        $payment = $order?->getPayment();
+        if (!$order || !$payment || !$payment->gateway_reference) {
+            return ['success' => false, 'error' => 'Payment details are unavailable for refund reconciliation.'];
+        }
+        $refunds = PaymentRefund::findBy('payment_id', $payment->id);
+        $expectedCents = array_sum(array_map(
+            fn(PaymentRefund $refund) => in_array($refund->status, ['pending', 'submitted', 'completed'], true) ? $refund->amount_cents : 0,
+            $refunds
+        ));
+        if ($expectedCents === 0) return ['success' => true, 'data' => $refunds];
+
+        try {
+            $result = $this->postJson(
+                $this->apiUrl('/refunds/' . rawurlencode($payment->gateway_reference)),
+                [], $this->apiHeaders([]), 'GET'
+            );
+            $details = $result['data']['response'] ?? $result['data'] ?? $result;
+            $transactions = $details['transactions'] ?? null;
+            if (($result['status'] ?? '') !== 'success' || !is_array($transactions)) {
+                throw new RuntimeException('PayFast refund history is unavailable.');
+            }
+            $actualCents = 0;
+            foreach ($transactions as $transaction) {
+                if (!is_array($transaction) || stripos((string) ($transaction['type'] ?? ''), 'refund') === false) continue;
+                $actualCents += (int) round(abs((float) ($transaction['amount'] ?? 0)));
+            }
+            if ($actualCents === $expectedCents) {
+                foreach ($refunds as $refund) {
+                    if (in_array($refund->status, ['pending', 'submitted'], true)) {
+                        $refund->status = 'completed';
+                        if (!$refund->save()) throw new RuntimeException('Unable to update refund reconciliation status.');
+                    }
+                }
+            }
+            return ['success' => true, 'data' => PaymentRefund::findBy('payment_id', $payment->id)];
+        } catch (Throwable $e) {
+            error_log('PayFast refund status could not be reconciled for order ' . $orderId . ': ' . $e->getMessage());
+            return ['success' => false, 'error' => 'Could not verify refund settlement with PayFast. Check the transaction in PayFast.'];
+        }
+    }
+
+    private function setRefundStatus(int $refundId, string $status): void {
+        $refund = PaymentRefund::findById($refundId);
+        if (!$refund) throw new RuntimeException('Refund record not found.');
+        $refund->status = $status;
+        if (!$refund->save()) throw new RuntimeException('Unable to update the refund record.');
+    }
+
     private function generateApiSignature(array $data): string {
         if (PAYFAST_PASSPHRASE !== '') $data['passphrase'] = PAYFAST_PASSPHRASE;
         $data = array_filter($data, fn($value) => $value !== '' && $value !== null);

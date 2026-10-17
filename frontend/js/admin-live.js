@@ -230,7 +230,7 @@ const initializeAdminLive = async () => {
     
         const paths = {
         "Dashboard": "dashboard.html",
-        "Orders": "orders.html",
+        "All Orders": "orders.html",
         "Menu Items": "menu-items.html",
         "Categories": "categories.html",
         "Promotions": "promotions.html",
@@ -786,6 +786,33 @@ const initializeAdminLive = async () => {
             - Number(order.locked_discount || 0) - Number(order.loyalty_points_redeemed || 0)
             + Number(order.loyalty_points_refunded || 0))));
         setText("modalNotes", order.customer_notes || order.special_instructions || order.notes || "None");
+        const refundSection = document.getElementById("refundSection");
+        const payment = data.payment || {};
+        const refundEligible = payment.status === "success" && !["cancelled", "declined"].includes(order.status);
+        if (refundSection) refundSection.hidden = !refundEligible;
+        const refundAmount = document.getElementById("refundAmount");
+        if (refundAmount) {
+            const submitted = (data.refunds || []).filter((refund) => ["pending", "submitted", "completed"].includes(refund.status))
+                .reduce((total, refund) => total + Number(refund.amount || 0), 0);
+            refundAmount.max = Math.max(0, Number(payment.amount || 0) - submitted).toFixed(2);
+            refundAmount.value = "";
+        }
+        const refundReason = document.getElementById("refundReason");
+        if (refundReason) refundReason.value = "";
+        const refundHistory = document.getElementById("refundHistory");
+        const refundInProgress = (data.refunds || []).some((refund) => ["pending", "submitted"].includes(refund.status));
+        const submitRefundButton = document.querySelector(".submit-refund-btn");
+        if (submitRefundButton) submitRefundButton.disabled = refundInProgress;
+        const checkRefundButton = document.querySelector(".check-refund-status-btn");
+        if (checkRefundButton) checkRefundButton.hidden = !refundInProgress;
+        if (refundHistory) {
+            refundHistory.replaceChildren();
+            (data.refunds || []).forEach((refund) => {
+                const entry = document.createElement("p");
+                entry.textContent = `${money(refund.amount)} · ${refund.status} · ${refund.reason}`;
+                refundHistory.appendChild(entry);
+            });
+        }
         const pending = order.status === "submitted";
         const confirmation = document.getElementById("confirmationSection");
         const status = document.getElementById("statusSection");
@@ -898,10 +925,10 @@ const initializeAdminLive = async () => {
 
     
     document.addEventListener("click", async (event) => {
-        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn");
+        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn");
         if (!target) return;
         const action = target.dataset.adminAction;
-        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn")) return;
+        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn")) return;
         event.preventDefault(); event.stopImmediatePropagation();
 
         if (target.matches(".close-category-modal")) return closeModal("#categoryModal");
@@ -1021,6 +1048,29 @@ const initializeAdminLive = async () => {
             const result = await apiPost(`/staff/orders/${currentReviewOrderId}/decline`, { reason });
             target.disabled = false;
             if (showResult(result)) { closeModal("#orderModal"); await loadOrders(); }
+        } else if (target.matches(".submit-refund-btn") && currentReviewOrderId) {
+            const amount = Number(document.getElementById("refundAmount")?.value);
+            const reason = document.getElementById("refundReason")?.value.trim() || "";
+            if (!Number.isFinite(amount) || amount <= 0 || reason.length < 3 || reason.length > 255) {
+                return alert("Enter a positive refund amount and a reason between 3 and 255 characters.");
+            }
+            if (!confirm(`Submit a PayFast refund of ${money(amount)} for order #${currentReviewOrderId}?`)) return;
+            target.disabled = true;
+            const result = await apiPost(`/staff/orders/${currentReviewOrderId}/refund`, { amount, reason });
+            target.disabled = false;
+            if (showResult(result)) {
+                alert("Refund submitted to PayFast. Check PayFast transaction history for final settlement status.");
+                await openOrderReview(currentReviewOrderId);
+                await loadOrders();
+            }
+        } else if (target.matches(".check-refund-status-btn") && currentReviewOrderId) {
+            target.disabled = true;
+            const result = await apiGet(`/staff/orders/${currentReviewOrderId}/refund-status`);
+            target.disabled = false;
+            if (showResult(result)) {
+                await openOrderReview(currentReviewOrderId);
+                alert("Refund history has been checked with PayFast.");
+            }
         } else if (target.matches(".save-status-btn") && currentReviewOrderId) {
             const next = document.getElementById("statusSelect")?.value;
             if (!next) return;

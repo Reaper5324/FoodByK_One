@@ -420,6 +420,7 @@ class OrderService {
 
         $items = $order->getItems();
         $this->attachCurrentProductImages($items);
+        $payment = $order->getPayment();
 
         return $this->success([
             'order' => $order,
@@ -613,12 +614,21 @@ public function getOrderForStaff(int $orderId): array {
         return $this->success([
             'order'    => $order,
             'items'    => $items,
-            'payment'  => $order->getPayment(),
+            'payment'  => $payment,
+            'refunds'  => $payment ? PaymentRefund::findBy('payment_id', $payment->id) : [],
             'address'  => $order->getAddress(),
             'customer' => $order->getCustomer(),
             'history'  => OrderStatusHistory::findBy('order_id', $orderId),
             'total'    => $order->total(), // computed - won't serialize on its own, Order::total() is a method not a property
         ]);
+    }
+
+    public function refundOrder(int $orderId, int $staffId, mixed $amount, mixed $reason): array {
+        return (new PaymentService())->refundOrder($orderId, $staffId, $amount, $reason);
+    }
+
+    public function refreshRefundStatus(int $orderId): array {
+        return (new PaymentService())->refreshRefundStatus($orderId);
     }
 
     /** Attach current menu images without replacing the saved order-item snapshot. */
