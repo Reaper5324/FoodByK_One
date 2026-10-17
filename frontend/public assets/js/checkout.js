@@ -15,7 +15,10 @@
     const selectedPromotionKey = "foodbykSelectedPromotion";
     let previewReady = false;
 
-    const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
 
     const loadLoyaltyBalance = async () => {
         if (!loyaltyPointsInput || !loyaltyBalanceMessage) return;

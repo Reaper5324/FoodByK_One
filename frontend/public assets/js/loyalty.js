@@ -7,7 +7,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     const loadMoreButton = document.getElementById("loyaltyLoadMore");
     if (!balance || !value || !history || !message || !loadMoreButton) return;
 
-    const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
     const formatDate = (value) => {
         if (!value) return "Date unavailable";
         const date = new Date(String(value).replace(" ", "T"));
