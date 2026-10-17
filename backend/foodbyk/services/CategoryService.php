@@ -1,25 +1,12 @@
 <?php
 
-/**
- * CategoryService - Manage product categories.
- * 
- * Handles:
- * - Listing categories (public and admin)
- * - Retrieving category details
- * - Creating, updating, and removing categories (admin-only via controller)
- * - Validating category data
- */
+/** Reads and updates menu categories. */
 class CategoryService {
 
     private const MAX_NAME_LENGTH = 100;
     private const MAX_DESCRIPTION_LENGTH = 500;
 
-    /**
-     * List all active categories (public view).
-     * Ordered by display priority, then name.
-     * 
-     * @return array ['success' => bool, 'data' => Category[], 'error' => ?string]
-     */
+    /** Lists active categories in menu order. */
     public function listActive(): array {
         $categories = Category::findAll();
         usort($categories, fn(Category $a, Category $b) =>
@@ -29,11 +16,7 @@ class CategoryService {
         return $this->success(array_values($categories));
     }
 
-    /**
-     * List all categories including inactive (admin view).
-     * 
-     * @return array ['success' => bool, 'data' => Category[], 'error' => ?string]
-     */
+    /** Lists every category for the admin screen. */
     public function listAll(): array {
         $categories = Category::findAll();
         usort($categories, fn(Category $a, Category $b) =>
@@ -43,12 +26,7 @@ class CategoryService {
         return $this->success(array_values($categories));
     }
 
-    /**
-     * Get a single category by ID with product count.
-     * 
-     * @param int $categoryId
-     * @return array ['success' => bool, 'data' => [...], 'error' => ?string]
-     */
+    /** Loads a category and counts its available products. */
     public function getById(int $categoryId): array {
         if ($categoryId <= 0) {
             return $this->failure('Invalid category ID.');
@@ -74,12 +52,7 @@ class CategoryService {
         ]);
     }
 
-    /**
-     * Create a new category (admin-only).
-     * 
-     * @param array $input ['name', 'description', 'display_order']
-     * @return array ['success' => bool, 'data' => Category, 'error' => ?string]
-     */
+    /** Creates a category after checking the submitted fields. */
     public function create(array $input): array {
         $validated = $this->validateInput($input);
         if (!$validated['success']) {
@@ -98,13 +71,7 @@ class CategoryService {
             : $this->failure('Unable to create category.');
     }
 
-    /**
-     * Update an existing category (admin-only).
-     * 
-     * @param int $categoryId
-     * @param array $input
-     * @return array ['success' => bool, 'data' => Category, 'error' => ?string]
-     */
+    /** Updates a category name, description, or menu order. */
     public function update(int $categoryId, array $input): array {
         $category = Category::findById($categoryId);
         if (!$category) {
@@ -126,13 +93,7 @@ class CategoryService {
             : $this->failure('Unable to update category.');
     }
 
-    /**
-     * Delete a category (hard delete - admin-only, use with caution).
-     * Categories with assigned products cannot be deleted.
-     * 
-     * @param int $categoryId
-     * @return array ['success' => bool, 'error' => ?string]
-     */
+    /** Deletes an empty category. */
     public function delete(int $categoryId): array {
         $category = Category::findById($categoryId);
         if (!$category) {
@@ -148,13 +109,7 @@ class CategoryService {
             : $this->failure('Unable to delete category.');
     }
 
-    /**
-     * Validate category input data.
-     * 
-     * @param array $input
-     * @param ?Category $existing
-     * @return array ['success' => bool, 'data' => validated_input, 'error' => ?string]
-     */
+    /** Checks category fields before they are saved. */
     public function validateInput(array $input, ?Category $existing = null): array {
         $name = trim((string) ($input['name'] ?? $existing?->name ?? ''));
         $description = trim((string) ($input['description'] ?? $existing?->description ?? ''));
@@ -179,7 +134,6 @@ class CategoryService {
         ]);
     }
 
-        // Keep category filtering here so callers use the same query behavior.
     public function getProductsInCategory(int $categoryId, ?string $search = null): array {
         $category = Category::findById($categoryId);
         if (!$category) {

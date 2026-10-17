@@ -1,29 +1,9 @@
 <?php
 
-/**
- * CheckoutService - Orchestrates the cart-to-order checkout flow.
- * 
- * Handles:
- * - Cart validation (items available, quantities valid)
- * - Delivery eligibility checking and fee calculation
- * - Promotion validation and discount calculation
- * - Order preview (what the customer will pay)
- * - Order submission via OrderService
- * 
- * Does NOT handle payment directly - delegates to PaymentService via OrderService::submitOrder().
- */
+/** Validates checkout details and passes order creation to OrderService. */
 class CheckoutService {
 
-    /**
-     * Get a preview of what will be charged in checkout.
-     * This runs all validation without committing to an order.
-     * 
-     * @param int $customerId
-     * @param string $fulfilmentType (collection|delivery)
-     * @param ?int $addressId (required for delivery)
-     * @param ?string $promotionCode (optional)
-     * @return array ['success' => bool, 'data' => preview, 'error' => ?string]
-     */
+    /** Calculates the current checkout total without creating an order. */
     public function getCheckoutPreview(
         int $customerId,
         string $fulfilmentType,
@@ -31,12 +11,12 @@ class CheckoutService {
         ?string $promotionCode = null,
         float $loyaltyPointsToRedeem = 0.0
     ): array {
-        // Validate fulfilment type
+        // Check that the customer chose collection or delivery.
         if (!in_array($fulfilmentType, [Order::TYPE_COLLECTION, Order::TYPE_DELIVERY], true)) {
             return $this->failure('Invalid fulfillment type.');
         }
 
-        // Load and validate cart
+        // Load the cart and check that its items are still available.
         $cartValidation = $this->validateCart($customerId);
         if (!$cartValidation['success']) {
             return $cartValidation;
@@ -44,7 +24,7 @@ class CheckoutService {
         $cartItems = $cartValidation['data']['items'];
         $productsById = $cartValidation['data']['products'];
 
-        // Preview with current menu prices; submission stores the prices on the order items.
+        // Use current prices for the preview; submission saves a price snapshot.
         $subtotal = 0.0;
         $lineItems = [];
         foreach ($cartItems as $cartItem) {
@@ -119,13 +99,7 @@ class CheckoutService {
         ]);
     }
 
-    /**
-     * Validate that all cart items are still available and prices haven't changed drastically.
-     * Does NOT reserve items - just checks current state.
-     * 
-     * @param int $customerId
-     * @return array ['success' => bool, 'data' => CartItem[], 'error' => ?string]
-     */
+    /** Returns the cart only when every product is active and available. */
     public function validateCart(int $customerId): array {
         $cartItems = CartItem::findBy('customer_id', $customerId);
         if (empty($cartItems)) {
@@ -149,13 +123,7 @@ class CheckoutService {
         return $this->success(['items' => $cartItems, 'products' => $productsById]);
     }
 
-    /**
-     * Validate delivery address is geocoded and eligible.
-     * Called before submitOrder to ensure address data is ready.
-     * 
-     * @param int $addressId
-     * @return array ['success' => bool, 'data' => [...], 'error' => ?string]
-     */
+    /** Geocodes the address if needed and checks delivery eligibility. */
     public function validateDeliveryAddress(int $addressId): array {
         $address = Address::findById($addressId);
         if (!$address) {
@@ -179,27 +147,11 @@ class CheckoutService {
         ]);
     }
 
-    /**
-     * Validate the requested time window is within trading hours.
-     * 
-     * @param string $windowStart (ISO 8601 datetime)
-     * @param string $windowEnd (ISO 8601 datetime)
-     * @return array ['success' => bool, 'error' => ?string]
-     */
+    /** Checks the selected time against trading hours and slot rules. */
        public function validateTimeWindow(string $windowStart, string $windowEnd): array {
         return (new SlotService())->isValidSlot($windowStart, $windowEnd);
     }
-    /**
-     * Submit the order after all validations. Delegates to OrderService::submitOrder().
-     * 
-     * @param int $customerId
-     * @param string $fulfilmentType
-     * @param ?int $addressId
-     * @param string $requestedWindowStart
-     * @param string $requestedWindowEnd
-     * @param ?string $promotionCode
-     * @return array ['success' => bool, 'data' => Order, 'error' => ?string]
-     */
+    /** Passes the checkout request to OrderService. */
     public function submitOrder(
         int $customerId,
         string $fulfilmentType,

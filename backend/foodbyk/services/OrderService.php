@@ -233,18 +233,7 @@ class OrderService {
         }
     }
 
-    /**
-     * CRITICAL: Submit a new order from cart. Creates Order, OrderItems, Payment, 
-     * and initiates PayFast tokenization. Called by CheckoutService/CheckoutController.
-     * 
-     * @param int $customerId
-     * @param string $fulfilmentType (collection|delivery)
-     * @param ?int $addressId (required if delivery)
-     * @param string $requestedWindowStart (required preferred fulfilment start time)
-     * @param string $requestedWindowEnd (required preferred fulfilment end time)
-     * @param ?string $promotionCode (optional promo/coupon code)
-     * @return array ['success' => bool, 'data' => Order, 'error' => ?string]
-     */
+    /** Creates the order, saves its price snapshot, and starts PayFast token setup. */
     public function submitOrder(
         int $customerId,
         string $fulfilmentType,
@@ -409,9 +398,7 @@ class OrderService {
         return $result;
     }
 
-    /**
-     * Retrieve a single order by ID with full details (items, payment, history).
-     */
+    /** Loads one order with its related details. */
     public function getOrderById(int $orderId, ?int $customerId = null): array {
         $order = Order::findById($orderId);
         if (!$order || ($customerId !== null && $order->customer_id !== $customerId)) {
@@ -432,14 +419,7 @@ class OrderService {
         ]);
     }
 
-    /**
-     * Retrieve order history for a customer, with pagination.
-     * 
-     * @param int $customerId
-     * @param int $limit (default 20)
-     * @param int $offset (default 0)
-     * @return array ['success' => bool, 'data' => ['orders' => [...], 'total' => int], 'error' => ?string]
-     */
+    /** Returns a customer's orders a page at a time. */
     public function getCustomerOrders(int $customerId, int $limit = 20, int $offset = 0): array {
         $db = Database::getConnection();
 
@@ -464,17 +444,7 @@ class OrderService {
         ]);
     }
 
-    /**
-     * Staff adjustment of order: modify items, time windows, and recalculate totals.
-     * Must revalidate promotion and recalculate delivery fee if address changed.
-     * 
-     * @param int $orderId
-     * @param int $staffId
-     * @param ?array $adjustedItems [['product_id' => int, 'quantity' => int], ...]
-     * @param ?string $newWindowStart
-     * @param ?string $newWindowEnd
-     * @return array ['success' => bool, 'data' => Order, 'error' => ?string]
-     */
+    /** Updates order items or the fulfilment time before charging. */
     public function adjustOrder(
         int $orderId,
         int $staffId,
