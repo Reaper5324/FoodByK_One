@@ -10,7 +10,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const summary = document.getElementById("checkoutSummary");
     const previewButton = document.getElementById("previewButton");
     const submitButton = document.getElementById("submitButton");
+    const selectedPromotionKey = "foodbykSelectedPromotion";
     let previewReady = false;
+
+    try {
+        const selectedPromotion = sessionStorage.getItem(selectedPromotionKey);
+        if (selectedPromotion) promotionInput.value = selectedPromotion;
+    } catch (error) {
+        console.warn("Unable to restore the selected promotion code.", error);
+    }
 
     const showMessage = (text, isError = false) => {
         message.hidden = false;
@@ -191,6 +199,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         await loadSlots();
     });
     [addressSelect, slotSelect, promotionInput].forEach((input) => input.addEventListener("change", clearPreview));
+    promotionInput.addEventListener("input", () => {
+        try {
+            const savedPromotion = sessionStorage.getItem(selectedPromotionKey);
+            if (savedPromotion && promotionInput.value.trim().toUpperCase() !== savedPromotion.toUpperCase()) {
+                sessionStorage.removeItem(selectedPromotionKey);
+            }
+        } catch (error) {
+            console.warn("Unable to update the selected promotion code.", error);
+        }
+        clearPreview();
+    });
     previewButton.addEventListener("click", requestPreview);
 
     form.addEventListener("submit", async (event) => {
@@ -218,6 +237,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             submitButton.disabled = false;
             showMessage(result.error || "Unable to start secure card setup. Please contact the restaurant before retrying.", true);
             return;
+        }
+
+        try {
+            sessionStorage.removeItem(selectedPromotionKey);
+        } catch (error) {
+            console.warn("Unable to clear the selected promotion code after order submission.", error);
         }
 
         const paymentForm = document.createElement("form");

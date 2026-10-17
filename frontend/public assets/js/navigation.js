@@ -57,6 +57,7 @@ async function updateCustomerNavigation() {
 function renderNavigationActions(nav, user) {
     const navRoot = nav.closest(".navbar") || nav;
     navRoot.querySelectorAll("[data-customer-orders-link]").forEach((item) => item.remove());
+    navRoot.querySelectorAll("[data-customer-promotions-link]").forEach((item) => item.remove());
     navRoot.querySelectorAll("a, button").forEach((item) => {
         const label = item.textContent.trim().toLowerCase();
         const href = item.getAttribute("href") || "";
@@ -66,6 +67,16 @@ function renderNavigationActions(nav, user) {
             || ["login", "sign in", "register", "account", "logout", "dashboard", "staff orders"].includes(label);
         if (isAuthAction) item.remove();
     });
+
+    const promotionsLink = createNavigationLink("Promotions", "/pages/customer/promotions.html", "nav-customer-promotions");
+    promotionsLink.dataset.customerPromotionsLink = "true";
+    const insertionPoint = [...nav.querySelectorAll("a")].find((link) => {
+        const href = (link.getAttribute("href") || "").toLowerCase();
+        return /(?:^|\/)cart\.html(?:$|[?#])/.test(href)
+            || /(?:^|\/)menu\.html(?:$|[?#])/.test(href);
+    });
+    if (insertionPoint) insertionPoint.insertAdjacentElement("afterend", promotionsLink);
+    else nav.appendChild(promotionsLink);
 
     if (!user) {
         nav.append(

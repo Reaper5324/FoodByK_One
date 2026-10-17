@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111111">
+  <title>Promotions | Food by K</title>
+  <link rel="stylesheet" href="../../public%20assets/css/style.css">
+  <link rel="stylesheet" href="../../public%20assets/css/home.css">
+  <link rel="stylesheet" href="../../public%20assets/css/promotions.css">
+</head>
+<body class="home-page promotions-page-shell">
+  <header class="navbar">
+    <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
+    <nav aria-label="Main navigation">
+      <a href="../../src/index.html">Home</a>
+      <a href="menu.html">Menu</a>
+      <a href="cart.html">Cart</a>
+      <a href="../../src/index.html#contact">Contact</a>
+      <a href="../auth/login.html" class="nav-auth-action">Login</a>
+      <a href="../auth/register.html" class="nav-register nav-auth-action">Register</a>
+    </nav>
+  </header>
+
+  <main class="promotions-page">
+    <header class="promotions-heading">
+      <p class="section-tag">A little something extra</p>
+      <h1>Good deals.<br><span>Good food.</span></h1>
+      <p>Pick an active offer and we’ll add it to your next checkout. The discount is confirmed when you review your total.</p>
+    </header>
+
+    <div id="promotionsMessage" class="promotions-message" role="status" aria-live="polite">Loading current offers…</div>
+    <section id="promotionList" class="promotion-list" aria-label="Available promotions" aria-busy="true"></section>
+    <p class="promotions-note">Offers are applied to eligible items and confirmed by the checkout total. Only one promotion code can be used per order.</p>
+  </main>
+
+  <script src="../../public%20assets/js/config.js"></script>
+  <script src="../../public%20assets/js/api/api.js"></script>
+  <script src="../../public%20assets/js/api/auth.js"></script>
+  <script src="../../public%20assets/js/navigation.js"></script>
+  <script src="../../public%20assets/js/promotions.js"></script>
+  <script src="../../public assets/js/privacy.js"></script>
+</body>
+</html>
