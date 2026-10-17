@@ -1,17 +1,84 @@
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
+        initializeMobileNavigation();
         updateCustomerNavigation();
         installFoodByKAssistant();
     }, { once: true });
 } else {
+    initializeMobileNavigation();
     updateCustomerNavigation();
     installFoodByKAssistant();
 }
 
+function initializeMobileNavigation() {
+    const navbar = document.querySelector(".navbar");
+    const nav = navbar?.querySelector("nav");
+    const brand = navbar?.querySelector(".logo a");
+    if (!navbar || !nav || !brand) return;
+
+    if (!brand.querySelector(".navbar-brand-mark")) {
+        const mark = document.createElement("span");
+        mark.className = "navbar-brand-mark";
+        mark.setAttribute("aria-hidden", "true");
+        brand.prepend(mark);
+    }
+
+    if (!nav.id) nav.id = "customer-site-navigation";
+    let toggle = navbar.querySelector("[data-mobile-nav-toggle]");
+    if (!toggle) {
+        toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "navbar-toggle";
+        toggle.dataset.mobileNavToggle = "true";
+        toggle.setAttribute("aria-controls", nav.id);
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.setAttribute("aria-label", "Open navigation menu");
+        for (let index = 0; index < 3; index += 1) {
+            const line = document.createElement("span");
+            line.setAttribute("aria-hidden", "true");
+            toggle.appendChild(line);
+        }
+        brand.closest(".logo").insertAdjacentElement("afterend", toggle);
+    }
+
+    if (toggle.dataset.mobileNavReady === "true") return;
+    toggle.dataset.mobileNavReady = "true";
+    toggle.addEventListener("click", () => {
+        const isOpen = navbar.classList.toggle("is-mobile-nav-open");
+        toggle.setAttribute("aria-expanded", String(isOpen));
+        toggle.setAttribute("aria-label", isOpen ? "Close navigation menu" : "Open navigation menu");
+    });
+    nav.addEventListener("click", (event) => {
+        if (event.target.closest("a")) closeMobileNavigation(navbar, toggle);
+    });
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeMobileNavigation(navbar, toggle);
+    });
+    document.addEventListener("click", (event) => {
+        if (!navbar.contains(event.target)) closeMobileNavigation(navbar, toggle);
+    });
+}
+
+function closeMobileNavigation(navbar, toggle) {
+    navbar.classList.remove("is-mobile-nav-open");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", "Open navigation menu");
+}
+
 function installFoodByKAssistant() {
-    if (!document.querySelector(".navbar") || document.querySelector("[data-foodbyk-assistant]")) return;
+    if (!document.querySelector(".navbar")) return;
     const navigationScript = document.querySelector('script[src*="navigation.js"]');
     if (!navigationScript?.src) return;
+
+    if (!document.querySelector("[data-mobile-navigation-styles]")) {
+        const navigationStyles = document.createElement("link");
+        navigationStyles.rel = "stylesheet";
+        navigationStyles.href = new URL("../css/mobile-navigation.css", navigationScript.src).href;
+        navigationStyles.dataset.mobileNavigationStyles = "true";
+        document.head.appendChild(navigationStyles);
+    }
+
+    if (document.querySelector("[data-foodbyk-assistant]")) return;
 
     const stylesheet = document.createElement("link");
     stylesheet.rel = "stylesheet";

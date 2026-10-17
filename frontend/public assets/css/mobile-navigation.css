@@ -1,0 +1,137 @@
+/* Shared customer navigation: the compact menu is enabled on phones only. */
+.navbar .logo a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.navbar .navbar-brand-mark {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 1.7rem;
+    height: 1.7rem;
+    background: linear-gradient(145deg, #fff 0%, #f4eee8 70%, #ff8f2b 100%);
+    -webkit-mask: url("../../images/logo-mark.png") center / contain no-repeat;
+    mask: url("../../images/logo-mark.png") center / contain no-repeat;
+}
+
+.navbar .navbar-toggle {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        position: relative;
+        z-index: 30;
+        min-height: 68px;
+        flex-direction: row !important;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.8rem 5%;
+    }
+
+    .navbar .logo {
+        min-width: 0;
+        margin: 0;
+    }
+
+    .navbar .logo a {
+        font-size: clamp(1.15rem, 5vw, 1.45rem);
+        white-space: nowrap;
+    }
+
+    .navbar .navbar-brand-mark {
+        width: 1.55rem;
+        height: 1.55rem;
+    }
+
+    .navbar .navbar-toggle {
+        display: flex;
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .navbar .navbar-toggle span {
+        display: block;
+        width: 19px;
+        height: 2px;
+        border-radius: 2px;
+        background: currentColor;
+        transition: transform 180ms ease, opacity 180ms ease;
+    }
+
+    .navbar.is-mobile-nav-open .navbar-toggle span:first-child {
+        transform: translateY(7px) rotate(45deg);
+    }
+
+    .navbar.is-mobile-nav-open .navbar-toggle span:nth-child(2) {
+        opacity: 0;
+    }
+
+    .navbar.is-mobile-nav-open .navbar-toggle span:last-child {
+        transform: translateY(-7px) rotate(-45deg);
+    }
+
+    .navbar nav {
+        display: none !important;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        left: 0;
+        width: 100%;
+        max-height: min(72vh, 560px);
+        overflow-y: auto;
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        gap: 0 !important;
+        padding: 0.5rem 5% 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        background: #101010;
+        box-shadow: 0 18px 28px rgba(0, 0, 0, 0.24);
+    }
+
+    .navbar.is-mobile-nav-open nav {
+        display: flex !important;
+    }
+
+    .navbar nav a {
+        display: flex;
+        min-height: 46px;
+        align-items: center;
+        padding: 0.7rem 0.2rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+        font-size: 0.78rem !important;
+        text-align: left;
+    }
+
+    .navbar nav a:last-child {
+        border-bottom: 0;
+    }
+
+    .navbar .navbar-toggle:focus-visible,
+    .navbar nav a:focus-visible {
+        outline: 2px solid #f4a43b;
+        outline-offset: 3px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .navbar .navbar-toggle span {
+        transition: none;
+    }
+}
