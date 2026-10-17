@@ -8,7 +8,6 @@ const ADMIN_ONLY_PAGES = new Set([
 ]);
 
 const STAFF_ALLOWED_PAGES = new Set([
-    "dashboard.html",
     "orders.html",
     "menu-items.html"
 ]);
@@ -89,8 +88,8 @@ const initializeAdminLive = async () => {
         return;
     }
 
-    if (role === "staff" && ADMIN_ONLY_PAGES.has(page)) {
-        location.href = "dashboard.html";
+    if (role === "staff" && !STAFF_ALLOWED_PAGES.has(page)) {
+        location.replace("orders.html");
         return;
     }
 
@@ -243,7 +242,7 @@ const initializeAdminLive = async () => {
 
     if (role === "staff") {
         Object.keys(paths).forEach((label) => {
-            if (ADMIN_ONLY_PAGES.has(paths[label])) {
+            if (ADMIN_ONLY_PAGES.has(paths[label]) || !STAFF_ALLOWED_PAGES.has(paths[label])) {
                 delete paths[label];
             }
         });
