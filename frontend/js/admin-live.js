@@ -594,7 +594,7 @@ const initializeAdminLive = async () => {
         window.adminCustomers = result.data;
     };
 
-    let ordersView = "today";
+    let ordersView = "all";
     let orderOffset = 0;
     let orderLoadVersion = 0;
     const orderPageSize = 50;
