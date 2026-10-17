@@ -595,11 +595,32 @@ const initializeAdminLive = async () => {
         window.adminCustomers = result.data;
     };
 
+    let ordersView = "today";
+    let orderOffset = 0;
+    let orderLoadVersion = 0;
+    const orderPageSize = 50;
+    const displayOrderDate = (value) => {
+        const datePart = String(value || "").slice(0, 10);
+        const parts = datePart.split("-").map(Number);
+        if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return "—";
+        const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+        return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString([], {
+            day: "numeric", month: "short", year: "numeric", timeZone: "UTC"
+        });
+    };
+
     const loadOrders = async () => {
+        const requestVersion = ++orderLoadVersion;
+        const orderQuery = new URLSearchParams({
+            view: ordersView,
+            limit: String(orderPageSize),
+            offset: String(orderOffset)
+        });
         const [result, analytics] = await Promise.all([
-            apiGet("/staff/orders"),
+            apiGet(`/staff/orders?${orderQuery.toString()}`),
             apiGet("/staff/analytics")
         ]);
+        if (requestVersion !== orderLoadVersion) return;
         if (analytics.success) {
             const summary = analytics.data || {};
             const setMetric = (id, value) => {
@@ -618,9 +639,23 @@ const initializeAdminLive = async () => {
         const body = document.querySelector("#ordersTable tbody");
         if (!body) return;
         body.replaceChildren();
-        const records = Array.isArray(result.data) ? result.data : [];
+        const page = Array.isArray(result.data)
+            ? { orders: result.data, total: result.data.length }
+            : (result.data || {});
+        const records = Array.isArray(page.orders) ? page.orders : [];
+        const total = Number(page.total ?? records.length);
+        const start = records.length ? orderOffset + 1 : 0;
+        const end = orderOffset + records.length;
+        const pageSummary = document.getElementById("ordersPageSummary");
+        if (pageSummary) pageSummary.textContent = total ? `Showing ${start}–${end} of ${total} orders` : "No orders to show";
+        const previousPage = document.getElementById("ordersPreviousPage");
+        const nextPage = document.getElementById("ordersNextPage");
+        if (previousPage) previousPage.disabled = orderOffset <= 0;
+        if (nextPage) nextPage.disabled = end >= total;
         if (!records.length) {
-            setMessageRow(body, "No orders were found.", 7);
+            setMessageRow(body, ordersView === "today"
+                ? "There are no orders due and placed today."
+                : "No orders were found.", 8);
             window.adminOrders = [];
             return;
         }
@@ -631,6 +666,7 @@ const initializeAdminLive = async () => {
             const requested = order.confirmed_window_start || order.requested_window_start;
             makeCell(row, `#${order.id}`); makeCell(row, order.customer_name || "Customer");
             makeCell(row, String(order.fulfilment_type || "").replaceAll("_", " "));
+            makeCell(row, displayOrderDate(order.placed_at_local || order.created_at));
             makeCell(row, requested ? new Date(requested).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—");
             const total = order.total ?? Math.max(0, Number(order.subtotal || 0) + Number(order.delivery_fee || 0)
                 - Number(order.locked_discount || 0) - Number(order.loyalty_points_redeemed || 0)
@@ -1056,6 +1092,30 @@ const initializeAdminLive = async () => {
         });
     };
     document.getElementById("orderSearch")?.addEventListener("input", () => filterRows("#ordersTable tbody", "#orderSearch", null, null));
+    document.querySelectorAll("[data-orders-view]").forEach((tab) => {
+        tab.addEventListener("click", () => {
+            ordersView = tab.dataset.ordersView === "all" ? "all" : "today";
+            orderOffset = 0;
+            document.querySelectorAll("[data-orders-view]").forEach((item) => {
+                const isActive = item === tab;
+                item.classList.toggle("active", isActive);
+                item.setAttribute("aria-pressed", String(isActive));
+            });
+            const title = document.getElementById("ordersTableTitle");
+            if (title) title.textContent = ordersView === "today" ? "Today's Orders" : "All Orders";
+            const search = document.getElementById("orderSearch");
+            if (search) search.value = "";
+            loadOrders();
+        });
+    });
+    document.getElementById("ordersPreviousPage")?.addEventListener("click", () => {
+        orderOffset = Math.max(0, orderOffset - orderPageSize);
+        loadOrders();
+    });
+    document.getElementById("ordersNextPage")?.addEventListener("click", () => {
+        orderOffset += orderPageSize;
+        loadOrders();
+    });
     document.getElementById("customerSearch")?.addEventListener("input", () => filterRows("#customerTableBody", "#customerSearch", "#customerStatusFilter", null));
     document.getElementById("customerStatusFilter")?.addEventListener("change", () => filterRows("#customerTableBody", "#customerSearch", "#customerStatusFilter", null));
     document.getElementById("userSearch")?.addEventListener("input", () => filterRows("#userTableBody", "#userSearch", null, "#userRoleFilter"));

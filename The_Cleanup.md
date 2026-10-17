@@ -57,6 +57,8 @@ All orders should be shown on a different tab where staff can view all orders an
 The All Orders on the staff page should only change Today's Orders
 It will be an interface where it displays orders that are due and placed today only as well as the manage/view button beside those orders so staff can manage orders
 
+Task 6.1: Staff Adjust order functionality shows time slot however it says "Unable to load TimeSlots" ensure that the adjust order functionality can change time slots and implement guardrails and safeguards
+
 
 Task 7:
 
@@ -66,6 +68,6 @@ Staff should not be able to view the Admin dashborad, it is a security risk, rem
 Task 8: Safegaurd and race condition checks
 Im not sure if all safe guards and race conditions have been check
 
-limits - 3 Delivery addresses per customer, 1 promotion per checkout, Limit email change because it is tied to customer account and log in
-Find more of these type of limits and ensure that they are implemented properly on customer, staff and admin pages
+limits - 3 Delivery addresses per customer, 1 promotion per checkout, Limit email change because it is tied to customer account and log in, Customers cant order on Sundays (off day), Staff cant adjust orders to sunday.
+Find more of these type of limits and ensure that they are implemented properly on customer, staff and admin pages.
 

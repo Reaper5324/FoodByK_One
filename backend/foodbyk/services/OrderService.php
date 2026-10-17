@@ -163,20 +163,59 @@ class OrderService {
         return ['success' => true, 'data' => $rows, 'error' => null];
     }
 
-    public function getOrdersForStaffDashboard(): array {
+    public function getOrdersForStaffDashboard(int $limit = 50, int $offset = 0, bool $todayOnly = false): array {
+        $limit = max(1, min(100, $limit));
+        $offset = max(0, $offset);
         $db = Database::getConnection();
-        $rows = $db->query(
+        $where = '';
+        $bindings = [];
+        if ($todayOnly) {
+            $today = new DateTimeImmutable('today', new DateTimeZone('Africa/Johannesburg'));
+            $tomorrow = $today->modify('+1 day');
+            $utc = new DateTimeZone('UTC');
+            $createdStart = $today->setTimezone($utc)->format('Y-m-d H:i:s');
+            $createdEnd = $tomorrow->setTimezone($utc)->format('Y-m-d H:i:s');
+            // requested_window_start is stored as a local wall-clock DATETIME.
+            $windowStart = $today->format('Y-m-d H:i:s');
+            $windowEnd = $tomorrow->format('Y-m-d H:i:s');
+            $where = ' WHERE o.created_at >= :created_start AND o.created_at < :created_end
+                       AND o.requested_window_start >= :window_start AND o.requested_window_start < :window_end';
+            $bindings = [
+                ':created_start' => $createdStart,
+                ':created_end' => $createdEnd,
+                ':window_start' => $windowStart,
+                ':window_end' => $windowEnd,
+            ];
+        }
+
+        $count = $db->prepare('SELECT COUNT(*) FROM orders o' . $where);
+        foreach ($bindings as $name => $value) $count->bindValue($name, $value);
+        $count->execute();
+        $total = (int) $count->fetchColumn();
+
+        $stmt = $db->prepare(
             "SELECT o.*, u.name AS customer_name, u.email AS customer_email,
                     p.status AS payment_status,
+                    CONVERT_TZ(o.created_at, '+00:00', '+02:00') AS placed_at_local,
                     GREATEST(0, o.subtotal + o.delivery_fee - o.locked_discount
                         - o.loyalty_points_redeemed + o.loyalty_points_refunded) AS total
              FROM orders o
              JOIN users u ON u.id = o.customer_id
-             LEFT JOIN payments p ON p.order_id = o.id
-             ORDER BY o.created_at DESC
-             LIMIT 200"
-        )->fetchAll();
-        return ['success' => true, 'data' => $rows, 'error' => null];
+             LEFT JOIN payments p ON p.order_id = o.id" . $where . "
+             ORDER BY o.created_at DESC, o.id DESC
+             LIMIT :limit OFFSET :offset"
+        );
+        foreach ($bindings as $name => $value) $stmt->bindValue($name, $value);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return ['success' => true, 'data' => [
+            'orders' => $stmt->fetchAll(),
+            'total' => $total,
+            'limit' => $limit,
+            'offset' => $offset,
+        ], 'error' => null];
     }
 
     private function logTransition(int $orderId, ?string $from, string $to, ?int $actorId, ?string $notes = null): void {

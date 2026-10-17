@@ -233,6 +233,16 @@
             </div>
 
 
+            <div class="order-view-tabs" role="group" aria-label="Choose which orders to view">
+                <button type="button" class="order-view-tab active" id="todayOrdersTab" aria-pressed="true" data-orders-view="today">
+                    Today's Orders
+                </button>
+                <button type="button" class="order-view-tab" id="allOrdersTab" aria-pressed="false" data-orders-view="all">
+                    All Orders
+                </button>
+            </div>
+
+
             <!-- =========================
                  SEARCH & FILTERS
             ========================== -->
@@ -309,7 +319,7 @@
 
                     <div>
                         <p class="card-label">ORDERS</p>
-                        <h3>All Orders</h3>
+                        <h3 id="ordersTableTitle">Today's Orders</h3>
                     </div>
 
 
@@ -332,6 +342,7 @@
                                 <th>ORDER ID</th>
                                 <th>CUSTOMER</th>
                                 <th>TYPE</th>
+                                <th>PLACED</th>
                                 <th>REQUESTED TIME</th>
                                 <th>TOTAL</th>
                                 <th>STATUS</th>
@@ -672,6 +683,14 @@
 
                     </table>
 
+                </div>
+
+                <div class="orders-pagination" id="ordersPagination" aria-label="Order pages">
+                    <span id="ordersPageSummary" role="status" aria-live="polite"></span>
+                    <div>
+                        <button type="button" id="ordersPreviousPage" class="pagination-btn" disabled>Previous</button>
+                        <button type="button" id="ordersNextPage" class="pagination-btn" disabled>Next</button>
+                    </div>
                 </div>
 
             </div>

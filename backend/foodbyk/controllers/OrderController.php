@@ -23,7 +23,10 @@ class OrderController extends Controller {
     }
 
     public function staffIndex(Request $request): Response {
-        return $this->respond((new OrderService())->getOrdersForStaffDashboard());
+        $limit = max(1, min(100, (int) ($request->query['limit'] ?? 50)));
+        $offset = max(0, (int) ($request->query['offset'] ?? 0));
+        $todayOnly = ($request->query['view'] ?? '') === 'today';
+        return $this->respond((new OrderService())->getOrdersForStaffDashboard($limit, $offset, $todayOnly));
     }
 
     public function confirm(Request $request, array $params): Response {

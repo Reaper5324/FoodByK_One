@@ -667,6 +667,67 @@ td {
     margin-bottom: 25px;
 }
 
+.order-view-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 16px;
+    border-bottom: 1px solid #e8e5e0;
+}
+
+.order-view-tab {
+    padding: 12px 16px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: var(--grey);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.order-view-tab.active {
+    border-bottom-color: var(--orange);
+    color: var(--black);
+}
+
+.order-view-tab:focus-visible,
+.pagination-btn:focus-visible {
+    outline: 2px solid var(--orange);
+    outline-offset: 2px;
+}
+
+.orders-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    color: var(--grey);
+    font-size: 0.85rem;
+}
+
+.orders-pagination > div {
+    display: flex;
+    gap: 8px;
+}
+
+.pagination-btn {
+    min-height: 38px;
+    padding: 0 13px;
+    border: 1px solid #ddd8d0;
+    border-radius: 8px;
+    background: #fff;
+    color: var(--black);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .order-summary-card {
     background: white;
     border-radius: 15px;
