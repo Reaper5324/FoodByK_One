@@ -32,13 +32,9 @@ class CheckoutController extends Controller {
         ), 201);
     }
 
-        public function slots(Request $request): Response {
-        $dateParam = (string) ($request->query['date'] ?? '');
-        try {
-            $date = new \DateTimeImmutable($dateParam !== '' ? $dateParam : 'today');
-        } catch (\Exception) {
-            return Response::error('Invalid date.', 400);
-        }
-        return $this->respond((new SlotService())->getAvailableSlots($date));
+    public function slots(Request $request): Response {
+        return $this->respond((new SlotService())->getAvailableSlotsForDate(
+            (string) ($request->query['date'] ?? '')
+        ));
     }
 }

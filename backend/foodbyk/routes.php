@@ -55,6 +55,7 @@ function registerRoutes(Router $router): void {
 
     $router->get('/staff/orders/incoming', [OrderController::class, 'incoming'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
     $router->get('/staff/orders', [OrderController::class, 'staffIndex'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
+    $router->get('/staff/orders/slots', [OrderController::class, 'availableSlots'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
     $router->get('/staff/products', [ProductController::class, 'staffIndex'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
     $router->put('/staff/products/{id}/availability', [ProductController::class, 'setStaffAvailability'], $staff);
     $router->get('/staff/analytics', [AnalyticsController::class, 'staffSummary'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);

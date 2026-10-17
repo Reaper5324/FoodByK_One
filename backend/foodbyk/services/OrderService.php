@@ -39,6 +39,14 @@ class OrderService {
                 throw new \Exception("Order {$orderId} has no valid payment token.");
             }
 
+            if ($confirmedStart !== null) {
+                $slotService = new SlotService();
+                $slotValidation = $slotService->isValidSlot($confirmedStart, $confirmedEnd);
+                if (!$slotValidation['success']) throw new \Exception($slotValidation['error']);
+                $capacity = $slotService->reserveCapacityLocked($confirmedStart, $order->id);
+                if (!$capacity['success']) throw new \Exception($capacity['error']);
+            }
+
             $fromStatus = $order->status;
             $order->staff_id = $staffId;
             $order->status   = Order::STATUS_ACCEPTED;
@@ -175,11 +183,12 @@ class OrderService {
             $utc = new DateTimeZone('UTC');
             $createdStart = $today->setTimezone($utc)->format('Y-m-d H:i:s');
             $createdEnd = $tomorrow->setTimezone($utc)->format('Y-m-d H:i:s');
-            // requested_window_start is stored as a local wall-clock DATETIME.
+            // Requested and confirmed windows are stored as local wall-clock DATETIME values.
             $windowStart = $today->format('Y-m-d H:i:s');
             $windowEnd = $tomorrow->format('Y-m-d H:i:s');
             $where = ' WHERE o.created_at >= :created_start AND o.created_at < :created_end
-                       AND o.requested_window_start >= :window_start AND o.requested_window_start < :window_end';
+                       AND COALESCE(o.confirmed_window_start, o.requested_window_start) >= :window_start
+                       AND COALESCE(o.confirmed_window_start, o.requested_window_start) < :window_end';
             $bindings = [
                 ':created_start' => $createdStart,
                 ':created_end' => $createdEnd,
@@ -494,6 +503,14 @@ class OrderService {
             $payment = $order->getPayment();
             if (!$payment || $payment->status !== Payment::STATUS_TOKENIZED || !$payment->gateway_token) {
                 throw new \Exception('Order cannot be adjusted until its payment token is ready.');
+            }
+
+            if ($newWindowStart !== null) {
+                $slotService = new SlotService();
+                $slotValidation = $slotService->isValidSlot($newWindowStart, $newWindowEnd);
+                if (!$slotValidation['success']) throw new \Exception($slotValidation['error']);
+                $capacity = $slotService->reserveCapacityLocked($newWindowStart, $order->id);
+                if (!$capacity['success']) throw new \Exception($capacity['error']);
             }
 
             $oldSubtotal = $order->subtotal;

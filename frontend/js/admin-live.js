@@ -693,7 +693,16 @@ const initializeAdminLive = async () => {
         if (element) element.textContent = value == null || value === "" ? "—" : String(value);
     };
     const localDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const johannesburgDateKey = (date) => {
+        const parts = new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Africa/Johannesburg", year: "numeric", month: "2-digit", day: "2-digit"
+        }).formatToParts(date);
+        const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+        return `${values.year}-${values.month}-${values.day}`;
+    };
+    let reviewSlotRequestVersion = 0;
     const loadReviewSlots = async () => {
+        const requestVersion = ++reviewSlotRequestVersion;
         const dateInput = document.getElementById("slotDate");
         const select = document.getElementById("slotSelect");
         const button = document.querySelector(".confirm-time-btn");
@@ -704,8 +713,16 @@ const initializeAdminLive = async () => {
         placeholder.value = ""; placeholder.textContent = "Loading available times…"; select.appendChild(placeholder);
         if (button) button.disabled = true;
         if (help) help.textContent = "";
-        const result = await apiGet(`/checkout/slots?date=${encodeURIComponent(dateInput.value)}`);
+        select.setAttribute("aria-busy", "true");
+        if (!dateInput.value) {
+            select.replaceChildren(new Option("Choose a date first", ""));
+            select.setAttribute("aria-busy", "false");
+            return;
+        }
+        const result = await apiGet(`/staff/orders/slots?date=${encodeURIComponent(dateInput.value)}`);
+        if (requestVersion !== reviewSlotRequestVersion) return;
         select.replaceChildren();
+        select.setAttribute("aria-busy", "false");
         if (!result.success) {
             const failed = document.createElement("option"); failed.value = ""; failed.textContent = "Unable to load times"; select.appendChild(failed);
             if (help) help.textContent = result.error || "Unable to load available times.";
@@ -715,9 +732,9 @@ const initializeAdminLive = async () => {
         const choose = document.createElement("option"); choose.value = ""; choose.textContent = slots.length ? "Choose an available slot" : "No available slots for this date"; select.appendChild(choose);
         slots.forEach((slot) => {
             const option = document.createElement("option");
-            // Preserve the exact ISO format returned by /checkout/slots (Y-m-dTH:i:s, no timezone suffix).
+            // Preserve the exact local ISO format returned by the staff slot endpoint.
             option.value = JSON.stringify({ start: slot.start, end: slot.end });
-            option.textContent = `${new Date(slot.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} – ${new Date(slot.end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+            option.textContent = `${String(slot.start).slice(11, 16)} – ${String(slot.end).slice(11, 16)}`;
             select.appendChild(option);
         });
         if (help && !slots.length) help.textContent = "Choose another date to see available slots.";
@@ -780,7 +797,7 @@ const initializeAdminLive = async () => {
         const dateInput = document.getElementById("slotDate");
         if (dateInput) {
             const requested = String(order.requested_window_start || "").slice(0, 10);
-            const today = localDateKey(new Date());
+            const today = johannesburgDateKey(new Date());
             dateInput.min = today;
             dateInput.value = requested >= today ? requested : today;
         }
@@ -983,7 +1000,13 @@ const initializeAdminLive = async () => {
         } else if (target.matches(".confirm-time-btn") && currentReviewOrderId) {
             const select = document.getElementById("slotSelect");
             if (!select?.value) return alert("Choose an available slot first.");
-            const selected = JSON.parse(select.value);
+            let selected;
+            try {
+                selected = JSON.parse(select.value);
+            } catch {
+                return alert("Choose a valid available time slot.");
+            }
+            if (!selected?.start || !selected?.end) return alert("Choose a valid available time slot.");
             target.disabled = true;
             const result = await apiPost(`/staff/orders/${currentReviewOrderId}/confirm`, {
                 confirmed_window_start: selected.start,

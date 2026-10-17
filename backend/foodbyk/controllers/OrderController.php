@@ -29,6 +29,12 @@ class OrderController extends Controller {
         return $this->respond((new OrderService())->getOrdersForStaffDashboard($limit, $offset, $todayOnly));
     }
 
+    public function availableSlots(Request $request): Response {
+        return $this->respond((new SlotService())->getAvailableSlotsForDate(
+            (string) ($request->query['date'] ?? '')
+        ));
+    }
+
     public function confirm(Request $request, array $params): Response {
         $start = $request->input('confirmed_window_start');
         $end = $request->input('confirmed_window_end');

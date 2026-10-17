@@ -2,6 +2,30 @@
 
 class SlotService {
 
+    public function getAvailableSlotsForDate(string $dateValue = ''): array {
+        $timezone = new DateTimeZone('Africa/Johannesburg');
+        if ($dateValue === '') {
+            $date = new DateTimeImmutable('today', $timezone);
+        } else {
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/D', $dateValue)) {
+                return ['success' => false, 'data' => null, 'error' => 'Invalid date.'];
+            }
+            $date = DateTimeImmutable::createFromFormat('!Y-m-d', $dateValue, $timezone);
+            $errors = DateTimeImmutable::getLastErrors();
+            if (!$date || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))
+                || $date->format('Y-m-d') !== $dateValue) {
+                return ['success' => false, 'data' => null, 'error' => 'Invalid date.'];
+            }
+        }
+
+        $today = new DateTimeImmutable('today', $timezone);
+        if ($date < $today) {
+            return ['success' => false, 'data' => null, 'error' => 'Past dates cannot be scheduled.'];
+        }
+
+        return $this->getAvailableSlots($date);
+    }
+
     public function getAvailableSlots(\DateTimeImmutable $date): array {
         $settings = BusinessSettings::current();
         $duration = $settings->slot_duration_minutes;
@@ -29,14 +53,24 @@ class SlotService {
             $slotStart = $slotEnd;
         }
 
-        return ['success' => true, 'data' => $slots];
+        return ['success' => true, 'data' => $slots, 'error' => null];
     }
 
     public function isValidSlot(string $windowStart, string $windowEnd): array {
-        try {
-            $start = new \DateTimeImmutable($windowStart);
-            $end   = new \DateTimeImmutable($windowEnd);
-        } catch (\Exception) {
+        $slotPattern = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/D';
+        if (!preg_match($slotPattern, $windowStart) || !preg_match($slotPattern, $windowEnd)) {
+            return ['success' => false, 'error' => 'Invalid time format.'];
+        }
+        $timezone = new DateTimeZone('Africa/Johannesburg');
+        $start = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s', $windowStart, $timezone);
+        $end = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s', $windowEnd, $timezone);
+        $startErrors = DateTimeImmutable::getLastErrors();
+        $endErrors = DateTimeImmutable::getLastErrors();
+        if (!$start || !$end
+            || ($startErrors !== false && ($startErrors['warning_count'] > 0 || $startErrors['error_count'] > 0))
+            || ($endErrors !== false && ($endErrors['warning_count'] > 0 || $endErrors['error_count'] > 0))
+            || $start->format('Y-m-d\TH:i:s') !== $windowStart
+            || $end->format('Y-m-d\TH:i:s') !== $windowEnd) {
             return ['success' => false, 'error' => 'Invalid time format.'];
         }
 
@@ -65,9 +99,16 @@ class SlotService {
     }
 
     // Keep the capacity check inside the order submission transaction.
-    public function reserveCapacityLocked(string $windowStart): array {
+    public function reserveCapacityLocked(string $windowStart, ?int $excludeOrderId = null): array {
+        // Serialize slot reservations so two staff members or a customer and staff member
+        // cannot both pass the final capacity check for the same slot.
+        $db = Database::getConnection();
+        $lock = $db->query('SELECT id FROM business_settings WHERE id = 1 FOR UPDATE');
+        if (!$lock->fetchColumn()) {
+            return ['success' => false, 'error' => 'Ordering settings are unavailable.'];
+        }
         $settings = BusinessSettings::current();
-        $taken = Order::countActiveForSlotLocked($windowStart);
+        $taken = Order::countActiveForSlotLocked($windowStart, $excludeOrderId);
 
         if ($taken >= $settings->max_orders_per_slot) {
             return ['success' => false, 'error' => 'This time slot is fully booked. Please choose another.'];

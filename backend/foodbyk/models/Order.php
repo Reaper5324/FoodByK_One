@@ -103,19 +103,33 @@ public static function lockById(int $id): ?static {
     public static function countActiveForSlot(string $windowStart): int {
         $db = Database::getConnection();
         $stmt = $db->prepare(
-            "SELECT COUNT(*) FROM `orders` WHERE requested_window_start = ? AND status NOT IN (?, ?)"
+            "SELECT COUNT(*) FROM `orders`
+             WHERE COALESCE(confirmed_window_start, requested_window_start) = ?
+               AND status NOT IN (?, ?)"
         );
         $stmt->execute([$windowStart, self::STATUS_DECLINED, self::STATUS_CANCELLED]);
         return (int) $stmt->fetchColumn();
     }
 
-    // Call this inside a transaction so the slot count stays consistent.
-    public static function countActiveForSlotLocked(string $windowStart): int {
+    // Call this inside SlotService::reserveCapacityLocked(), which serializes
+    // reservations by locking the single business_settings row.
+    public static function countActiveForSlotLocked(string $windowStart, ?int $excludeOrderId = null): int {
         $db = Database::getConnection();
-        $stmt = $db->prepare(
-            "SELECT COUNT(*) FROM `orders` WHERE requested_window_start = ? AND status NOT IN (?, ?) FOR UPDATE"
-        );
-        $stmt->execute([$windowStart, self::STATUS_DECLINED, self::STATUS_CANCELLED]);
+        $sql =
+            "SELECT COUNT(*) FROM `orders`
+             WHERE COALESCE(confirmed_window_start, requested_window_start) = ?
+               AND status NOT IN (?, ?)";
+        $params = [
+            $windowStart,
+            self::STATUS_DECLINED,
+            self::STATUS_CANCELLED,
+        ];
+        if ($excludeOrderId !== null) {
+            $sql .= ' AND id <> ?';
+            $params[] = $excludeOrderId;
+        }
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
         return (int) $stmt->fetchColumn();
     }
 

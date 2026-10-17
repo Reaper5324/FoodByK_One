@@ -64,6 +64,11 @@ Task 7:
 
 Staff should not be able to view the Admin dashborad, it is a security risk, remove the dashboard nav link in the staff nav panel
 
+Task 7.1:
+The Platform needs a refund process: 
+Trace how payments are made
+It is currently using PayFst sandbox for now but implement the refund proccess by analysing and raeding the official payfast docs about payfast tokenization and tokenization refund then implement the refund process for staff and admin
+Only for paid orders that are not complete and other logic you see fit
 
 Task 8: Safegaurd and race condition checks
 Im not sure if all safe guards and race conditions have been check
