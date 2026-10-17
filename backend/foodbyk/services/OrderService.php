@@ -280,7 +280,7 @@ class OrderService {
             $productsById = Product::findByIds(array_map(
                 fn(CartItem $item) => $item->product_id,
                 $cartItems
-            ));
+            ), true);
 
             $customer = Customer::findCustomerById($customerId);
             if (!$customer) {
@@ -524,7 +524,7 @@ class OrderService {
                 $adjustedProductsById = Product::findByIds(array_map(
                     fn(array $item) => $item['product_id'] ?? 0,
                     $adjustedItems
-                ));
+                ), true);
                 foreach ($order->getItems() as $item) {
                     $item->delete();
                 }

@@ -792,7 +792,7 @@
         <div id="profileMessage" class="account-message" role="status" aria-live="polite" hidden></div>
         <form id="profileForm" class="account-edit-form">
           <div class="form-group"><label for="profileName">Full name</label><input type="text" id="profileName" name="full_name" maxlength="120" autocomplete="name" required></div>
-          <div class="form-group"><label for="profileEmail">Email address</label><input type="email" id="profileEmail" name="email" maxlength="150" autocomplete="email" required></div>
+          <div class="form-group"><label for="profileEmail">Email address</label><input type="email" id="profileEmail" name="email" maxlength="150" autocomplete="email" readonly aria-describedby="profileEmailHelp" required><small id="profileEmailHelp">This email is used to sign in. Contact Food by K if you need to update it.</small></div>
           <div class="form-group"><label for="profilePhone">Phone number</label><input type="tel" id="profilePhone" name="phone" maxlength="20" autocomplete="tel" placeholder="082 123 4567 or +27 82 123 4567"><small>South African numbers can be entered with or without +27.</small></div>
           <button id="saveProfileButton" type="submit" class="btn btn-primary">Save account details</button>
         </form>

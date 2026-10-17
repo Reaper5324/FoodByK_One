@@ -3,6 +3,7 @@
 /* Customer address validation, geocoding, and default address handling. */
 class AddressService {
 
+    private const MAX_ADDRESSES = 3;
     private const MAX_RAW_ADDRESS_LENGTH = 500;
     private const MAX_STREET_LENGTH = 255;
     private const MAX_CITY_LENGTH = 100;
@@ -51,10 +52,7 @@ class AddressService {
 
     public function create(int $customerId, array $input): array {
         $validated = $this->validateInput($input);
-        if (!$validated['success']) {
-            return $validated;
-        }
-
+        if (!$validated['success']) return $validated;
         $data = $validated['data'];
         $address = new Address(
             customer_id: $customerId,
@@ -66,87 +64,108 @@ class AddressService {
             is_default: $data['is_default']
         );
 
-        if (!$address->save()) {
-            return $this->failure('Unable to create address.');
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            $customerLock = $db->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE');
+            $customerLock->execute([$customerId]);
+            if (!$customerLock->fetchColumn()) throw new RuntimeException('Customer account not found.');
+            $count = $db->prepare('SELECT COUNT(*) FROM addresses WHERE customer_id = ?');
+            $count->execute([$customerId]);
+            if ((int) $count->fetchColumn() >= self::MAX_ADDRESSES) {
+                $db->rollBack();
+                return $this->failure('You can save up to three delivery addresses. Remove one before adding another.');
+            }
+            if (!$address->save()) throw new RuntimeException('Unable to create address.');
+            if ($address->is_default) $this->clearOtherDefaults($customerId, (int) $address->id);
+            $db->commit();
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('Customer address creation failed: ' . $error->getMessage());
+            return $this->failure($error->getMessage() === 'Customer account not found.' ? $error->getMessage() : 'Unable to create address.');
         }
 
-        $deliveryService = new DeliveryService();
-        $geocodeSuccess = $deliveryService->geocodeAddress($address);
-        if (!$geocodeSuccess) {
-            // Keep the address even when geocoding is temporarily unavailable.
+        // Geocoding is external I/O, so perform it after committing the address
+        // and releasing the per-customer lock.
+        if (!(new DeliveryService())->geocodeAddress($address)) {
             error_log("Failed to geocode address {$address->id}.");
         }
-
-        if ($data['is_default']) {
-            $this->clearOtherDefaults($customerId, $address->id);
-        }
-
         return $this->success($address);
     }
 
     public function update(int $addressId, int $customerId, array $input): array {
-        $address = Address::findById($addressId);
-        if (!$address || $address->customer_id !== $customerId) {
-            return $this->failure('Address not found.');
-        }
-
-        $validated = $this->validateInput($input, $address);
-        if (!$validated['success']) {
-            return $validated;
-        }
-
+        $existing = Address::findById($addressId);
+        if (!$existing || $existing->customer_id !== $customerId) return $this->failure('Address not found.');
+        $validated = $this->validateInput($input, $existing);
+        if (!$validated['success']) return $validated;
         $data = $validated['data'];
-        $addressChanged = ($data['raw_address'] !== $address->raw_address);
+        $addressChanged = $data['raw_address'] !== $existing->raw_address;
 
-        $address->raw_address = $data['raw_address'];
-        $address->street = $data['street'];
-        $address->city = $data['city'];
-        $address->province = $data['province'];
-        $address->postal_code = $data['postal_code'];
-        $address->is_default = $data['is_default'];
-
-        if ($addressChanged) {
-            $address->latitude = null;
-            $address->longitude = null;
-        }
-
-        // Retry geocoding when an address was saved previously without a
-        // match, even if the customer is now saving the same address again.
-        if ($addressChanged || !$address->hasCoordinates()) {
-            $deliveryService = new DeliveryService();
-            $geocodeSuccess = $deliveryService->geocodeAddress($address);
-            if (!$geocodeSuccess) {
-                error_log("Failed to re-geocode address {$address->id}.");
+        $geocoded = null;
+        if ($addressChanged || !$existing->hasCoordinates()) {
+            $geocoded = new Address(
+                customer_id: $customerId,
+                raw_address: $data['raw_address'],
+                street: $data['street'],
+                city: $data['city'],
+                province: $data['province'],
+                postal_code: $data['postal_code']
+            );
+            if (!(new DeliveryService())->geocodeAddress($geocoded, false)) {
+                error_log("Failed to geocode updated address {$addressId}.");
             }
         }
 
-        if (!$address->save()) {
-            return $this->failure('Unable to update address.');
-        }
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            $customerLock = $db->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE');
+            $customerLock->execute([$customerId]);
+            if (!$customerLock->fetchColumn()) throw new RuntimeException('Address not found.');
+            $address = Address::findById($addressId);
+            if (!$address || $address->customer_id !== $customerId) throw new RuntimeException('Address not found.');
 
-        if ($data['is_default']) {
-            $this->clearOtherDefaults($customerId, $address->id);
+            $address->raw_address = $data['raw_address'];
+            $address->street = $data['street'];
+            $address->city = $data['city'];
+            $address->province = $data['province'];
+            $address->postal_code = $data['postal_code'];
+            $address->is_default = $data['is_default'];
+            if ($addressChanged) {
+                $address->latitude = $geocoded?->latitude;
+                $address->longitude = $geocoded?->longitude;
+            } elseif ($geocoded !== null && !$address->hasCoordinates()) {
+                $address->latitude = $geocoded->latitude;
+                $address->longitude = $geocoded->longitude;
+            }
+            if ($address->is_default) $this->clearOtherDefaults($customerId, $addressId);
+            if (!$address->save()) throw new RuntimeException('Unable to update address.');
+            $db->commit();
+            return $this->success($address);
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('Customer address update failed: ' . $error->getMessage());
+            return $this->failure($error->getMessage() === 'Address not found.' ? $error->getMessage() : 'Unable to update address.');
         }
-
-        return $this->success($address);
     }
 
-    /**
-     * Delete an address.
-     * 
-     * @param int $addressId
-     * @param int $customerId
-     * @return array ['success' => bool, 'error' => ?string]
-     */
     public function delete(int $addressId, int $customerId): array {
-        $address = Address::findById($addressId);
-        if (!$address || $address->customer_id !== $customerId) {
-            return $this->failure('Address not found.');
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            $customerLock = $db->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE');
+            $customerLock->execute([$customerId]);
+            if (!$customerLock->fetchColumn()) throw new RuntimeException('Address not found.');
+            $address = Address::findById($addressId);
+            if (!$address || $address->customer_id !== $customerId) throw new RuntimeException('Address not found.');
+            if (!$address->delete()) throw new RuntimeException('Unable to delete address.');
+            $db->commit();
+            return $this->success(null);
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            if ($error->getMessage() !== 'Address not found.') error_log('Customer address deletion failed: ' . $error->getMessage());
+            return $this->failure(in_array($error->getMessage(), ['Address not found.', 'Unable to delete address.'], true) ? $error->getMessage() : 'Unable to delete address.');
         }
-
-        return $address->delete()
-            ? $this->success(null)
-            : $this->failure('Unable to delete address.');
     }
 
     /**
@@ -157,20 +176,26 @@ class AddressService {
      * @return array ['success' => bool, 'data' => Address, 'error' => ?string]
      */
     public function setDefault(int $addressId, int $customerId): array {
-        $address = Address::findById($addressId);
-        if (!$address || $address->customer_id !== $customerId) {
-            return $this->failure('Address not found.');
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            $customerLock = $db->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE');
+            $customerLock->execute([$customerId]);
+            if (!$customerLock->fetchColumn()) throw new RuntimeException('Address not found.');
+            $address = Address::findById($addressId);
+            if (!$address || $address->customer_id !== $customerId) throw new RuntimeException('Address not found.');
+            $this->clearOtherDefaults($customerId, $addressId);
+            $address->is_default = true;
+            if (!$address->save()) throw new RuntimeException('Unable to set default address.');
+            $db->commit();
+            return $this->success($address);
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            if ($error->getMessage() !== 'Address not found.') error_log('Default address update failed: ' . $error->getMessage());
+            return $this->failure(in_array($error->getMessage(), ['Address not found.', 'Unable to set default address.'], true) ? $error->getMessage() : 'Unable to set default address.');
         }
-
-        $address->is_default = true;
-        if (!$address->save()) {
-            return $this->failure('Unable to set default address.');
-        }
-
-        $this->clearOtherDefaults($customerId, $addressId);
-
-        return $this->success($address);
     }
+
     // Return the saved default address, or null if none has been selected.
     public function getDefault(int $customerId): array {
         $addresses = Address::findBy('customer_id', $customerId);
@@ -230,13 +255,10 @@ class AddressService {
      * @param int $exceptAddressId
      */
     private function clearOtherDefaults(int $customerId, int $exceptAddressId): void {
-        $addresses = Address::findBy('customer_id', $customerId);
-        foreach ($addresses as $addr) {
-            if ($addr->id !== $exceptAddressId && $addr->is_default) {
-                $addr->is_default = false;
-                $addr->save();
-            }
-        }
+        $stmt = Database::getConnection()->prepare(
+            'UPDATE addresses SET is_default = 0 WHERE customer_id = ? AND id <> ?'
+        );
+        $stmt->execute([$customerId, $exceptAddressId]);
     }
 
     private function addressToArray(Address $address): array {

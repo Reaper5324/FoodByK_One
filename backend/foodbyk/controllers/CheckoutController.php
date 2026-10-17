@@ -4,6 +4,10 @@ class CheckoutController extends Controller {
 
     public function preview(Request $request): Response {
         $points = $request->input('loyalty_points_to_redeem', 0);
+        $promotionCode = $request->input('promotion_code');
+        if ($promotionCode !== null && !is_string($promotionCode)) {
+            return Response::error('Enter one valid promotion code.', 400);
+        }
         if (!is_numeric($points) || !is_finite((float) $points)) {
             return Response::error('Invalid loyalty points amount.', 400);
         }
@@ -11,13 +15,17 @@ class CheckoutController extends Controller {
             $request->user()->id,
             (string) $request->input('fulfilment_type', ''),
             $request->input('address_id') === null ? null : (int) $request->input('address_id'),
-            $request->input('promotion_code') === null ? null : (string) $request->input('promotion_code'),
+            $promotionCode,
             (float) $points
         ));
     }
 
     public function submit(Request $request): Response {
         $points = $request->input('loyalty_points_to_redeem', 0);
+        $promotionCode = $request->input('promotion_code');
+        if ($promotionCode !== null && !is_string($promotionCode)) {
+            return Response::error('Enter one valid promotion code.', 400);
+        }
         if (!is_numeric($points) || !is_finite((float) $points)) {
             return Response::error('Invalid loyalty points amount.', 400);
         }
@@ -27,7 +35,7 @@ class CheckoutController extends Controller {
             $request->input('address_id') === null ? null : (int) $request->input('address_id'),
             (string) $request->input('requested_window_start', ''),
             (string) $request->input('requested_window_end', ''),
-            $request->input('promotion_code') === null ? null : (string) $request->input('promotion_code'),
+            $promotionCode,
             (float) $points
         ), 201);
     }

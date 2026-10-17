@@ -29,7 +29,7 @@ public static function findAvailable(): array {
 }
 
 /** Return the requested products indexed by ID using one database query. */
-public static function findByIds(array $productIds): array {
+public static function findByIds(array $productIds, bool $lockForUpdate = false): array {
     $ids = [];
     foreach ($productIds as $productId) {
         $validatedId = filter_var($productId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
@@ -41,7 +41,7 @@ public static function findByIds(array $productIds): array {
     sort($ids, SORT_NUMERIC);
     $placeholders = implode(', ', array_fill(0, count($ids), '?'));
     $stmt = Database::getConnection()->prepare(
-        "SELECT * FROM products WHERE id IN ({$placeholders}) ORDER BY id ASC"
+        "SELECT * FROM products WHERE id IN ({$placeholders}) ORDER BY id ASC" . ($lockForUpdate ? ' FOR UPDATE' : '')
     );
     $stmt->execute(array_values($ids));
 

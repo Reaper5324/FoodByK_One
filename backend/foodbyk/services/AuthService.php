@@ -426,6 +426,9 @@ return $this->success(array_merge($this->publicUser($user), ['session_token' => 
         if ($email === '' || strlen($email) > 150 || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
             return $this->failure('Enter a valid email address.');
         }
+        if ($email !== $user->email) {
+            return $this->failure('Your login email cannot be changed from this page. Contact Food by K for help updating it.');
+        }
         if ($phone !== null && preg_match('/^\+[1-9][0-9]{7,14}$/', $phone) !== 1) {
             return $this->failure('Enter a valid phone number with country code.');
         }

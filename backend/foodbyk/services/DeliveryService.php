@@ -88,13 +88,13 @@ class DeliveryService {
     }
 
     // Save coordinates once; callers can check hasCoordinates() if lookup fails.
-    public function geocodeAddress(Address $address): bool {
+    public function geocodeAddress(Address $address, bool $persist = true): bool {
         $coords = $this->geocoder->geocode($address->raw_address);
         if ($coords === null) return false;
 
         $address->latitude  = $coords['lat'];
         $address->longitude = $coords['lng'];
-        return $address->save();
+        return !$persist || $address->save();
     }
 
     public function checkEligibility(string $fulfilmentType, ?Address $address): array {

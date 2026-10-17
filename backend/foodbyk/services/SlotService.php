@@ -22,11 +22,17 @@ class SlotService {
         if ($date < $today) {
             return ['success' => false, 'data' => null, 'error' => 'Past dates cannot be scheduled.'];
         }
+        if ($date->format('N') === '7') {
+            return ['success' => true, 'data' => [], 'error' => null];
+        }
 
         return $this->getAvailableSlots($date);
     }
 
     public function getAvailableSlots(\DateTimeImmutable $date): array {
+        if ($date->format('N') === '7') {
+            return ['success' => true, 'data' => [], 'error' => null];
+        }
         $settings = BusinessSettings::current();
         $duration = $settings->slot_duration_minutes;
         $interval = new \DateInterval("PT{$duration}M");
@@ -79,6 +85,9 @@ class SlotService {
 
         if ($start <= new \DateTimeImmutable('now', $start->getTimezone())) {
             return ['success' => false, 'error' => 'Selected slot is in the past.'];
+        }
+        if ($start->format('N') === '7') {
+            return ['success' => false, 'error' => 'Orders cannot be scheduled on Sundays.'];
         }
 
         if ($end->getTimestamp() - $start->getTimestamp() !== $duration * 60) {
