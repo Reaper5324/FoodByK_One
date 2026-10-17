@@ -58,6 +58,17 @@
     <label class="checkout-field checkout-promotion-field" for="promotionCode">Promotion code (optional)
       <input id="promotionCode" type="text" maxlength="50" autocomplete="off">
     </label>
+    <section class="checkout-loyalty-panel" aria-labelledby="checkoutLoyaltyTitle">
+      <div>
+        <p class="checkout-panel-kicker">A little reward for coming back</p>
+        <h2 id="checkoutLoyaltyTitle">Use loyalty points</h2>
+        <p id="loyaltyBalanceMessage" class="checkout-loyalty-note" aria-live="polite">Loading your available points…</p>
+      </div>
+      <label class="checkout-field" for="loyaltyPointsToRedeem">Points to redeem
+        <input id="loyaltyPointsToRedeem" type="number" min="0" step="0.01" value="0" inputmode="decimal" disabled>
+      </label>
+      <p class="checkout-loyalty-note">1 point is worth R1 off your order. You can use up to the value of this checkout.</p>
+    </section>
     <button id="previewButton" class="btn btn-secondary checkout-review-button" type="button">Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
     <section id="checkoutSummary" class="checkout-summary" hidden aria-live="polite"></section>
     <button id="submitButton" class="btn btn-primary checkout-submit-button" type="submit" hidden>Continue to secure card setup <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>

@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", async () => {
+﻿document.addEventListener("DOMContentLoaded", async () => {
     const form = document.getElementById("checkoutForm");
     const fulfilment = document.getElementById("fulfilmentType");
     const addressField = document.getElementById("addressField");
@@ -10,8 +10,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     const summary = document.getElementById("checkoutSummary");
     const previewButton = document.getElementById("previewButton");
     const submitButton = document.getElementById("submitButton");
+    const loyaltyPointsInput = document.getElementById("loyaltyPointsToRedeem");
+    const loyaltyBalanceMessage = document.getElementById("loyaltyBalanceMessage");
     const selectedPromotionKey = "foodbykSelectedPromotion";
     let previewReady = false;
+
+    const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+    const loadLoyaltyBalance = async () => {
+        if (!loyaltyPointsInput || !loyaltyBalanceMessage) return;
+        const result = await apiGet("/loyalty/balance");
+        if (!result?.success || !result.data) {
+            loyaltyBalanceMessage.textContent = "Sign in to view and use your loyalty points.";
+            loyaltyPointsInput.disabled = true;
+            return;
+        }
+        const balance = Number(result.data.points || 0);
+        loyaltyPointsInput.max = balance.toFixed(2);
+        loyaltyPointsInput.disabled = balance <= 0;
+        loyaltyBalanceMessage.textContent = `You have ${formatPoints(balance)} points worth R${Number(result.data.estimated_value || 0).toFixed(2)}.`;
+    };
 
     try {
         const selectedPromotion = sessionStorage.getItem(selectedPromotionKey);
@@ -123,7 +141,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const payload = {
             fulfilment_type: fulfilment.value,
             address_id: fulfilment.value === "delivery" ? Number(addressSelect.value) : null,
-            promotion_code: promotionInput.value.trim() || null
+            promotion_code: promotionInput.value.trim() || null,
+            loyalty_points_to_redeem: Number(loyaltyPointsInput?.value || 0)
         };
         previewButton.disabled = true;
         previewButton.textContent = "Reviewing your total…";
@@ -166,10 +185,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             const title = document.createElement("span");
             const value = document.createElement("strong");
             title.textContent = label;
-            value.textContent = `R${Number(amount || 0).toFixed(2)}`;
+            value.textContent = Number(amount || 0) < 0
+                ? `-R${Math.abs(Number(amount)).toFixed(2)}`
+                : `R${Number(amount || 0).toFixed(2)}`;
             row.append(title, value);
             summary.appendChild(row);
         });
+        if (Number(data.loyalty_points_redeemed || 0) > 0) {
+            const rewardsRow = document.createElement("p");
+            rewardsRow.className = "checkout-summary-row";
+            const rewardsLabel = document.createElement("span");
+            const rewardsValue = document.createElement("strong");
+            rewardsLabel.textContent = `Loyalty rewards (${formatPoints(data.loyalty_points_redeemed)} points)`;
+            rewardsValue.textContent = `-R${Number(data.loyalty_discount || 0).toFixed(2)}`;
+            rewardsRow.append(rewardsLabel, rewardsValue);
+            summary.appendChild(rewardsRow);
+        }
         const total = document.createElement("p");
         total.className = "checkout-summary-row checkout-summary-total";
         const totalLabel = document.createElement("strong");
@@ -198,7 +229,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         clearPreview();
         await loadSlots();
     });
-    [addressSelect, slotSelect, promotionInput].forEach((input) => input.addEventListener("change", clearPreview));
+    [addressSelect, slotSelect, promotionInput, loyaltyPointsInput].filter(Boolean).forEach((input) => {
+        input.addEventListener("change", clearPreview);
+        input.addEventListener("input", clearPreview);
+    });
     promotionInput.addEventListener("input", () => {
         try {
             const savedPromotion = sessionStorage.getItem(selectedPromotionKey);
@@ -229,7 +263,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             address_id: fulfilment.value === "delivery" ? Number(addressSelect.value) : null,
             requested_window_start: selectedSlot.start,
             requested_window_end: selectedSlot.end,
-            promotion_code: promotionInput.value.trim() || null
+            promotion_code: promotionInput.value.trim() || null,
+            loyalty_points_to_redeem: Number(loyaltyPointsInput?.value || 0)
         });
 
         const setup = result.data?.payment_setup;
@@ -264,4 +299,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     dateInput.value = getLocalDate();
     await loadAddresses();
     await loadSlots();
+    await loadLoyaltyBalance();
 });

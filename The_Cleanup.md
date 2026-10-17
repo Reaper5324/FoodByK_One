@@ -33,7 +33,7 @@ implement this.
 Task 4: Nav bar mobile devices only
 
 as a customer on a mobile device, turn the Nav bar into a hamburger menu for mobile device screens only
-
+ sub task: use the logo on the login page and add a smaller version  in the nav bar before or after the "FOODBY K" in the nav bar.
 
 Task 5:
 The staff Order Management pages has a bunch of hardcoded metrics/ at the top of the page, remove them and replace them with analytics the system can actuallly provide.
@@ -50,4 +50,9 @@ Task 7:
 Staff should not be able to view the Admin dashborad, it is a security risk, remove the dashboard nav link in the staff nav panel
 
 
-Task 8:
+Task 8: Safegaurd and race condition checks
+Im not sure if all safe guards and race conditions have been check
+
+limits - 3 Delivery addresses per customer, 1 promotion per checkout, Limit email change because it is tied to customer account and log in
+Find more of these type of limits and ensure that they are implemented properly on customer, staff and admin pages
+

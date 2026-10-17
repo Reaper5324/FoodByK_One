@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111111">
+  <title>Loyalty Rewards | Food by K</title>
+  <link rel="stylesheet" href="../../public%20assets/css/style.css">
+  <link rel="stylesheet" href="../../public%20assets/css/home.css">
+  <link rel="stylesheet" href="../../public%20assets/css/skeletons.css">
+  <link rel="stylesheet" href="../../public%20assets/css/loyalty.css">
+</head>
+<body class="home-page loyalty-page-shell">
+  <header class="navbar">
+    <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
+    <nav aria-label="Main navigation">
+      <a href="../../src/index.html">Home</a>
+      <a href="menu.html">Menu</a>
+      <a href="cart.html">Cart</a>
+      <a href="../../src/index.html#contact">Contact</a>
+      <a href="../auth/login.html" class="nav-auth-action">Login</a>
+      <a href="../auth/register.html" class="nav-register nav-auth-action">Register</a>
+    </nav>
+  </header>
+
+  <main class="loyalty-page">
+    <header class="loyalty-heading">
+      <p class="section-tag">Good food brings good things</p>
+      <h1>Your points.<br><span>Your next reward.</span></h1>
+      <p>Earn points on the amount you actually pay after discounts, then use them at checkout to save on a future order.</p>
+    </header>
+
+    <div id="loyaltyMessage" class="loyalty-message" role="status" aria-live="polite" hidden></div>
+
+    <section class="loyalty-balance-card" aria-labelledby="loyaltyBalanceTitle" aria-busy="true">
+      <div>
+        <p class="loyalty-card-kicker">Your available balance</p>
+        <h2 id="loyaltyBalanceTitle"><span id="loyaltyBalance">-</span><small>points</small></h2>
+      </div>
+      <p class="loyalty-balance-value" id="loyaltyEstimatedValue">Loading your rewards...</p>
+      <div class="loyalty-rules">
+        <p><strong>Earn:</strong> 1 point for every R100 actually paid after discounts.</p>
+        <p><strong>Redeem:</strong> 1 point is worth R1 off at checkout.</p>
+      </div>
+    </section>
+
+    <section class="loyalty-history-section" aria-labelledby="loyaltyHistoryTitle">
+      <div class="loyalty-section-heading">
+        <div>
+          <p class="section-tag">Your order history</p>
+          <h2 id="loyaltyHistoryTitle">Points earned</h2>
+        </div>
+        <a class="section-link" href="menu.html">Browse the menu <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></a>
+      </div>
+      <div id="loyaltyHistory" class="loyalty-history-list" aria-live="polite" aria-busy="true"></div>
+      <button id="loyaltyLoadMore" class="btn btn-secondary loyalty-load-more" type="button" hidden>Load older orders</button>
+    </section>
+  </main>
+
+  <script src="../../public%20assets/js/config.js"></script>
+  <script src="../../public%20assets/js/api/api.js"></script>
+  <script src="../../public%20assets/js/api/auth.js"></script>
+  <script src="../../public%20assets/js/navigation.js"></script>
+  <script src="../../public%20assets/js/loyalty.js"></script>
+  <script src="../../public%20assets/js/privacy.js"></script>
+</body>
+</html>

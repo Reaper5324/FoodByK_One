@@ -1,7 +1,7 @@
 <?php
 
 class Customer extends User {
-    public int $loyalty_points = 0;
+    public float $loyalty_points = 0.0;
 
     public function getAddresses(): array{
         return Address::findBy('customer_id', $this->id);
@@ -24,8 +24,8 @@ class Customer extends User {
 
     }
 
-    public function addLoyaltyPoints(int $points): bool {
-        if ($points < 0 || $this->id === null) {
+    public function addLoyaltyPoints(float $points): bool {
+        if (!is_finite($points) || $points < 0 || $this->id === null) {
             return false;
         }
 
@@ -33,8 +33,8 @@ class Customer extends User {
         return $this->save();
     }
 
-    public function subtractLoyaltyPoints(int $points): bool {
-        if ($points < 0 || $this->id === null || $this->loyalty_points < $points) {
+    public function subtractLoyaltyPoints(float $points): bool {
+        if (!is_finite($points) || $points < 0 || $this->id === null || $this->loyalty_points < $points) {
             return false;
         }
 
@@ -48,7 +48,7 @@ class Customer extends User {
 
     protected static function fromRow(array $row): static {
         $c = parent::fromRow($row);
-        $c->loyalty_points = (int) ($row['loyalty_points'] ?? 0);
+        $c->loyalty_points = (float) ($row['loyalty_points'] ?? 0);
         return $c;
     }
 

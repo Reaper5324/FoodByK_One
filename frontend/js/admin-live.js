@@ -342,7 +342,9 @@ const initializeAdminLive = async () => {
         records.slice(0, 5).forEach((order) => {
             const row = document.createElement("tr");
             const time = String(order.requested_window_start || "").match(/\d{2}:\d{2}/)?.[0] || "—";
-            const total = Number(order.subtotal || 0) - Number(order.locked_discount || 0) + Number(order.delivery_fee || 0);
+            const total = Math.max(0, Number(order.subtotal || 0) + Number(order.delivery_fee || 0)
+                - Number(order.locked_discount || 0) - Number(order.loyalty_points_redeemed || 0)
+                + Number(order.loyalty_points_refunded || 0));
             [`#${order.id}`, order.customer_name || "Customer", order.fulfilment_type,
                 time, "R" + total.toFixed(2), "Pending"].forEach((value) => makeCell(row, value));
             const action = document.createElement("td");
@@ -613,7 +615,9 @@ const initializeAdminLive = async () => {
             makeCell(row, `#${order.id}`); makeCell(row, order.customer_name || "Customer");
             makeCell(row, String(order.fulfilment_type || "").replaceAll("_", " "));
             makeCell(row, requested ? new Date(requested).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—");
-            const total = order.total ?? (Math.max(0, Number(order.subtotal || 0) - Number(order.locked_discount || 0)) + Number(order.delivery_fee || 0));
+            const total = order.total ?? Math.max(0, Number(order.subtotal || 0) + Number(order.delivery_fee || 0)
+                - Number(order.locked_discount || 0) - Number(order.loyalty_points_redeemed || 0)
+                + Number(order.loyalty_points_refunded || 0));
             makeCell(row, "R" + Number(total).toFixed(2));
             makeCell(row, String(order.status || "unknown").replaceAll("_", " "));
             const actions = document.createElement("td");
@@ -709,7 +713,9 @@ const initializeAdminLive = async () => {
         setText("modalSubtotal", money(order.subtotal));
         setText("modalDiscount", money(order.locked_discount));
         setText("modalDeliveryFee", money(order.delivery_fee));
-        setText("modalTotal", money(data.total ?? (Math.max(0, Number(order.subtotal || 0) - Number(order.locked_discount || 0)) + Number(order.delivery_fee || 0))));
+        setText("modalTotal", money(data.total ?? Math.max(0, Number(order.subtotal || 0) + Number(order.delivery_fee || 0)
+            - Number(order.locked_discount || 0) - Number(order.loyalty_points_redeemed || 0)
+            + Number(order.loyalty_points_refunded || 0))));
         setText("modalNotes", order.customer_notes || order.special_instructions || order.notes || "None");
         const pending = order.status === "submitted";
         const confirmation = document.getElementById("confirmationSection");

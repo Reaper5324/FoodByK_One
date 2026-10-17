@@ -58,6 +58,7 @@ function renderNavigationActions(nav, user) {
     const navRoot = nav.closest(".navbar") || nav;
     navRoot.querySelectorAll("[data-customer-orders-link]").forEach((item) => item.remove());
     navRoot.querySelectorAll("[data-customer-promotions-link]").forEach((item) => item.remove());
+    navRoot.querySelectorAll("[data-customer-loyalty-link]").forEach((item) => item.remove());
     navRoot.querySelectorAll("a, button").forEach((item) => {
         const label = item.textContent.trim().toLowerCase();
         const href = item.getAttribute("href") || "";
@@ -88,6 +89,11 @@ function renderNavigationActions(nav, user) {
     }
 
     const role = String(user.role || "customer").toLowerCase();
+    if (role === "customer") {
+        const loyaltyLink = createNavigationLink("Loyalty rewards", "/pages/customer/loyalty.html", "nav-customer-loyalty");
+        loyaltyLink.dataset.customerLoyaltyLink = "true";
+        promotionsLink.insertAdjacentElement("afterend", loyaltyLink);
+    }
     let accountLabel = "Account";
     let accountPath = "/pages/auth/account.html";
     if (role === "admin") {

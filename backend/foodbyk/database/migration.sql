@@ -18,7 +18,7 @@ CREATE TABLE users (
     address          VARCHAR(255)  DEFAULT NULL,
     city             VARCHAR(100)  DEFAULT NULL,
     province         VARCHAR(100)  DEFAULT NULL,
-    loyalty_points   INT UNSIGNED  NOT NULL DEFAULT 0,
+    loyalty_points   DECIMAL(12,2) UNSIGNED NOT NULL DEFAULT 0.00,
     is_active        TINYINT(1)    NOT NULL DEFAULT 1,
     deleted_at       DATETIME      DEFAULT NULL,
     created_at       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -147,6 +147,9 @@ CREATE TABLE orders (
     cancel_reason            VARCHAR(255)   DEFAULT NULL,
     promotion_id             INT            UNSIGNED DEFAULT NULL,
     locked_discount          DECIMAL(8,2)   NOT NULL DEFAULT 0.00,
+    loyalty_points_redeemed  DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+    loyalty_points_refunded  DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
+    loyalty_points_earned    DECIMAL(12,2)  NOT NULL DEFAULT 0.00,
     subtotal                 DECIMAL(10,2)  NOT NULL,
     address_id               INT            UNSIGNED DEFAULT NULL,
     distance_km              DECIMAL(6,2)   NOT NULL DEFAULT 0.00,
@@ -159,7 +162,11 @@ CREATE TABLE orders (
     CONSTRAINT fk_orders_promotion  FOREIGN KEY (promotion_id) REFERENCES promotions(id),
     CONSTRAINT chk_orders_requested_window CHECK (requested_window_end > requested_window_start),
     CONSTRAINT chk_orders_confirmed_window CHECK (confirmed_window_start IS NULL OR confirmed_window_end IS NULL OR confirmed_window_end > confirmed_window_start),
-    CONSTRAINT chk_orders_amounts_nonnegative CHECK (subtotal >= 0 AND locked_discount >= 0 AND delivery_fee >= 0),
+    CONSTRAINT chk_orders_amounts_nonnegative CHECK (
+        subtotal >= 0 AND locked_discount >= 0 AND delivery_fee >= 0
+        AND loyalty_points_redeemed >= 0 AND loyalty_points_refunded >= 0
+        AND loyalty_points_refunded <= loyalty_points_redeemed AND loyalty_points_earned >= 0
+    ),
     CONSTRAINT chk_orders_distance_nonnegative CHECK (distance_km >= 0),
     CONSTRAINT chk_orders_delivery_address CHECK (
         (fulfilment_type = 'delivery' AND address_id IS NOT NULL) OR

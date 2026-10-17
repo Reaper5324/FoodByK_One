@@ -66,6 +66,8 @@ $router->get('/staff/orders/{id}', [OrderController::class, 'staffShow'], $staff
     $router->get('/orders', [OrderController::class, 'index'], $customerReadProtected);
     $router->get('/orders/{id}', [OrderController::class, 'show'], $customerReadProtected);
     $router->post('/orders/{id}/cancel', [OrderController::class, 'cancel'], $customerProtected);
+    $router->get('/loyalty/balance', [LoyaltyController::class, 'balance'], $customerReadProtected);
+    $router->get('/loyalty/history', [LoyaltyController::class, 'history'], $customerReadProtected);
 
     $router->get('/admin/analytics', [AnalyticsController::class, 'adminSummary'], [new AuthMiddleware(), RoleMiddleware::admin()]);
     $router->get('/admin/staff', [AdminController::class, 'staff'], [new AuthMiddleware(), RoleMiddleware::admin()]);

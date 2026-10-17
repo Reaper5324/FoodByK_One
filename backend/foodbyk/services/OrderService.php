@@ -74,6 +74,8 @@ class OrderService {
             $order->staff_id       = $staffId;
             $order->status         = Order::STATUS_DECLINED;
             $order->decline_reason = $reason;
+            $loyaltyRefund = (new LoyaltyService())->refundOrderRedemption($order);
+            if (!$loyaltyRefund['success']) throw new \Exception($loyaltyRefund['error']);
             if (!$order->save()) {
                 throw new \Exception('Unable to decline order.');
             }
@@ -106,10 +108,12 @@ class OrderService {
                 throw new \Exception("Order {$orderId} can no longer be cancelled (status: '{$order->status}').");
             }
 
-            $fromStatus = $order->status;
-            $order->status        = Order::STATUS_CANCELLED;
-            $order->cancel_reason = $reason;
-            if (!$order->save()) {
+              $fromStatus = $order->status;
+              $order->status        = Order::STATUS_CANCELLED;
+              $order->cancel_reason = $reason;
+              $loyaltyRefund = (new LoyaltyService())->refundOrderRedemption($order);
+              if (!$loyaltyRefund['success']) throw new \Exception($loyaltyRefund['error']);
+              if (!$order->save()) {
                 throw new \Exception('Unable to cancel order.');
             }
 
@@ -164,7 +168,8 @@ class OrderService {
         $rows = $db->query(
             "SELECT o.*, u.name AS customer_name, u.email AS customer_email,
                     p.status AS payment_status,
-                    GREATEST(0, o.subtotal - o.locked_discount) + o.delivery_fee AS total
+                    GREATEST(0, o.subtotal + o.delivery_fee - o.locked_discount
+                        - o.loyalty_points_redeemed + o.loyalty_points_refunded) AS total
              FROM orders o
              JOIN users u ON u.id = o.customer_id
              LEFT JOIN payments p ON p.order_id = o.id
@@ -198,11 +203,12 @@ class OrderService {
         ?int $addressId,
         string $requestedWindowStart,
         string $requestedWindowEnd,
-        ?string $promotionCode = null
+        ?string $promotionCode = null,
+        float $loyaltyPointsToRedeem = 0.0
     ): array {
         $result = $this->transactional(function () use (
             $customerId, $fulfilmentType, $addressId,
-            $requestedWindowStart, $requestedWindowEnd, $promotionCode
+            $requestedWindowStart, $requestedWindowEnd, $promotionCode, $loyaltyPointsToRedeem
         ) {
             // Serialize order creation against account erasure. The erasure
             // service locks this same user row, then either waits for this
@@ -279,6 +285,20 @@ class OrderService {
                 }
                 $order->locked_discount = $promoResult['data']['discount'];
                 $order->promotion_id = $promoResult['data']['promotion_id'];
+            }
+
+            $loyaltyService = new LoyaltyService();
+            $redemption = $loyaltyService->previewRedemption(
+                $customerId,
+                $loyaltyPointsToRedeem,
+                max(0.0, $order->subtotal + $order->delivery_fee - $order->locked_discount)
+            );
+            if (!$redemption['success']) throw new \Exception($redemption['error']);
+            $pointsToRedeem = $redemption['data']['points_to_redeem'];
+            if ($pointsToRedeem > 0) {
+                $redeemResult = $loyaltyService->redeemPoints($customerId, $pointsToRedeem);
+                if (!$redeemResult['success']) throw new \Exception($redeemResult['error']);
+                $order->loyalty_points_redeemed = $pointsToRedeem;
             }
 
             // Validate and reserve the slot in this transaction to avoid overbooking.
@@ -481,6 +501,11 @@ class OrderService {
                     if ($revalidate['success']) {
                         $order->locked_discount = $revalidate['data']['discount'];
                     }
+                }
+
+                $redemptionRefund = (new LoyaltyService())->refundExcessOrderRedemption($order);
+                if (!$redemptionRefund['success']) {
+                    throw new \Exception('Unable to update the rewards discount for the adjusted order.');
                 }
             }
 

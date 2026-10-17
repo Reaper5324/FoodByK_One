@@ -28,7 +28,8 @@ class CheckoutService {
         int $customerId,
         string $fulfilmentType,
         ?int $addressId = null,
-        ?string $promotionCode = null
+        ?string $promotionCode = null,
+        float $loyaltyPointsToRedeem = 0.0
     ): array {
         // Validate fulfilment type
         if (!in_array($fulfilmentType, [Order::TYPE_COLLECTION, Order::TYPE_DELIVERY], true)) {
@@ -93,13 +94,24 @@ class CheckoutService {
             $promotionId = $promoResult['data']['promotion_id'];
         }
 
-        $total = round(max(0.0, $subtotal - $discount) + $deliveryFee, 2);
+        $redemption = (new LoyaltyService())->previewRedemption(
+            $customerId,
+            $loyaltyPointsToRedeem,
+            max(0.0, $subtotal + $deliveryFee - $discount)
+        );
+        if (!$redemption['success']) return $redemption;
+
+        $loyaltyDiscount = $redemption['data']['discount'];
+        $total = round(max(0.0, $subtotal + $deliveryFee - $discount - $loyaltyDiscount), 2);
 
         return $this->success([
             'items_count' => count($cartItems),
             'subtotal' => $subtotal,
             'discount' => $discount,
             'discount_reason' => $promotionCode ? "Promo code: {$promotionCode}" : null,
+            'loyalty_points_redeemed' => $redemption['data']['points_to_redeem'],
+            'loyalty_discount' => $loyaltyDiscount,
+            'loyalty_points_balance' => $redemption['data']['available_points'],
             'delivery_fee' => $deliveryFee,
             'distance_km' => $distanceKm,
             'fulfillment_type' => $fulfilmentType,
@@ -191,7 +203,8 @@ class CheckoutService {
         ?int $addressId,
         string $requestedWindowStart,
         string $requestedWindowEnd,
-        ?string $promotionCode = null
+        ?string $promotionCode = null,
+        float $loyaltyPointsToRedeem = 0.0
     ): array {
         $orderService = new OrderService();
         return $orderService->submitOrder(
@@ -200,7 +213,8 @@ class CheckoutService {
             $addressId,
             $requestedWindowStart,
             $requestedWindowEnd,
-            $promotionCode
+            $promotionCode,
+            $loyaltyPointsToRedeem
         );
     }
 

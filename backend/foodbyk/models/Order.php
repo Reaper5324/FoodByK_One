@@ -44,6 +44,9 @@ public function __construct(
     public ?string $cancel_reason           = null,
     public ?int    $promotion_id            = null,
     public float   $locked_discount         = 0.0,
+    public float   $loyalty_points_redeemed = 0.0,
+    public float   $loyalty_points_refunded = 0.0,
+    public float   $loyalty_points_earned   = 0.0,
     public float   $subtotal                = 0.0,
     public ?int    $address_id              = null,
     public float   $distance_km             = 0.0,
@@ -53,7 +56,8 @@ public function __construct(
 ) {}
 
 public function total(): float {
-    return round(max(0.0, $this->subtotal - $this->locked_discount) + $this->delivery_fee, 2);
+    $loyaltyDiscount = max(0.0, $this->loyalty_points_redeemed - $this->loyalty_points_refunded);
+    return round(max(0.0, $this->subtotal + $this->delivery_fee - $this->locked_discount - $loyaltyDiscount), 2);
 }
 
 public function isDelivery(): bool {
@@ -129,6 +133,9 @@ protected function toArray(): array {
         'cancel_reason'           => $this->cancel_reason,
         'promotion_id'            => $this->promotion_id,
         'locked_discount'         => $this->locked_discount,
+        'loyalty_points_redeemed' => $this->loyalty_points_redeemed,
+        'loyalty_points_refunded' => $this->loyalty_points_refunded,
+        'loyalty_points_earned'   => $this->loyalty_points_earned,
         'subtotal'                => $this->subtotal,
         'address_id'              => $this->address_id,
         'distance_km'             => $this->distance_km,
@@ -151,6 +158,9 @@ protected static function fromRow(array $row): static {
     $o->cancel_reason          = $row['cancel_reason'] ?? null;
     $o->promotion_id           = isset($row['promotion_id']) ? (int) $row['promotion_id'] : null;
     $o->locked_discount        = (float) ($row['locked_discount'] ?? 0);
+    $o->loyalty_points_redeemed = (float) ($row['loyalty_points_redeemed'] ?? 0);
+    $o->loyalty_points_refunded = (float) ($row['loyalty_points_refunded'] ?? 0);
+    $o->loyalty_points_earned  = (float) ($row['loyalty_points_earned'] ?? 0);
     $o->subtotal               = (float) ($row['subtotal'] ?? 0);
     $o->address_id             = isset($row['address_id']) ? (int) $row['address_id'] : null;
     $o->distance_km            = (float) ($row['distance_km'] ?? 0);

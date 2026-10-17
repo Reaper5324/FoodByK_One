@@ -131,13 +131,17 @@ document.addEventListener("DOMContentLoaded", () => {
         main.appendChild(itemList);
 
         side.appendChild(element("h4", "", "Order total"));
-        [["Subtotal", order.subtotal], ["Discount", -Number(order.locked_discount || 0)], ["Delivery fee", order.delivery_fee]].forEach(([label, amount]) => {
+        const rewardsUsed = Math.max(0, Number(order.loyalty_points_redeemed || 0) - Number(order.loyalty_points_refunded || 0));
+        const priceRows = [["Subtotal", order.subtotal], ["Promotion discount", -Number(order.locked_discount || 0)]];
+        if (rewardsUsed > 0) priceRows.push([`Loyalty points (${rewardsUsed.toFixed(2)})`, -rewardsUsed]);
+        priceRows.push(["Delivery fee", order.delivery_fee]);
+        priceRows.forEach(([label, amount]) => {
             const row = element("div", "order-summary-row");
             row.append(element("span", "", label), element("span", "", `${Number(amount) < 0 ? "−" : ""}${money(Math.abs(Number(amount || 0)))}`));
             side.appendChild(row);
         });
         const total = element("div", "order-summary-row order-summary-total");
-        total.append(element("strong", "", "Total"), element("strong", "", money(Math.max(0, Number(order.subtotal || 0) - Number(order.locked_discount || 0)) + Number(order.delivery_fee || 0))));
+        total.append(element("strong", "", "Total"), element("strong", "", money(Math.max(0, Number(order.subtotal || 0) + Number(order.delivery_fee || 0) - Number(order.locked_discount || 0) - rewardsUsed))));
         side.appendChild(total);
         const meta = element("div", "order-meta");
         const fulfilment = element("div");
