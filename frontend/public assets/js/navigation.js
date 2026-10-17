@@ -95,6 +95,8 @@ async function updateCustomerNavigation() {
     const nav = document.querySelector(".navbar nav");
     if (!nav) return;
     nav.dataset.authReady = "pending";
+    nav.setAttribute("aria-busy", "true");
+    renderNavigationSkeletons(nav);
 
     let user = null;
     try {
@@ -119,6 +121,21 @@ async function updateCustomerNavigation() {
     renderNavigationActions(nav, user);
     await renderCustomerOrdersLink(nav, user);
     setActiveNavigationLink(nav);
+    nav.querySelectorAll("[data-nav-skeleton]").forEach((item) => item.remove());
+    nav.dataset.authReady = "true";
+    nav.setAttribute("aria-busy", "false");
+}
+
+function renderNavigationSkeletons(nav) {
+    nav.querySelectorAll("[data-nav-skeleton]").forEach((item) => item.remove());
+    const count = Math.max(3, Math.min(nav.querySelectorAll("a").length, 6));
+    for (let index = 0; index < count; index += 1) {
+        const placeholder = document.createElement("span");
+        placeholder.className = "nav-skeleton";
+        placeholder.dataset.navSkeleton = "true";
+        placeholder.setAttribute("aria-hidden", "true");
+        nav.appendChild(placeholder);
+    }
 }
 
 function renderNavigationActions(nav, user) {
@@ -151,7 +168,6 @@ function renderNavigationActions(nav, user) {
             createNavigationLink("Login", "/pages/auth/login.html", "nav-login nav-auth-action"),
             createNavigationLink("Register", "/pages/auth/register.html", "nav-register nav-auth-action")
         );
-        nav.dataset.authReady = "true";
         return;
     }
 
@@ -177,7 +193,6 @@ function renderNavigationActions(nav, user) {
         createNavigationLink(accountLabel, accountPath, "nav-account nav-auth-action"),
         logoutLink
     );
-    nav.dataset.authReady = "true";
 }
 
 async function renderCustomerOrdersLink(nav, user) {
