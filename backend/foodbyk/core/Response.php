@@ -28,9 +28,7 @@ class Response {
         return new self($result, $failureCode);
     }
 
-    // For real browser navigations only (e.g. the PayFast return/cancel
-    // trip) - controllers still return this like any other Response, the
-    // Router still sends it. No exit() here or anywhere else in this class.
+    // PayFast returns the customer through a browser redirect, not an API call.
     public static function redirect(string $url, int $statusCode = 302): self {
         $response = new self([], $statusCode);
         $response->redirectUrl = $url;

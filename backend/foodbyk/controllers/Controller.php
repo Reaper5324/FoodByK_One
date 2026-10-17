@@ -10,9 +10,7 @@ abstract class Controller {
         return Response::redirect($url, $status);
     }
 
-    // Route params come from the Router as an explicit array argument to
-    // each controller method - not $_REQUEST, which the router never
-    // populates. This is a thin readability wrapper around that array.
+    // Router passes route parameters separately from the request body.
     protected function param(array $params, string $key): ?string {
         return $params[$key] ?? null;
     }

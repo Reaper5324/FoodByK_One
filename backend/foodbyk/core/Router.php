@@ -21,8 +21,7 @@ class Router {
                 return Response::error('Not found.', 404);
             }
 
-            // Middleware errors, including DB connection errors, use the same
-            // safe response and logging path as controller errors.
+            // Keep middleware and controller exceptions on the same logged error path.
             foreach ($route['middleware'] as $middleware) {
                 $result = $middleware->handle($request);
                 if ($result !== null) {

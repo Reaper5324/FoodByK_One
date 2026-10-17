@@ -20,9 +20,7 @@ class Request {
             ? (json_decode($raw, true) ?? [])
             : $_POST;
 
-        // HTML forms only submit GET/POST natively - a hidden _method
-        // field lets a plain <form> fake PUT/PATCH/DELETE. Harmless for
-        // fetch()-based calls, which send the real method and never set this.
+        // A hidden _method field lets a plain HTML form request an update or delete.
         if ($req->method === 'POST' && !empty($req->body['_method'])) {
             $override = strtoupper((string) $req->body['_method']);
             if (in_array($override, ['PUT', 'PATCH', 'DELETE'], true)) {

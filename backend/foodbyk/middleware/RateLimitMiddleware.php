@@ -27,7 +27,7 @@ class RateLimitMiddleware implements Middleware {
             }
         }
 
-        // Password-reset email requests are limited as requests to prevent email abuse.
+        // Limit reset requests so the endpoint cannot be used to spam email addresses.
         if (in_array($this->scope, ['request', 'assistant'], true)) {
             self::storeKeys($db, $keys);
         }

@@ -1,7 +1,5 @@
 <?php
 
-//Review Login and Register
-//Manual session header retrieval and IOS login problem
 class AuthService {
 
     public function listStaffAccounts(): array {
@@ -141,7 +139,7 @@ return $this->success(array_merge($this->publicUser($user), ['session_token' => 
         }
         return $this->success(null);
     }
-        // Staff set their own password through the emailed setup link.
+    // Staff set their password from the setup link sent by email.
     public function createStaffAccount(string $name, string $email, string $role, ?string $phone = null): array {
         $name = trim($name);
         $email = $this->normaliseEmail($email);

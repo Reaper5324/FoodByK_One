@@ -82,8 +82,7 @@ public function staffShow(Request $request, array $params): Response {
     }
 
     public function cancel(Request $request, array $params): Response {
-        // Customer-initiated - staffId null. See earlier fix: OrderService::cancelOrder()
-        // must verify $order->customer_id against this before allowing it.
+        // A null staff ID marks a customer cancellation; the service checks ownership.
         return $this->respond((new OrderService())->cancelOrder((int) $this->param($params, 'id'), $request->user()->id, null, $request->input('reason')));
     }
 
