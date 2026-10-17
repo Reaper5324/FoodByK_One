@@ -229,6 +229,11 @@ class OrderService {
                 throw new \Exception('Cart is empty.');
             }
 
+            $productsById = Product::findByIds(array_map(
+                fn(CartItem $item) => $item->product_id,
+                $cartItems
+            ));
+
             $customer = Customer::findCustomerById($customerId);
             if (!$customer) {
                 throw new \Exception('Customer not found.');
@@ -245,7 +250,7 @@ class OrderService {
 
             $subtotal = 0.0;
             foreach ($cartItems as $cartItem) {
-                $product = Product::findById($cartItem->product_id);
+                $product = $productsById[$cartItem->product_id] ?? null;
                 if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
                     throw new \Exception("Item {$cartItem->product_id} is no longer available.");
                 }
@@ -276,7 +281,7 @@ class OrderService {
                     array_map(fn(CartItem $item) => [
                         'product_id' => $item->product_id,
                         'quantity' => $item->quantity,
-                        'unit_price' => Product::findById($item->product_id)?->price ?? 0.0,
+                    'unit_price' => $productsById[$item->product_id]->price,
                     ], $cartItems),
                     $order->delivery_fee
                 );
@@ -321,7 +326,7 @@ class OrderService {
             }
 
             foreach ($cartItems as $cartItem) {
-                $product = Product::findById($cartItem->product_id);
+                $product = $productsById[$cartItem->product_id];
                 $orderItem = new OrderItem(
                     product_name: $product->name,
                     order_id: $order->id,
@@ -366,14 +371,7 @@ class OrderService {
         }
 
         $items = $order->getItems();
-        $productService = new ProductService();
-        foreach ($items as $item) {
-            $product = Product::findById($item->product_id);
-            if ($product !== null) {
-                if (trim($item->product_name) === '') $item->product_name = $product->name;
-                $item->image_url = $productService->imageUrlForOrderItem($product);
-            }
-        }
+        $this->attachCurrentProductImages($items);
 
         return $this->success([
             'order' => $order,
@@ -466,13 +464,18 @@ class OrderService {
                 if ($adjustedItems === []) {
                     throw new \Exception('Adjusted order must contain at least one item.');
                 }
+                $adjustedProductsById = Product::findByIds(array_map(
+                    fn(array $item) => $item['product_id'] ?? 0,
+                    $adjustedItems
+                ));
                 foreach ($order->getItems() as $item) {
                     $item->delete();
                 }
 
                 $newSubtotal = 0.0;
                 foreach ($adjustedItems as $adj) {
-                    $product = Product::findById($adj['product_id'] ?? 0);
+                    $productId = filter_var($adj['product_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+                    $product = $productId === false ? null : ($adjustedProductsById[(int) $productId] ?? null);
                     if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
                         throw new \Exception('Adjusted product is unavailable.');
                     }
@@ -549,14 +552,7 @@ public function getOrderForStaff(int $orderId): array {
         }
 
         $items = $order->getItems();
-        $productService = new ProductService();
-        foreach ($items as $item) {
-            $product = Product::findById($item->product_id);
-            if ($product !== null) {
-                if (trim($item->product_name) === '') $item->product_name = $product->name;
-                $item->image_url = $productService->imageUrlForOrderItem($product);
-            }
-        }
+        $this->attachCurrentProductImages($items);
 
         return $this->success([
             'order'    => $order,
@@ -567,6 +563,24 @@ public function getOrderForStaff(int $orderId): array {
             'history'  => OrderStatusHistory::findBy('order_id', $orderId),
             'total'    => $order->total(), // computed - won't serialize on its own, Order::total() is a method not a property
         ]);
+    }
+
+    /** Attach current menu images without replacing the saved order-item snapshot. */
+    private function attachCurrentProductImages(array $items): void {
+        if ($items === []) return;
+
+        $productsById = Product::findByIds(array_map(
+            fn(OrderItem $item) => $item->product_id,
+            $items
+        ));
+        $productService = new ProductService();
+        foreach ($items as $item) {
+            $product = $productsById[$item->product_id] ?? null;
+            if ($product === null) continue;
+
+            if (trim($item->product_name) === '') $item->product_name = $product->name;
+            $item->image_url = $productService->imageUrlForOrderItem($product);
+        }
     }
 
     private function success(mixed $data): array {

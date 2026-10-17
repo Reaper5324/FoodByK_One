@@ -28,6 +28,31 @@ public static function findAvailable(): array {
     return array_map(fn($row) => static::fromRow($row), $stmt->fetchAll());
 }
 
+/** Return the requested products indexed by ID using one database query. */
+public static function findByIds(array $productIds): array {
+    $ids = [];
+    foreach ($productIds as $productId) {
+        $validatedId = filter_var($productId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($validatedId !== false) $ids[(int) $validatedId] = (int) $validatedId;
+    }
+    if ($ids === []) return [];
+
+    // Return rows in stable order and index them for efficient caller reuse.
+    sort($ids, SORT_NUMERIC);
+    $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+    $stmt = Database::getConnection()->prepare(
+        "SELECT * FROM products WHERE id IN ({$placeholders}) ORDER BY id ASC"
+    );
+    $stmt->execute(array_values($ids));
+
+    $products = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $product = static::fromRow($row);
+        $products[$product->id] = $product;
+    }
+    return $products;
+}
+
 public function getCategory(): ?Category {
     return Category::findById($this->category_id);
 }

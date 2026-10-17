@@ -41,22 +41,21 @@ class CheckoutService {
         if (!$cartValidation['success']) {
             return $cartValidation;
         }
-        $cartItems = $cartValidation['data'];
+        $cartItems = $cartValidation['data']['items'];
+        $productsById = $cartValidation['data']['products'];
 
         // Preview with current menu prices; submission stores the prices on the order items.
         $subtotal = 0.0;
         $lineItems = [];
         foreach ($cartItems as $cartItem) {
-            $product = Product::findById($cartItem->product_id);
-            if ($product) {
-                $lineTotal = $cartItem->quantity * $product->price;
-                $subtotal += $lineTotal;
-                $lineItems[] = [
-                    'product_id' => $cartItem->product_id,
-                    'quantity' => $cartItem->quantity,
-                    'unit_price' => $product->price,
-                ];
-            }
+            $product = $productsById[$cartItem->product_id];
+            $lineTotal = $cartItem->quantity * $product->price;
+            $subtotal += $lineTotal;
+            $lineItems[] = [
+                'product_id' => $cartItem->product_id,
+                'quantity' => $cartItem->quantity,
+                'unit_price' => $product->price,
+            ];
         }
         $subtotal = round($subtotal, 2);
 
@@ -133,8 +132,12 @@ class CheckoutService {
             return $this->failure('Cart is empty.');
         }
 
+        $productsById = Product::findByIds(array_map(
+            fn(CartItem $item) => $item->product_id,
+            $cartItems
+        ));
         foreach ($cartItems as $item) {
-            $product = Product::findById($item->product_id);
+            $product = $productsById[$item->product_id] ?? null;
             if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
                 return $this->failure(
                     'One or more items in your cart are no longer available. Please review your cart.'
@@ -143,7 +146,7 @@ class CheckoutService {
 
         }
 
-        return $this->success($cartItems);
+        return $this->success(['items' => $cartItems, 'products' => $productsById]);
     }
 
     /**
