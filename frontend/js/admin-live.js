@@ -936,7 +936,6 @@ const initializeAdminLive = async () => {
         if (target.matches("#closePromotionModal")) return closeModal("#promotionModal");
         if (target.matches("#closeUserModal, #cancelUserBtn")) return closeModal("#userModal");
         if (target.matches(".close-modal")) return closeModal(target.closest("#orderModal") ? "#orderModal" : "#customerModal");
-        if (target.matches(".refresh-btn")) return loadOrders();
         if (target.matches("#updateReportBtn")) return loadReports();
         if (target.matches("#printReportBtn")) return window.print();
         if (target.matches("#saveHoursBtn, #saveAccountBtn")) {
