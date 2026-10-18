@@ -577,6 +577,7 @@ public function getOrderForStaff(int $orderId): array {
         if (!$order) {
             return $this->failure('Order not found.');
         }
+$payment = $order->getPayment();
 
         $items = $order->getItems();
         $this->attachCurrentProductImages($items);
