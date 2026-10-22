@@ -26,8 +26,9 @@
       <h1>Let’s sort it <span>together.</span></h1>
       <p>Send our team a message and follow replies to your support requests here.</p>
     </section>
+    <div id="supportAccessNotice" class="support-panel support-access-notice" role="status" aria-live="polite" hidden></div>
     <section class="support-layout" aria-label="Customer support">
-      <form id="supportTicketForm" class="support-panel">
+      <form id="supportTicketForm" class="support-panel" hidden>
         <h2>Contact support</h2>
         <div id="supportFeedback" class="support-feedback" role="status" aria-live="polite" hidden></div>
         <label>What do you need help with?
@@ -47,7 +48,7 @@
         </label>
         <button class="btn btn-primary" type="submit">Send message</button>
       </form>
-      <section class="support-panel support-history" aria-labelledby="supportHistoryTitle">
+      <section class="support-panel support-history" aria-labelledby="supportHistoryTitle" hidden>
         <h2 id="supportHistoryTitle">Your support requests</h2>
         <div id="supportTickets" class="support-ticket-list" aria-live="polite" aria-busy="true">
           <p class="support-empty">Loading your requests…</p>

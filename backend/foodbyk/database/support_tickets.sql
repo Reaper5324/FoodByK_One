@@ -1,5 +1,5 @@
 -- Run once against an existing Food by K database to add support ticket storage.
-CREATE TABLE support_tickets (
+CREATE TABLE IF NOT EXISTS support_tickets (
     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id     INT UNSIGNED NOT NULL,
     subject     VARCHAR(150) NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE support_tickets (
     INDEX idx_support_tickets_status_updated (status, updated_at)
 ) ENGINE=InnoDB;
 
-CREATE TABLE support_replies (
+CREATE TABLE IF NOT EXISTS support_replies (
     id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     ticket_id     INT UNSIGNED NOT NULL,
     admin_id      INT UNSIGNED NOT NULL,

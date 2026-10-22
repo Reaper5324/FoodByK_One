@@ -66,9 +66,7 @@ class CategoryService {
             display_order: $data['display_order']
         );
 
-        return $category->save()
-            ? $this->success($category)
-            : $this->failure('Unable to create category.');
+        return $this->saveCategory($category, 'Unable to create category.');
     }
 
     /** Updates a category name, description, or menu order. */
@@ -88,9 +86,7 @@ class CategoryService {
         $category->description = $data['description'];
         $category->display_order = $data['display_order'];
 
-        return $category->save()
-            ? $this->success($category)
-            : $this->failure('Unable to update category.');
+        return $this->saveCategory($category, 'Unable to update category.');
     }
 
     /** Deletes an empty category. */
@@ -123,6 +119,11 @@ class CategoryService {
             return $this->failure('Category description cannot exceed 500 characters.');
         }
 
+        $sameName = Category::findOneBy('name', $name);
+        if ($sameName && $sameName->id !== $existing?->id) {
+            return $this->failure('A category with this name already exists. Choose a different name or edit the existing category.');
+        }
+
         if (!is_int($displayOrder) || $displayOrder < 0 || $displayOrder > 9999) {
             return $this->failure('Display order must be between 0 and 9999.');
         }
@@ -144,6 +145,20 @@ class CategoryService {
 
     private function stringLength(string $value): int {
         return function_exists('mb_strlen') ? mb_strlen($value) : strlen($value);
+    }
+
+    private function saveCategory(Category $category, string $failureMessage): array {
+        try {
+            return $category->save()
+                ? $this->success($category)
+                : $this->failure($failureMessage);
+        } catch (PDOException $error) {
+            // The unique index is still the final guard if two requests race.
+            if ($error->getCode() === '23000' && (int) ($error->errorInfo[1] ?? 0) === 1062) {
+                return $this->failure('A category with this name already exists. Choose a different name or edit the existing category.');
+            }
+            throw $error;
+        }
     }
 
     private function success(mixed $data): array {

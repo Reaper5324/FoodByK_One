@@ -2,7 +2,9 @@
   const form = document.getElementById("supportTicketForm");
   const list = document.getElementById("supportTickets");
   const feedback = document.getElementById("supportFeedback");
-  if (!form || !list) return;
+  const accessNotice = document.getElementById("supportAccessNotice");
+  const historyPanel = document.querySelector(".support-history");
+  if (!form || !list || !accessNotice || !historyPanel) return;
   const query = new URLSearchParams(window.location.search);
   const initialCategory = query.get("category");
   const context = query.get("context") || "";
@@ -31,6 +33,27 @@
     feedback.hidden = false;
     feedback.classList.toggle("is-error", isError);
   };
+  const showAccessNotice = (message, links = []) => {
+    accessNotice.replaceChildren();
+    const text = document.createElement("p");
+    text.textContent = message;
+    accessNotice.appendChild(text);
+    if (links.length) {
+      const actions = document.createElement("div");
+      actions.className = "support-access-actions";
+      links.forEach(({ label, href }) => {
+        const link = document.createElement("a");
+        link.className = "btn btn-secondary";
+        link.href = href;
+        link.textContent = label;
+        actions.appendChild(link);
+      });
+      accessNotice.appendChild(actions);
+    }
+    accessNotice.hidden = false;
+    form.hidden = true;
+    historyPanel.hidden = true;
+  };
   const renderTickets = (tickets) => {
     list.replaceChildren();
     if (!tickets.length) {
@@ -52,6 +75,10 @@
       header.append(heading, status);
       const category = document.createElement("small");
       category.textContent = `${ticket.category} · ${String(ticket.created_at || "").replace("T", " ")}`;
+      const references = [];
+      if (ticket.related_order_id) references.push(`Order #${ticket.related_order_id}`);
+      if (ticket.related_product_id) references.push(`Menu item #${ticket.related_product_id}`);
+      if (references.length) category.textContent += ` · ${references.join(" · ")}`;
       const message = document.createElement("p");
       message.textContent = ticket.message;
       card.append(header, category, message);
@@ -83,6 +110,43 @@
     renderTickets(result.data || []);
   };
 
+  const initialiseSupport = async () => {
+    if (typeof getCurrentUser !== "function") {
+      showAccessNotice("We couldn’t check your sign-in. Refresh the page and try again.");
+      return;
+    }
+
+    const result = await getCurrentUser();
+    if (!result?.success || !result.data) {
+      if (result?.status === 401) {
+        showAccessNotice("Sign in to send a support request and follow replies from our team.", [
+          { label: "Sign in", href: "../auth/login.html" },
+          { label: "Create an account", href: "../auth/register.html" }
+        ]);
+      } else {
+        showAccessNotice("We couldn’t check your account right now. Please refresh and try again.");
+      }
+      return;
+    }
+
+    if (String(result.data.role || "").toLowerCase() !== "customer") {
+      showAccessNotice("Support requests are available to customer accounts.");
+      return;
+    }
+
+    if (result.data.policy_acceptance_required) {
+      showAccessNotice("Please review the current account policies before contacting support.", [
+        { label: "Review account policies", href: "../auth/account.html?review-policies=1" }
+      ]);
+      return;
+    }
+
+    accessNotice.hidden = true;
+    form.hidden = false;
+    historyPanel.hidden = false;
+    await loadTickets();
+  };
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = form.querySelector("button[type=submit]");
@@ -101,5 +165,5 @@
     showMessage("Your message has been sent. We’ll reply here as soon as we can.");
     await loadTickets();
   });
-  loadTickets();
+  initialiseSupport();
 })();

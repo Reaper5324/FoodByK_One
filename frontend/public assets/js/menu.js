@@ -202,8 +202,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             );
         });
 
+        const reportLink = document.createElement("a");
+        reportLink.className = "menu-card-support-link";
+        reportLink.href = `support.html?category=menu_item&product_id=${encodeURIComponent(product.id)}&context=${encodeURIComponent(product.name || `menu item ${product.id}`)}`;
+        reportLink.textContent = "Report an issue with this item";
+
         footer.append(price, addButton);
-        body.append(titleLink, description, footer);
+        body.append(titleLink, description, footer, reportLink);
         card.append(imageLink, body);
         menuGrid.appendChild(card);
     };

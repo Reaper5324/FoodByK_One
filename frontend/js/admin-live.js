@@ -601,7 +601,17 @@ const initializeAdminLive = async () => {
         const result = await apiGet(`/admin/support/tickets?status=${encodeURIComponent(status)}`);
         if (!result?.success) { if (!silent) showResult(result); return; }
         const body = document.getElementById("supportTicketRows");
+        if (!body) return;
         body.replaceChildren();
+        if (!result.data?.length) {
+            const row = document.createElement("tr");
+            const empty = document.createElement("td");
+            empty.colSpan = 8;
+            empty.textContent = status === "all" ? "No support tickets have been submitted yet." : `No ${status.replaceAll("_", " ")} tickets.`;
+            row.appendChild(empty);
+            body.appendChild(row);
+            return;
+        }
         result.data.forEach((ticket) => {
             const row = document.createElement("tr");
             [ticket.id, ticket.full_name, ticket.email, ticket.category, ticket.subject, ticket.status.replaceAll("_", " "), ticket.updated_at].forEach((value) => makeCell(row, value));
@@ -1216,6 +1226,7 @@ const initializeAdminLive = async () => {
         if (button) button.disabled = !document.getElementById("slotSelect")?.value;
     });
     document.getElementById("reportPeriod")?.addEventListener("change", loadReports);
+    document.getElementById("supportStatusFilter")?.addEventListener("change", () => loadSupportTickets());
 
     const filterRows = (bodySelector, searchSelector, statusSelector, roleSelector) => {
         const body = document.querySelector(bodySelector);
