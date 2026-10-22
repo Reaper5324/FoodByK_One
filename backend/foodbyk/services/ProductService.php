@@ -70,7 +70,7 @@ class ProductService {
         if (($file['size'] ?? 0) > self::MAX_IMAGE_BYTES) {
             return $this->failure('Image is too large. Use a file under 2 MB.');
         }
-        if (AWS_ENDPOINT_URL === '' || AWS_S3_BUCKET_NAME === '' || AWS_ACCESS_KEY_ID === '' || AWS_SECRET_ACCESS_KEY === '') {
+        if (AWS_S3_BUCKET_NAME === '' || AWS_ACCESS_KEY_ID === '' || AWS_SECRET_ACCESS_KEY === '') {
             return $this->failure('Image storage is not configured.');
         }
 
@@ -232,8 +232,7 @@ class ProductService {
             return $product;
         }
 
-        if (AWS_ENDPOINT_URL === '' || AWS_S3_BUCKET_NAME === ''
-            || AWS_ACCESS_KEY_ID === '' || AWS_SECRET_ACCESS_KEY === '') {
+        if (AWS_S3_BUCKET_NAME === '' || AWS_ACCESS_KEY_ID === '' || AWS_SECRET_ACCESS_KEY === '') {
             $product->image_url = null;
             return $product;
         }
@@ -254,17 +253,24 @@ class ProductService {
     }
 
     private function storageClient(): object {
-        return $this->imageStorageClient ??= new \Aws\S3\S3Client([
-            'version' => 'latest',
-            'region' => AWS_DEFAULT_REGION,
-            'endpoint' => AWS_ENDPOINT_URL,
-            'use_path_style_endpoint' => false,
-            'credentials' => [
-                'key' => AWS_ACCESS_KEY_ID,
-                'secret' => AWS_SECRET_ACCESS_KEY,
-            ],
-        ]);
+    $config = [
+        'version'    => 'latest',
+        'region'     => AWS_DEFAULT_REGION,
+        'use_path_style_endpoint' => false,
+        'credentials' => [
+            'key'    => AWS_ACCESS_KEY_ID,
+            'secret' => AWS_SECRET_ACCESS_KEY,
+        ],
+    ];
+
+    // Only set endpoint if explicitly provided (not needed for native AWS S3)
+    if (AWS_ENDPOINT_URL !== '') {
+        $config['endpoint'] = AWS_ENDPOINT_URL;
     }
+
+    return $this->imageStorageClient ??= new \Aws\S3\S3Client($config);
+}
+
 
     private function isValidBucketKey(string $key): bool {
         return !str_starts_with($key, '/') && !str_contains($key, '..')
