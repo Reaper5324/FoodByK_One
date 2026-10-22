@@ -24,6 +24,13 @@ function registerRoutes(Router $router): void {
     $staff = [new AuthMiddleware(), RoleMiddleware::staffOrAdmin(), new CsrfMiddleware()];
     $admin = [new AuthMiddleware(), RoleMiddleware::admin(), new CsrfMiddleware()];
 
+    $router->get('/support/tickets', [SupportTicketController::class, 'customerIndex'], $customerReadProtected);
+    $router->post('/support/tickets', [SupportTicketController::class, 'create'], $customerProtected);
+    $router->get('/admin/support/tickets', [SupportTicketController::class, 'adminIndex'], [new AuthMiddleware(), RoleMiddleware::admin()]);
+    $router->get('/admin/support/tickets/{id}', [SupportTicketController::class, 'adminShow'], [new AuthMiddleware(), RoleMiddleware::admin()]);
+    $router->post('/admin/support/tickets/{id}/replies', [SupportTicketController::class, 'reply'], $admin);
+    $router->put('/admin/support/tickets/{id}/status', [SupportTicketController::class, 'updateStatus'], $admin);
+
     $authenticated = [new AuthMiddleware(), new CsrfMiddleware()];
     $router->post('/auth/logout', [AuthController::class, 'logout'], $authenticated);
     $router->get('/auth/me', [AuthController::class, 'me'], [new AuthMiddleware(), new CsrfMiddleware()]);

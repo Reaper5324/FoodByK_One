@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <title>Customer support | Food by K</title>
+  <link rel="stylesheet" href="../../public%20assets/css/style.css">
+  <link rel="stylesheet" href="../../public%20assets/css/home.css">
+  <link rel="stylesheet" href="../../public%20assets/css/mobile-navigation.css">
+  <link rel="stylesheet" href="../../public%20assets/css/support.css">
+</head>
+<body class="home-page support-page">
+  <header class="navbar">
+    <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
+    <nav aria-label="Main navigation">
+      <a href="../../src/index.html">Home</a><a href="menu.html">Menu</a><a href="cart.html">Cart</a>
+      <a href="../../src/index.html#contact">Contact</a>
+      <a href="../auth/login.html" class="nav-auth-action">Login</a>
+      <a href="../auth/register.html" class="nav-register nav-auth-action">Register</a>
+    </nav>
+  </header>
+  <main class="support-main">
+    <section class="support-intro">
+      <p class="section-tag">WE’RE HERE TO HELP</p>
+      <h1>Let’s sort it <span>together.</span></h1>
+      <p>Send our team a message and follow replies to your support requests here.</p>
+    </section>
+    <section class="support-layout" aria-label="Customer support">
+      <form id="supportTicketForm" class="support-panel">
+        <h2>Contact support</h2>
+        <div id="supportFeedback" class="support-feedback" role="status" aria-live="polite" hidden></div>
+        <label>What do you need help with?
+          <select name="category" required>
+            <option value="general">General issue or question</option><option value="order">An order</option>
+            <option value="menu_item">A menu item</option><option value="cart">My cart</option><option value="checkout">Checkout</option>
+            <option value="payment">Payment</option><option value="delivery">Delivery</option>
+            <option value="account">My account</option><option value="other">Something else</option>
+          </select>
+        </label>
+        <label>Subject
+          <input name="subject" maxlength="150" required placeholder="A short summary">
+        </label>
+        <label>Message
+          <textarea name="message" rows="6" maxlength="5000" required placeholder="Tell us how we can help"></textarea>
+          <small>Up to 5,000 characters</small>
+        </label>
+        <button class="btn btn-primary" type="submit">Send message</button>
+      </form>
+      <section class="support-panel support-history" aria-labelledby="supportHistoryTitle">
+        <h2 id="supportHistoryTitle">Your support requests</h2>
+        <div id="supportTickets" class="support-ticket-list" aria-live="polite" aria-busy="true">
+          <p class="support-empty">Loading your requests…</p>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script src="../../public%20assets/js/config.js"></script>
+  <script src="../../public%20assets/js/api/api.js"></script>
+  <script src="../../public%20assets/js/api/auth.js"></script>
+  <script src="../../public%20assets/js/navigation.js"></script>
+  <script src="../../public%20assets/js/support.js"></script>
+  <script src="../../public%20assets/js/privacy.js"></script>
+</body>
+</html>

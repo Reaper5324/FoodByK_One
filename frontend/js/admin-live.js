@@ -2,6 +2,7 @@ const ADMIN_ONLY_PAGES = new Set([
     "categories.html",
     "promotions.html",
     "customers.html",
+    "support-tickets.html",
     "staff-users.html",
     "reports.html",
     "settings.html"
@@ -235,6 +236,7 @@ const initializeAdminLive = async () => {
         "Categories": "categories.html",
         "Promotions": "promotions.html",
         "Customers": "customers.html",
+        "Support Tickets": "support-tickets.html",
         "Staff & Users": "staff-users.html",
         "Reports": "reports.html",
         "Settings": "settings.html"
@@ -594,6 +596,51 @@ const initializeAdminLive = async () => {
         window.adminCustomers = result.data;
     };
 
+    const loadSupportTickets = async (silent = false) => {
+        const status = document.getElementById("supportStatusFilter")?.value || "all";
+        const result = await apiGet(`/admin/support/tickets?status=${encodeURIComponent(status)}`);
+        if (!result?.success) { if (!silent) showResult(result); return; }
+        const body = document.getElementById("supportTicketRows");
+        body.replaceChildren();
+        result.data.forEach((ticket) => {
+            const row = document.createElement("tr");
+            [ticket.id, ticket.full_name, ticket.email, ticket.category, ticket.subject, ticket.status.replaceAll("_", " "), ticket.updated_at].forEach((value) => makeCell(row, value));
+            const actions = document.createElement("td");
+            addAction(actions, "Open", "support-ticket-open", ticket.id);
+            row.appendChild(actions);
+            body.appendChild(row);
+        });
+    };
+
+    const openSupportTicket = async (ticketId) => {
+        const result = await apiGet(`/admin/support/tickets/${ticketId}`);
+        if (!showResult(result)) return;
+        const ticket = result.data;
+        const panel = document.getElementById("supportTicketDetail");
+        panel.replaceChildren();
+        const title = document.createElement("h3"); title.textContent = `#${ticket.id} · ${ticket.subject}`;
+        const customer = document.createElement("p"); customer.textContent = `${ticket.full_name} (${ticket.email}) · ${ticket.category}`;
+        if (ticket.related_order_id) customer.append(document.createTextNode(` · Order #${ticket.related_order_id}`));
+        if (ticket.related_product_id) customer.append(document.createTextNode(` · Menu item #${ticket.related_product_id}`));
+        const message = document.createElement("p"); message.className = "support-admin-message"; message.textContent = ticket.message;
+        const statusForm = document.createElement("form"); statusForm.id = "supportTicketStatusForm"; statusForm.dataset.ticketId = ticket.id;
+        const statusLabel = document.createElement("label"); statusLabel.textContent = "Status ";
+        const statusSelect = document.createElement("select"); statusSelect.name = "status";
+        [["open", "Open"], ["in_progress", "In progress"], ["resolved", "Resolved"], ["closed", "Closed"]].forEach(([value, label]) => { const option = document.createElement("option"); option.value = value; option.textContent = label; option.selected = ticket.status === value; statusSelect.appendChild(option); });
+        statusLabel.appendChild(statusSelect);
+        const saveStatus = document.createElement("button"); saveStatus.type = "submit"; saveStatus.className = "save-menu-btn"; saveStatus.textContent = "Update status";
+        statusForm.append(statusLabel, saveStatus);
+        const replies = document.createElement("div"); replies.className = "support-admin-replies";
+        (ticket.replies || []).forEach((reply) => { const item = document.createElement("article"); const by = document.createElement("strong"); by.textContent = `${reply.responder_name} · ${reply.created_at}`; const text = document.createElement("p"); text.textContent = reply.reply_message; item.append(by, text); replies.appendChild(item); });
+        const replyForm = document.createElement("form"); replyForm.id = "supportTicketReplyForm"; replyForm.dataset.ticketId = ticket.id;
+        const replyLabel = document.createElement("label"); replyLabel.textContent = "Reply to customer";
+        const replyInput = document.createElement("textarea"); replyInput.name = "message"; replyInput.required = true; replyInput.maxLength = 5000; replyInput.rows = 4;
+        const sendReply = document.createElement("button"); sendReply.type = "submit"; sendReply.className = "save-menu-btn"; sendReply.textContent = "Send reply";
+        replyLabel.appendChild(replyInput); replyForm.append(replyLabel, sendReply);
+        panel.append(title, customer, message, statusForm, replies, replyForm);
+        panel.hidden = false;
+    };
+
     let ordersView = "all";
     let orderOffset = 0;
     let orderLoadVersion = 0;
@@ -895,6 +942,7 @@ const initializeAdminLive = async () => {
         "promotions.html": loadPromotions,
         "staff-users.html": loadStaff,
         "customers.html": loadCustomers,
+        "support-tickets.html": loadSupportTickets,
         "orders.html": loadOrders,
         "settings.html": loadSettings
     };
@@ -930,6 +978,8 @@ const initializeAdminLive = async () => {
         const action = target.dataset.adminAction;
         if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn")) return;
         event.preventDefault(); event.stopImmediatePropagation();
+
+        if (action === "support-ticket-open") return openSupportTicket(target.dataset.id);
 
         if (target.matches(".close-category-modal")) return closeModal("#categoryModal");
         if (target.matches(".close-menu-modal")) return closeModal("#menuModal");
@@ -1080,6 +1130,18 @@ const initializeAdminLive = async () => {
 
     document.addEventListener("submit", async (event) => {
         const form = event.target;
+        if (form.id === "supportTicketStatusForm" || form.id === "supportTicketReplyForm") {
+            event.preventDefault(); event.stopImmediatePropagation();
+            const ticketId = form.dataset.ticketId;
+            let result;
+            if (form.id === "supportTicketStatusForm") {
+                result = await apiPut(`/admin/support/tickets/${ticketId}/status`, { status: form.elements.namedItem("status").value });
+            } else {
+                result = await apiPost(`/admin/support/tickets/${ticketId}/replies`, { message: form.elements.namedItem("message").value.trim() });
+            }
+            if (showResult(result)) { await openSupportTicket(ticketId); await loadSupportTickets(); }
+            return;
+        }
         const id = editingId;
         let result;
         if (form.id === "adminApiSettingsForm") {
@@ -1142,6 +1204,11 @@ const initializeAdminLive = async () => {
         showLoadingError("Live data could not be loaded. Check your connection, then try again.");
     } finally {
         isInitialPageLoad = false;
+    }
+    if (page === "support-tickets.html") {
+        window.setInterval(() => {
+            if (document.visibilityState === "visible") loadSupportTickets(true);
+        }, 30000);
     }
     document.getElementById("slotDate")?.addEventListener("change", loadReviewSlots);
     document.getElementById("slotSelect")?.addEventListener("change", () => {

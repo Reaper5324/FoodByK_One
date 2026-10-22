@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Support Tickets | Food by K Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"><link rel="stylesheet" href="../css/dashboard.css">
+  <style>
+    .support-admin-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:22px}.support-admin-filter{max-width:240px;margin:0 0 18px}.support-admin-table-wrap{overflow-x:auto}.support-admin-detail{margin-top:24px}.support-admin-detail[hidden]{display:none}.support-admin-detail form{display:grid;gap:12px;margin:20px 0}.support-admin-detail label{display:grid;gap:8px;font-weight:600}.support-admin-detail textarea,.support-admin-detail select{padding:12px;border:1px solid #ddd;border-radius:8px;font:inherit}.support-admin-detail button{width:max-content;padding:11px 18px}.support-admin-message{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f5f2;padding:16px;border-radius:10px;line-height:1.65}.support-admin-replies{display:grid;gap:12px}.support-admin-replies article{padding:14px;background:#f7f5f2;border-radius:10px}.support-admin-replies p{white-space:pre-wrap;overflow-wrap:anywhere}.support-admin-table-wrap button{white-space:nowrap}@media(max-width:700px){.support-admin-filter{max-width:100%}}
+  </style>
+</head>
+<body>
+  <div class="admin-page-skeleton" id="adminLoadingState" aria-label="Loading support tickets"><div class="admin-skeleton-app" aria-hidden="true"><aside class="admin-skeleton-sidebar"><span class="admin-skeleton-logo"></span><i></i><i></i><i></i><i></i></aside><main class="admin-skeleton-main"><div class="admin-skeleton-top"><i></i><i></i></div><div class="admin-skeleton-panel"><i></i><i></i><i></i><i></i></div></main></div><div class="admin-loading-feedback"><p role="status" aria-live="polite" data-admin-loading-message>Loading support tickets…</p><button type="button" data-admin-loading-retry hidden>Try again</button></div></div>
+  <aside class="sidebar"><div class="brand"><h1>FOOD <span>BY K</span></h1><p>ADMIN PANEL</p></div><nav class="sidebar-menu"></nav><div class="sidebar-bottom"><a href="#" class="menu-item logout"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></a></div></aside>
+  <main class="main-content">
+    <header class="topbar"><div class="topbar-left"><button class="sidebar-toggle" id="sidebarToggle"><i class="fa-solid fa-bars"></i></button><div><p class="welcome-text">CUSTOMER CARE</p><h2>Support Tickets</h2></div></div><div class="topbar-right"><div class="admin-profile"><div class="profile-image">A</div><div class="profile-info"><h4>Admin</h4><p>Administrator</p></div></div></div></header>
+    <section class="dashboard-content"><div class="menu-page-header"><div><p class="card-label">CUSTOMER SUPPORT</p><h3>Incoming requests</h3><p class="menu-description">Read customer reports, reply, and update each ticket’s status.</p></div></div>
+      <div class="dashboard-card support-admin-layout"><label class="support-admin-filter">Filter by status<select id="supportStatusFilter"><option value="all">All tickets</option><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></label>
+        <div class="support-admin-table-wrap"><table><thead><tr><th>ID</th><th>Customer</th><th>Email</th><th>Category</th><th>Subject</th><th>Status</th><th>Updated</th><th>Action</th></tr></thead><tbody id="supportTicketRows"></tbody></table></div>
+      </div>
+      <section id="supportTicketDetail" class="dashboard-card support-admin-detail" aria-live="polite" hidden></section>
+    </section>
+  </main>
+  <script src="../js/dashboard.js"></script>
+  <script>document.getElementById('supportStatusFilter')?.addEventListener('change', () => window.location.reload());</script>
+</body>
+</html>

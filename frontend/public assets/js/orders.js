@@ -70,6 +70,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 : (order.status || "submitted").replaceAll("_", " "));
         top.append(heading, element("span", "order-status-label", statusLabel));
         card.appendChild(top);
+        const reportLink = document.getElementById("orderSupportLink");
+        if (reportLink) {
+            const link = document.createElement("a");
+            link.href = `support.html?category=order&order_id=${encodeURIComponent(order.id)}&context=${encodeURIComponent(`order #${order.id}`)}`;
+            link.textContent = `Report an issue with order #${order.id}`;
+            reportLink.replaceChildren(link);
+            reportLink.hidden = false;
+        }
 
         const content = element("div", "order-card-content");
         const main = element("div", "order-card-main");

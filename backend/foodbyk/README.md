@@ -114,6 +114,7 @@ DB_PORT=3306
 DB_NAME=foodbyk
 DB_USER=root
 DB_PASS=
+DB_SSL=
 DB_SSL_CA=
 PAYMENT_TOKEN_ENCRYPTION_KEY= # base64-encoded 32-byte key; required for token storage
 RESEND_API_KEY=...
@@ -136,7 +137,7 @@ For Resend trial testing, use its `onboarding@resend.dev` sender and send the in
 
 ### Database setup and production
 
-For a new database, run `database/migration.sql`. Existing databases should be backed up and then upgraded once with `database/harden_existing_schema.sql`; the upgrade fails if current rows violate the new checks, so inspect and correct offending rows first. Existing databases created before structured delivery addresses must also run `database/add_address_province.sql` once. Set `APP_ENV=production`, provide explicit database credentials for a dedicated non-root MySQL user, and configure `DB_SSL_CA` when the database requires TLS.
+For a new database, run `database/migration.sql`. Existing databases should be backed up and then upgraded once with `database/harden_existing_schema.sql`; the upgrade fails if current rows violate the new checks, so inspect and correct offending rows first. Existing databases created before structured delivery addresses must also run `database/add_address_province.sql` once. Set `APP_ENV=production` and provide explicit database credentials for a dedicated non-root MySQL user. For Aiven MySQL, use its host, port, database, username, and password in the existing `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASS` variables, then set `DB_SSL=Required` to require encrypted connections. `DB_SSL=Verify-CA` additionally verifies the Aiven certificate and requires `DB_SSL_CA` to point to the downloaded project CA certificate. Leave `DB_SSL` empty for the existing Railway setup; the current `DB_SSL_CA` option remains available for CA-based TLS. `DB_SSL=Disabled` is available only when a connection explicitly needs TLS turned off.
 
 Payment tokens are encrypted by the `Payment` model using AES-256-GCM. Generate `PAYMENT_TOKEN_ENCRYPTION_KEY` with `php -r "echo base64_encode(random_bytes(32)), PHP_EOL;"`; store it in the deployment secret manager and keep a protected backup. Existing plaintext tokens are encrypted when their payment rows are next saved. `Payment` JSON omits the token.
 

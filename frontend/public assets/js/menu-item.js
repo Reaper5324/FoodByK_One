@@ -26,6 +26,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const product = result.data;
+    const supportLink = document.getElementById("menuItemSupportLink");
+    const reportLink = document.createElement("a");
+    reportLink.href = `support.html?category=menu_item&product_id=${encodeURIComponent(product.id)}&context=${encodeURIComponent(product.name || `menu item ${product.id}`)}`;
+    reportLink.textContent = `Report an issue with ${product.name || "this menu item"}`;
+    supportLink.replaceChildren(reportLink);
+    supportLink.hidden = false;
     detail.replaceChildren();
     detail.setAttribute("aria-busy", "false");
 

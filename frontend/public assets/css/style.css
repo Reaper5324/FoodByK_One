@@ -33,6 +33,11 @@
     --content-width: 1400px;
 }
 
+.support-context-link { margin: 26px 0; color: #68615a; }
+.support-context-link a { color: #a64c20; font-weight: 700; }
+.support-site-footer { padding: 24px max(18px, calc((100% - 1160px) / 2)); border-top: 1px solid rgba(255,255,255,.12); background: #111; color: #ddd; }
+.support-site-footer a { color: #f0aa60; font-weight: 700; }
+
 
 /* =========================================
    2. RESET
@@ -786,3 +791,5 @@ footer p {
     }
 
 }
+
+.support-context-link{margin:26px 0;color:#68615a}.support-context-link a{color:#a64c20;font-weight:700}.support-site-footer{padding:24px max(18px,calc((100% - 1160px)/2));border-top:1px solid rgba(255,255,255,.12);background:#111;color:#ddd}.support-site-footer a{color:#f0aa60;font-weight:700}

@@ -3,11 +3,13 @@ if (document.readyState === "loading") {
         initializeMobileNavigation();
         updateCustomerNavigation();
         installFoodByKAssistant();
+        ensureSupportFooter();
     }, { once: true });
 } else {
     initializeMobileNavigation();
     updateCustomerNavigation();
     installFoodByKAssistant();
+    ensureSupportFooter();
 }
 
 function initializeMobileNavigation() {
@@ -135,6 +137,7 @@ function renderNavigationActions(nav, user) {
     navRoot.querySelectorAll("[data-customer-orders-link]").forEach((item) => item.remove());
     navRoot.querySelectorAll("[data-customer-promotions-link]").forEach((item) => item.remove());
     navRoot.querySelectorAll("[data-customer-loyalty-link]").forEach((item) => item.remove());
+    navRoot.querySelectorAll("[data-customer-support-link]").forEach((item) => item.remove());
     navRoot.querySelectorAll("a, button").forEach((item) => {
         const label = item.textContent.trim().toLowerCase();
         const href = item.getAttribute("href") || "";
@@ -168,6 +171,9 @@ function renderNavigationActions(nav, user) {
         const loyaltyLink = createNavigationLink("Loyalty rewards", "/pages/customer/loyalty.html", "nav-customer-loyalty");
         loyaltyLink.dataset.customerLoyaltyLink = "true";
         promotionsLink.insertAdjacentElement("afterend", loyaltyLink);
+        const supportLink = createNavigationLink("Contact support", "/pages/customer/support.html", "nav-customer-support");
+        supportLink.dataset.customerSupportLink = "true";
+        loyaltyLink.insertAdjacentElement("afterend", supportLink);
     }
     let accountLabel = "Account";
     let accountPath = "/pages/auth/account.html";
@@ -185,6 +191,19 @@ function renderNavigationActions(nav, user) {
         createNavigationLink(accountLabel, accountPath, "nav-account nav-auth-action"),
         logoutLink
     );
+}
+
+function ensureSupportFooter() {
+    if (!document.querySelector(".navbar") || document.querySelector("[data-support-footer]")
+        || document.querySelector('.home-footer a[href*="support.html"]')) return;
+    const footer = document.createElement("footer");
+    footer.dataset.supportFooter = "true";
+    footer.className = "support-site-footer";
+    const link = document.createElement("a");
+    link.href = "/pages/customer/support.html";
+    link.textContent = "Contact support";
+    footer.append(link);
+    document.body.appendChild(footer);
 }
 
 async function renderCustomerOrdersLink(nav, user) {
