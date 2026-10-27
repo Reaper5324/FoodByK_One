@@ -18,19 +18,7 @@ class EmailNotifier implements OrderNotifier {
     }
 
     private function send(string $to, string $subject, string $body): void {
-        if (!defined('RESEND_API_KEY') || RESEND_API_KEY === '') {
-            error_log("EMAIL (no provider configured) to {$to}: {$subject}");
-            return;
-        }
-        $context = stream_context_create(['http' => [
-            'method'  => 'POST',
-            'header'  => "Authorization: Bearer " . RESEND_API_KEY . "\r\nContent-Type: application/json\r\n",
-            'content' => json_encode(['from' => RESEND_FROM_EMAIL, 'to' => [$to], 'subject' => $subject, 'text' => $body]),
-            'timeout' => 8,
-        ]]);
-        if (@file_get_contents('https://api.resend.com/emails', false, $context) === false) {
-            error_log("EMAIL send failed to {$to}");
-        }
+        (new EmailService())->send($to, $subject, $body);
     }
 }
 class WhatsAppNotifier implements OrderNotifier {

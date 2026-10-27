@@ -119,6 +119,13 @@ DB_SSL_CA=
 PAYMENT_TOKEN_ENCRYPTION_KEY= # base64-encoded 32-byte key; required for token storage
 RESEND_API_KEY=...
 RESEND_FROM_EMAIL=Food by K <onboarding@resend.dev>
+EMAIL_PROVIDER=resend # resend or smtp; applies to staff links and order notifications
+EMAIL_SMTP_HOST=smtp.gmail.com
+EMAIL_SMTP_PORT=587
+EMAIL_SMTP_USERNAME=your-sender@gmail.com
+EMAIL_SMTP_PASSWORD= # Gmail app password; keep this in Railway variables
+EMAIL_FROM_ADDRESS=your-sender@gmail.com
+EMAIL_FROM_NAME=Food by K
 TWILIO_SID=...
 TWILIO_AUTH_TOKEN=...
 TWILIO_FROM_NUMBER=+27...
@@ -133,7 +140,7 @@ TWILIO_TEMPLATE_CUSTOMER_PAID=HX...
 TWILIO_TEMPLATE_CUSTOMER_PAYMENT_FAILED=HX...
 ```
 
-For Resend trial testing, use its `onboarding@resend.dev` sender and send the invite to the Resend account email (`tyronemas@gmail.com`). For production, verify `foodbyk.co.za` in Resend and set `RESEND_FROM_EMAIL` to an address on that verified domain, such as `Food by K <orders@foodbyk.co.za>`. Resend requires a verified sender domain for your own From address. Twilio WhatsApp normally sends use the configured Content Template Builder SIDs. Set `TWILIO_WHATSAPP_SANDBOX=true` for Sandbox testing; this sends free-form notification text from the Sandbox sender only to the comma-separated allowlist in `TWILIO_WHATSAPP_SANDBOX_RECIPIENTS`. Each recipient must have joined the Sandbox, and free-form messages are limited to the 24-hour customer service window after their last inbound WhatsApp message. Set the switch back to `false` after upgrading to use the live sender and approved templates again. SMS does not use template SIDs. `DOMAIN.md` additionally defines PayFast and geocoding configuration.
+Set `EMAIL_PROVIDER=resend` to keep using the Resend integration, or `EMAIL_PROVIDER=smtp` to send through SMTP with STARTTLS. The same switch controls staff setup/password links and email order notifications; changing it does not require a code deployment. For Resend testing, `onboarding@resend.dev` can only send to the Resend account owner until a sending domain is verified. Gmail SMTP uses `smtp.gmail.com` on port `587`; use a Google app password as `EMAIL_SMTP_PASSWORD`, and set `EMAIL_FROM_ADDRESS` to the same Gmail address as the SMTP username. Railway currently allows SMTP only on Pro and higher plans; Free, Trial, and Hobby plans must use an HTTPS email API. Add all SMTP credentials as Railway service variables and never commit them. Twilio WhatsApp normally sends use the configured Content Template Builder SIDs. Set `TWILIO_WHATSAPP_SANDBOX=true` for Sandbox testing; this sends free-form notification text from the Sandbox sender only to the comma-separated allowlist in `TWILIO_WHATSAPP_SANDBOX_RECIPIENTS`. Each recipient must have joined the Sandbox, and free-form messages are limited to the 24-hour customer service window after their last inbound WhatsApp message. Set the switch back to `false` after upgrading to use the live sender and approved templates again. SMS does not use template SIDs. `DOMAIN.md` additionally defines PayFast and geocoding configuration.
 
 ### Database setup and production
 

@@ -519,46 +519,15 @@ return $this->success(array_merge($this->publicUser($user), ['session_token' => 
     }
 
     private function sendAccountLink(string $email, string $name, string $token, bool $invite): bool {
-        if (!defined('RESEND_API_KEY') || RESEND_API_KEY === '') {
-            error_log('Resend account link not sent: RESEND_API_KEY is not configured.');
-            return false;
-        }
         if (!defined('FRONTEND_URL') || FRONTEND_URL === '') {
-            error_log('Resend account link not sent: FRONTEND_URL is not configured.');
+            error_log('Account email was not sent: FRONTEND_URL is not configured.');
             return false;
         }
         $link = rtrim(FRONTEND_URL, '/') . '/pages/auth/reset-password.html?token=' . rawurlencode($token);
         $subject = $invite ? 'Set up your Food by K account' : 'Reset your Food by K password';
         $action = $invite ? 'set your password' : 'reset your password';
-        $payload = [
-            'from' => RESEND_FROM_EMAIL,
-            'to' => [$email],
-            'subject' => $subject,
-            'text' => "Hi {$name},\n\nUse this link to {$action}: {$link}\n\nIf you did not request this, you can ignore this email.",
-        ];
-        $context = stream_context_create(['http' => [
-            'method' => 'POST',
-            'header' => "Authorization: Bearer " . RESEND_API_KEY . "\r\nContent-Type: application/json\r\n",
-            'content' => json_encode($payload),
-            'timeout' => 8,
-            'ignore_errors' => true,
-        ]]);
-        $response = @file_get_contents('https://api.resend.com/emails', false, $context);
-        $status = $http_response_header[0] ?? '';
-        if ($response === false || preg_match('/\s2\d\d\s/', $status) !== 1) {
-            $error = json_decode(is_string($response) ? $response : '', true);
-            $errorName = is_array($error) ? (string) ($error['name'] ?? $error['error'] ?? 'unknown_error') : 'no_response_body';
-            $errorMessage = is_array($error) ? (string) ($error['message'] ?? 'No provider error message.') : 'The provider returned no readable error.';
-            error_log(sprintf(
-                'Resend account link failed (%s; %s): %s',
-                $status !== '' ? $status : 'no HTTP status',
-                substr($errorName, 0, 80),
-                substr($errorMessage, 0, 300)
-            ));
-            return false;
-        }
-
-        return true;
+        $body = "Hi {$name},\n\nUse this link to {$action}: {$link}\n\nIf you did not request this, you can ignore this email.";
+        return (new EmailService())->send($email, $subject, $body);
     }
 
     private function stringLength(string $value): int {
