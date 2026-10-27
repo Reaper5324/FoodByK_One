@@ -733,13 +733,18 @@
                 </section>
                 <div class="order-detail-row"><span>Customer notes</span><strong id="modalNotes">None</strong></div>
 
-                <section id="refundSection" class="status-update" hidden>
-                    <label for="refundAmount">ISSUE REFUND</label>
+                <section id="refundSection" class="refund-section" hidden aria-labelledby="refundHeading">
+                    <div class="refund-heading-row">
+                        <div><p class="refund-kicker">PAYMENT</p><h3 id="refundHeading">Issue a refund</h3></div>
+                        <span class="refund-original-payment">Original payment: <strong id="refundPaidAmount">—</strong></span>
+                    </div>
+                    <label for="refundAmount">REFUND AMOUNT</label>
                     <p class="slot-help">Refunds go to the original payment method when PayFast permits it. A refund already in progress blocks another request.</p>
                     <input type="number" id="refundAmount" min="0.01" step="0.01" inputmode="decimal" placeholder="Amount in rand">
                     <textarea id="refundReason" maxlength="255" placeholder="Reason for refund (3–255 characters)"></textarea>
                     <button type="button" class="submit-refund-btn">Submit Refund</button>
                     <button type="button" class="check-refund-status-btn" hidden>Check PayFast status</button>
+                    <p id="refundFeedback" class="refund-feedback" role="status" aria-live="polite" hidden></p>
                     <div id="refundHistory" class="refund-history" aria-live="polite"></div>
                 </section>
 

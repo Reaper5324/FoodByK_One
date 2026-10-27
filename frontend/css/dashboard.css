@@ -1144,6 +1144,117 @@ td {
     resize: vertical;
 }
 
+/* Refund controls have their own card so payment actions stay easy to scan. */
+.refund-section {
+    display: none;
+    margin-top: 24px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: linear-gradient(145deg, #fffaf4, #ffffff 68%);
+    box-shadow: 0 10px 28px rgba(35, 28, 22, 0.06);
+}
+
+.refund-section.show { display: block; }
+
+.refund-heading-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.refund-kicker {
+    margin: 0 0 4px;
+    color: var(--orange);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.refund-heading-row h3 {
+    margin: 0;
+    color: var(--dark, #26211d);
+    font-size: 1.08rem;
+}
+
+.refund-original-payment {
+    color: var(--grey);
+    font-size: 0.78rem;
+    text-align: right;
+}
+
+.refund-original-payment strong { display: block; color: var(--dark, #26211d); font-size: 1rem; }
+
+.refund-section input,
+.refund-section textarea {
+    display: block;
+    width: 100%;
+    margin: 0 0 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--dark, #26211d);
+    font: inherit;
+}
+
+.refund-section textarea { min-height: 84px; resize: vertical; }
+.refund-section input:focus,
+.refund-section textarea:focus { outline: 2px solid rgba(230, 126, 34, 0.22); border-color: var(--orange); }
+.refund-section input:disabled,
+.refund-section textarea:disabled { background: #f2f1ef; color: #777; }
+
+.submit-refund-btn,
+.check-refund-status-btn {
+    min-height: 42px;
+    padding: 10px 15px;
+    border: 0;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.submit-refund-btn { background: var(--orange); color: #fff; }
+.check-refund-status-btn { margin-left: 8px; background: #fff; color: var(--dark, #26211d); border: 1px solid var(--border); }
+.submit-refund-btn:disabled,
+.check-refund-status-btn:disabled { opacity: 0.55; cursor: wait; }
+
+.refund-feedback {
+    margin: 12px 0 0;
+    padding: 11px 13px;
+    border-radius: 10px;
+    font-size: 0.84rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.refund-feedback[data-state="info"] { background: #f1f5f9; color: #334155; }
+.refund-feedback[data-state="success"] { background: #eaf7ee; color: #17653a; }
+.refund-feedback[data-state="error"] { background: #fff0ed; color: #9b2c1f; }
+
+.refund-history { display: grid; gap: 9px; margin-top: 16px; }
+.refund-history:empty { display: none; }
+.refund-history-entry {
+    margin: 0;
+    padding: 12px 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--grey);
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+    .refund-section { padding: 16px; }
+    .refund-heading-row { flex-direction: column; }
+    .refund-original-payment { text-align: left; }
+    .check-refund-status-btn { margin: 9px 0 0; }
+}
+
 
 /* Action Buttons */
 

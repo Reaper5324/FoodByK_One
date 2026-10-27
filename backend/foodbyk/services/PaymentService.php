@@ -279,6 +279,10 @@ class PaymentService {
         $amount = round($amount, 2);
         $amountCents = (int) round($amount * 100);
 
+        if ($this->passphrase() === '') {
+            return ['success' => false, 'error' => 'PayFast refunds require PAYFAST_PASSPHRASE. Set the same passphrase configured in your PayFast sandbox account, then retry.'];
+        }
+
         $db = Database::getConnection();
         try {
             $db->beginTransaction();
@@ -313,10 +317,15 @@ class PaymentService {
         // call has an uncertain outcome, leave this request pending to prevent
         // an accidental duplicate charge-back.
         try {
-            $query = $this->postJson(
-                $this->apiUrl('/refunds/query/' . rawurlencode($payment->gateway_reference)),
-                [], $this->apiHeaders([]), 'GET'
-            );
+            try {
+                $query = $this->postJson(
+                    $this->apiUrl('/refunds/query/' . rawurlencode($payment->gateway_reference)),
+                    [], $this->apiHeaders([]), 'GET'
+                );
+            } catch (Throwable $e) {
+                $this->setRefundStatus((int) $refund->id, 'failed');
+                return ['success' => false, 'error' => 'PayFast could not check whether this payment is refundable: ' . $e->getMessage()];
+            }
             $details = $query['data']['response'] ?? $query['data'] ?? $query;
             $available = (int) ($details['amount_available_for_refund'] ?? -1);
             $fullMethod = $details['refund_full']['method'] ?? 'NOT_AVAILABLE';
@@ -328,7 +337,7 @@ class PaymentService {
             $refundMethod = $amountCents === $available ? $fullMethod : $partialMethod;
             if ($refundMethod !== 'PAYMENT_SOURCE') {
                 $this->setRefundStatus((int) $refund->id, 'failed');
-                return ['success' => false, 'error' => 'PayFast requires a bank payout for this payment. Process it in PayFast and record it there; bank details are not collected by this platform.'];
+                return ['success' => false, 'error' => 'PayFast cannot return this refund to the original payment method. The available refund method is ' . $refundMethod . '. Handle it in PayFast and record it there.'];
             }
 
             $response = $this->postJson(
@@ -340,7 +349,7 @@ class PaymentService {
             if (($response['status'] ?? '') === 'failed'
                 || (($response['status'] ?? '') === 'success' && in_array($accepted, [false, 0, '0'], true))) {
                 $this->setRefundStatus((int) $refund->id, 'failed');
-                return ['success' => false, 'error' => $response['data']['message'] ?? 'PayFast did not accept the refund.'];
+                return ['success' => false, 'error' => $this->payFastResponseMessage($response, 'PayFast did not accept the refund.')];
             }
             if (($response['status'] ?? '') !== 'success' || !in_array($accepted, [true, 1, '1'], true)) {
                 throw new RuntimeException('PayFast returned an unclear refund result.');
@@ -349,11 +358,14 @@ class PaymentService {
             return ['success' => true, 'data' => PaymentRefund::findById((int) $refund->id)];
         } catch (Throwable $e) {
             error_log('PayFast refund outcome is uncertain for order ' . $orderId . ', refund ' . $refund->id . ': ' . $e->getMessage());
-            return ['success' => false, 'error' => 'The refund request could not be confirmed. Do not submit it again until its status is checked in PayFast.'];
+            return ['success' => false, 'error' => 'The refund request could not be confirmed. ' . $e->getMessage() . ' Do not submit it again until its status is checked in PayFast.'];
         }
     }
 
     public function refreshRefundStatus(int $orderId): array {
+        if ($this->passphrase() === '') {
+            return ['success' => false, 'error' => 'PayFast refund checks require PAYFAST_PASSPHRASE. Set the same passphrase configured in your PayFast sandbox account, then check again.'];
+        }
         $order = Order::findById($orderId);
         $payment = $order?->getPayment();
         if (!$order || !$payment || !$payment->gateway_reference) {
@@ -392,8 +404,15 @@ class PaymentService {
             return ['success' => true, 'data' => PaymentRefund::findBy('payment_id', $payment->id)];
         } catch (Throwable $e) {
             error_log('PayFast refund status could not be reconciled for order ' . $orderId . ': ' . $e->getMessage());
-            return ['success' => false, 'error' => 'Could not verify refund settlement with PayFast. Check the transaction in PayFast.'];
+            return ['success' => false, 'error' => 'Could not verify refund settlement with PayFast: ' . $e->getMessage()];
         }
+    }
+
+    private function payFastResponseMessage(array $response, string $fallback): string {
+        foreach ([$response['data']['message'] ?? null, $response['message'] ?? null, $response['data']['response']['message'] ?? null] as $message) {
+            if (is_string($message) && trim($message) !== '') return trim($message);
+        }
+        return $fallback;
     }
 
     private function setRefundStatus(int $refundId, string $status): void {
@@ -508,17 +527,25 @@ class PaymentService {
 
     private function postJson(string $url, array $body, array $headers, string $method = 'POST'): array {
         $headerLines = array_map(fn($k, $v) => "$k: $v", array_keys($headers), $headers);
-        $context = stream_context_create(['http' => [
-            'method'  => $method,
-            'header'  => implode("\r\n", $headerLines) . "\r\nContent-Type: application/json\r\n",
-            'content' => json_encode($body),
-            'timeout' => 10,
+        $method = strtoupper($method);
+        $requestHeaders = implode("\r\n", $headerLines);
+        $options = [
+            'method' => $method,
+            'header' => $requestHeaders . ($method === 'GET' ? "\r\n" : "\r\nContent-Type: application/json\r\n"),
+            'timeout' => 20,
             'ignore_errors' => true,
+        ];
+        if ($method !== 'GET') $options['content'] = json_encode($body, JSON_THROW_ON_ERROR);
+        $context = stream_context_create(['http' => [
+            ...$options,
         ]]);
         $response = file_get_contents($url, false, $context);
         if ($response === false) throw new \Exception('PayFast API request failed.');
         $decoded = json_decode($response, true);
         if (!is_array($decoded)) throw new \Exception('PayFast returned an invalid response.');
+        if (($decoded['status'] ?? '') === 'failed') {
+            throw new RuntimeException($this->payFastResponseMessage($decoded, 'PayFast rejected the API request.'));
+        }
         return $decoded;
     }
 
