@@ -59,7 +59,7 @@ try {
     $db->beginTransaction();
     $roleQuery = $db->prepare('SELECT id FROM roles WHERE role_name = ? LIMIT 1');
     $userQuery = $db->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
-    $insert = $db->prepare('INSERT INTO users (name, email, password_hash, role_id, is_active) VALUES (?, ?, ?, ?, 1)');
+    $insert = $db->prepare('INSERT INTO users (name, email, email_verified_at, password_hash, role_id, is_active) VALUES (?, ?, NOW(), ?, ?, 1)');
     $hashAlgorithm = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;
 
     foreach ($accounts as $role => $account) {

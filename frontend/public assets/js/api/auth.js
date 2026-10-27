@@ -11,6 +11,14 @@ async function registerUser(userData) {
 
 }
 
+async function verifyEmail(token) {
+    return apiPost("/auth/verify-email", { token });
+}
+
+async function resendVerificationEmail(email) {
+    return apiPost("/auth/resend-verification", { email });
+}
+
 
 /* ---------- Login ---------- */
 

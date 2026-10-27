@@ -14,6 +14,14 @@ class AuthController extends Controller {
         return $this->respond($result, 201);
     }
 
+    public function verifyEmail(Request $request): Response {
+        return $this->respond((new AuthService())->verifyEmail((string) $request->input('token', '')));
+    }
+
+    public function resendVerificationEmail(Request $request): Response {
+        return $this->respond((new AuthService())->resendVerificationEmail((string) $request->input('email', '')));
+    }
+
     public function login(Request $request): Response {
         return $this->respond((new AuthService())->login((string) $request->input('email', ''), (string) $request->input('password', '')), 200, 401);
     }

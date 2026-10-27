@@ -6,9 +6,10 @@
 -- This is a one-time insert. If an email already exists, MySQL rejects the
 -- statement rather than changing or duplicating that account.
 
-INSERT INTO users (name, email, password_hash, role_id, phone, loyalty_points, is_active)
+INSERT INTO users (name, email, email_verified_at, password_hash, role_id, phone, loyalty_points, is_active)
 SELECT 'Shaun Maswikaneng',
        'maswikanengshaun@gmail.com',
+       CURRENT_TIMESTAMP,
        '$argon2id$v=19$m=65536,t=4,p=1$LjdVZm8zcVguOWxSaW5HRg$xqbcb5049hCVXeNjpuwBqbyM6PC7EpNAErKeqaWU1g8',
        id,
        '+27699307496',
@@ -19,6 +20,7 @@ WHERE role_name = 'customer'
 UNION ALL
 SELECT 'Food by K Staff',
        'staff@gmail.com',
+       CURRENT_TIMESTAMP,
        '$argon2id$v=19$m=65536,t=4,p=1$VVNNZWlTQnNCQzBuQkh6Qg$piTnBMq8OlJpcc638NEQ1rDCex38BCxLjG3u2la+wE4',
        id,
        NULL,
@@ -29,6 +31,7 @@ WHERE role_name = 'staff'
 UNION ALL
 SELECT 'Food by K Admin',
        'admin@local.com',
+       CURRENT_TIMESTAMP,
        '$argon2id$v=19$m=65536,t=4,p=1$UGovUnhHczNheXRvV1BERg$bdoW3eujGbXn0fkOm7owP+zfYTAsVgmh/rzvPH00Bt8',
        id,
        NULL,

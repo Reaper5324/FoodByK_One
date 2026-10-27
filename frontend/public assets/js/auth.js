@@ -40,6 +40,8 @@ if (loginForm) {
             if (messageContainer) {
                 messageContainer.innerHTML = "";
             }
+            const verificationPanel = document.getElementById("loginVerification");
+            if (verificationPanel) verificationPanel.hidden = true;
 
 
             // Frontend validation
@@ -81,6 +83,10 @@ if (loginForm) {
                 /* ---------- Handle Login Failure ---------- */
 
                 if (!loginResult.success) {
+
+                    if (verificationPanel && loginResult.data?.email_verification_required) {
+                        verificationPanel.hidden = false;
+                    }
 
                     showMessage(
                         loginResult.error ||
@@ -404,25 +410,17 @@ if (registerForm) {
 
 
                 if (result.success) {
-
-                    localStorage.setItem(
-                        "foodByKUser",
-                        JSON.stringify({ id: result.data.id, role: result.data.role })
-                    );
-
-
+                    localStorage.removeItem("foodByKUser");
+                    if (typeof clearSessionToken === "function") clearSessionToken();
+                    const verificationPanel = document.getElementById("registrationVerification");
+                    if (verificationPanel) verificationPanel.hidden = false;
+                    registerForm.hidden = true;
                     showMessage(
-                        "Account created successfully! Redirecting...",
-                        "success"
+                        result.data?.email_sent
+                            ? "Your account was created. We sent a verification link to your email. Open it before signing in."
+                            : "Your account was created, but the verification email could not be sent. Check the email settings or use the resend button below.",
+                        result.data?.email_sent ? "success" : "error"
                     );
-
-
-                    setTimeout(function () {
-
-                        window.location.href =
-                            "../../src/index.html";
-
-                    }, 1500);
 
                 } else {
 
@@ -458,6 +456,40 @@ if (registerForm) {
     );
 
 }
+
+document.getElementById("resendRegistrationVerification")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const email = document.getElementById("email")?.value.trim() || "";
+    if (!email) return showMessage("Enter the email address you used to register.", "error");
+    button.disabled = true;
+    try {
+        const result = await resendVerificationEmail(email);
+        showMessage(result.success
+            ? "If this address belongs to an unverified account, a new verification link will be sent. Check your inbox and spam folder."
+            : (result.error || "Unable to request a new link right now."), result.success ? "success" : "error");
+    } catch (_) {
+        showMessage("Unable to request a new link right now. Please try again later.", "error");
+    } finally {
+        button.disabled = false;
+    }
+});
+
+document.getElementById("resendLoginVerification")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const email = document.getElementById("loginEmail")?.value.trim() || "";
+    if (!email) return showMessage("Enter your email address first, then request a new verification link.", "error");
+    button.disabled = true;
+    try {
+        const result = await resendVerificationEmail(email);
+        showMessage(result.success
+            ? "If this address belongs to an unverified account, a new verification link will be sent. Check your inbox and spam folder."
+            : (result.error || "Unable to request a new link right now."), result.success ? "success" : "error");
+    } catch (_) {
+        showMessage("Unable to request a new link right now. Please try again later.", "error");
+    } finally {
+        button.disabled = false;
+    }
+});
 
 
 /* =========================================

@@ -943,3 +943,19 @@ body.auth-page {
 #registerForm .password-match.is-unmatched {
     color: var(--food-red);
 }
+#message .message { overflow-wrap: anywhere; }
+
+.verification-notice,
+.verification-actions {
+    margin: 0 0 1rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid rgba(226, 115, 57, 0.24);
+    border-radius: 12px;
+    background: rgba(255, 247, 241, 0.94);
+    color: #633f2d;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.verification-actions p { margin: 0 0 0.75rem; }
+.verification-actions button { width: 100%; min-height: 46px; }

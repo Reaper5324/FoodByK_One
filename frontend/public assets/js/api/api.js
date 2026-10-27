@@ -10,6 +10,8 @@
 const CSRF_EXEMPT_ENDPOINTS = [
     "/auth/login",
     "/auth/register",
+    "/auth/verify-email",
+    "/auth/resend-verification",
     "/auth/forgot-password",
     "/auth/reset-password",
     "/assistant/ask"
@@ -190,7 +192,7 @@ async function apiRequest(endpoint, options = {}) {
 
             return {
                 success: false,
-                data: null,
+                data: result?.data ?? null,
                 error: result?.error ||
                     "Your session has expired. Please log in again.",
                 status: 401
@@ -208,7 +210,7 @@ async function apiRequest(endpoint, options = {}) {
 
             return {
                 success: false,
-                data: null,
+                data: result?.data ?? null,
                 error: result?.error ||
                     "You do not have permission to perform this action.",
                 status: 403

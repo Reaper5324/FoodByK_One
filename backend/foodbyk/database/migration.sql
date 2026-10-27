@@ -11,6 +11,7 @@ CREATE TABLE users (
     id               INT           UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name             VARCHAR(150)  NOT NULL,
     email            VARCHAR(150)  NOT NULL UNIQUE,
+    email_verified_at DATETIME     DEFAULT NULL,
     password_hash    VARCHAR(255)  NOT NULL,
     role_id          INT           UNSIGNED NOT NULL,
     profile_picture  VARCHAR(255)  DEFAULT NULL,
@@ -102,6 +103,17 @@ CREATE TABLE cart_items (
     CONSTRAINT fk_cart_customer FOREIGN KEY (customer_id) REFERENCES users(id)    ON DELETE CASCADE,
     CONSTRAINT fk_cart_product  FOREIGN KEY (product_id)  REFERENCES products(id) ON DELETE CASCADE,
     UNIQUE KEY uq_cart_item (customer_id, product_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE customer_email_verifications (
+    id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT UNSIGNED NOT NULL UNIQUE,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_customer_email_verification_user
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_customer_email_verification_expiry (expires_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE password_resets (

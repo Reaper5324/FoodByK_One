@@ -3,6 +3,8 @@
 function registerRoutes(Router $router): void {
     $router->post('/auth/register', [AuthController::class, 'register']);
     $router->post('/auth/login', [AuthController::class, 'login'], [new RateLimitMiddleware('login')]);
+    $router->post('/auth/verify-email', [AuthController::class, 'verifyEmail']);
+    $router->post('/auth/resend-verification', [AuthController::class, 'resendVerificationEmail'], [new RateLimitMiddleware('verification', 3, 900)]);
     $router->post('/auth/forgot-password', [AuthController::class, 'requestPasswordReset'], [new RateLimitMiddleware('request')]);
     $router->post('/auth/reset-password', [AuthController::class, 'resetPassword'], [new RateLimitMiddleware('reset')]);
     

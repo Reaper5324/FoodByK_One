@@ -11,6 +11,13 @@ class AuthMiddleware implements Middleware {
             return Response::error('Authentication required.', 401);
         }
         $role = Role::findById($baseUser->role_id);
+        if ($role?->role_name === Role::CUSTOMER && !$authService->isEmailVerified((int) $baseUser->id)) {
+            return Response::json([
+                'success' => false,
+                'data' => ['email_verification_required' => true],
+                'error' => 'Verify your email address before using customer account features.',
+            ], 403);
+        }
         $request->attributes['user'] = match ($role?->role_name) {
             Role::CUSTOMER => Customer::findCustomerById($baseUser->id),
             Role::STAFF    => Staff::findStaffById($baseUser->id),

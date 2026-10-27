@@ -6,7 +6,7 @@ class RateLimitMiddleware implements Middleware {
         private int $maxAttempts = 5,
         private int $windowSeconds = 300
     ) {
-        if (!in_array($this->scope, ['login', 'reset', 'request', 'assistant'], true)
+        if (!in_array($this->scope, ['login', 'reset', 'request', 'assistant', 'verification'], true)
             || $this->maxAttempts < 1 || $this->windowSeconds < 1) {
             throw new InvalidArgumentException('Invalid rate-limit configuration.');
         }
@@ -28,7 +28,7 @@ class RateLimitMiddleware implements Middleware {
         }
 
         // Limit reset requests so the endpoint cannot be used to spam email addresses.
-        if (in_array($this->scope, ['request', 'assistant'], true)) {
+        if (in_array($this->scope, ['request', 'assistant', 'verification'], true)) {
             self::storeKeys($db, $keys);
         }
         return null;
@@ -52,6 +52,12 @@ class RateLimitMiddleware implements Middleware {
         if ($this->scope === 'reset') return ['reset:ip:' . $ip];
         if ($this->scope === 'request') return ['request:ip:' . $ip];
         if ($this->scope === 'assistant') return ['assistant:ip:' . $ip];
+        if ($this->scope === 'verification') {
+            $email = strtolower(trim((string) $request->input('email', '')));
+            $keys = ['verification:ip:' . $ip];
+            if ($email !== '') $keys[] = 'verification:email:' . hash('sha256', $email);
+            return $keys;
+        }
 
         $email = strtolower(trim((string) $request->input('email', '')));
         $keys = ['login:ip:' . $ip];

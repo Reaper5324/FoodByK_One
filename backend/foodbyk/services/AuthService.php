@@ -85,10 +85,18 @@ class AuthService {
             }
 
             (new PolicyService())->recordCurrentVersions((int) $user->id);
-
+            $verification = $this->createEmailVerificationToken((int) $user->id);
             $db->commit();
-            $this->establishSession($user);
-return $this->success(array_merge($this->publicUser($user), ['session_token' => session_id()]));
+
+            $emailSent = $this->sendVerificationEmail($email, $name, $verification);
+            if (!$emailSent) {
+                error_log('Customer verification email delivery failed for user ' . $user->id . '.');
+            }
+            return $this->success([
+                'verification_required' => true,
+                'email_sent' => $emailSent,
+                'email' => $email,
+            ]);
         } catch (Throwable) {
             if ($db->inTransaction()) {
                 $db->rollBack();
@@ -117,6 +125,14 @@ return $this->success(array_merge($this->publicUser($user), ['session_token' => 
             return $this->failure('Invalid email or password.');
         }
 
+        if ($user->getRole()?->role_name === Role::CUSTOMER && !$this->isEmailVerified((int) $user->id)) {
+            return [
+                'success' => false,
+                'data' => ['email_verification_required' => true],
+                'error' => 'Please verify your email before signing in. Check your inbox for the verification link or request a new one below.',
+            ];
+        }
+
         if (password_needs_rehash($user->password_hash, $this->passwordAlgorithm())) {
             $user->setPassword($password);
             if (!$user->save()) {
@@ -126,6 +142,69 @@ return $this->success(array_merge($this->publicUser($user), ['session_token' => 
 
         $this->establishSession($user);
 return $this->success(array_merge($this->publicUser($user), ['session_token' => session_id()]));
+    }
+
+    public function verifyEmail(string $rawToken): array {
+        if (preg_match('/^[a-f0-9]{64}$/i', $rawToken) !== 1) {
+            return $this->failure('This verification link is invalid or has expired. Request a new verification email and try again.');
+        }
+
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            $stmt = $db->prepare(
+                'SELECT user_id FROM customer_email_verifications WHERE token_hash = ? AND expires_at > NOW() LIMIT 1 FOR UPDATE'
+            );
+            $stmt->execute([hash('sha256', $rawToken)]);
+            $userId = $stmt->fetchColumn();
+            if ($userId === false) {
+                $db->rollBack();
+                return $this->failure('This verification link is invalid or has expired. Request a new verification email and try again.');
+            }
+
+            $db->prepare('UPDATE users SET email_verified_at = COALESCE(email_verified_at, NOW()) WHERE id = ?')->execute([(int) $userId]);
+            $db->prepare('DELETE FROM customer_email_verifications WHERE user_id = ?')->execute([(int) $userId]);
+            $db->commit();
+            return $this->success(['verified' => true]);
+        } catch (Throwable) {
+            if ($db->inTransaction()) $db->rollBack();
+            return $this->failure('Unable to verify this email right now. Please try again.');
+        }
+    }
+
+    public function resendVerificationEmail(string $email): array {
+        $email = $this->normaliseEmail($email);
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return $this->failure('Enter a valid email address.');
+        }
+
+        $user = User::findByEmail($email);
+        if ($user && $user->getRole()?->role_name === Role::CUSTOMER && !$this->isEmailVerified((int) $user->id)) {
+            try {
+                $db = Database::getConnection();
+                $db->beginTransaction();
+                $token = $this->createEmailVerificationToken((int) $user->id);
+                $db->commit();
+                if (!$this->sendVerificationEmail($email, $user->full_name, $token)) {
+                    error_log('Customer verification resend failed for user ' . $user->id . '.');
+                }
+            } catch (Throwable) {
+                if (isset($db) && $db->inTransaction()) $db->rollBack();
+                error_log('Customer verification resend could not be prepared for user ' . $user->id . '.');
+            }
+        }
+
+        // Keep this response the same whether an account exists or not.
+        return $this->success(['message' => 'If this address belongs to an unverified customer account, a new verification link will be sent.']);
+    }
+
+    public function isEmailVerified(int $userId): bool {
+        $stmt = Database::getConnection()->prepare(
+            'SELECT r.role_name, u.email_verified_at FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ? LIMIT 1'
+        );
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch();
+        return !$row || $row['role_name'] !== Role::CUSTOMER || $row['email_verified_at'] !== null;
     }
 
     public function logout(): array {
@@ -528,6 +607,28 @@ return $this->success(array_merge($this->publicUser($user), ['session_token' => 
         $action = $invite ? 'set your password' : 'reset your password';
         $body = "Hi {$name},\n\nUse this link to {$action}: {$link}\n\nIf you did not request this, you can ignore this email.";
         return (new EmailService())->send($email, $subject, $body);
+    }
+
+    private function createEmailVerificationToken(int $userId): string {
+        $token = bin2hex(random_bytes(32));
+        $db = Database::getConnection();
+        $db->prepare('DELETE FROM customer_email_verifications WHERE expires_at <= NOW()')->execute();
+        $db->prepare('DELETE FROM customer_email_verifications WHERE user_id = ?')->execute([$userId]);
+        $stmt = $db->prepare(
+            'INSERT INTO customer_email_verifications (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR))'
+        );
+        $stmt->execute([$userId, hash('sha256', $token)]);
+        return $token;
+    }
+
+    private function sendVerificationEmail(string $email, string $name, string $token): bool {
+        if (!defined('FRONTEND_URL') || FRONTEND_URL === '') {
+            error_log('Verification email was not sent: FRONTEND_URL is not configured.');
+            return false;
+        }
+        $link = rtrim(FRONTEND_URL, '/') . '/pages/auth/verify-email.html?token=' . rawurlencode($token);
+        $body = "Hi {$name},\n\nPlease verify your email address to activate your Food by K customer account:\n{$link}\n\nThis link expires in 24 hours. If you did not create this account, you can ignore this email.";
+        return (new EmailService())->send($email, 'Verify your Food by K email address', $body);
     }
 
     private function stringLength(string $value): int {
