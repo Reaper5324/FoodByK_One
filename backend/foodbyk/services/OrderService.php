@@ -703,8 +703,12 @@ $payment = $order->getPayment();
         ]);
     }
 
-    public function refundOrder(int $orderId, int $staffId, mixed $amount, mixed $reason): array {
-        return (new PaymentService())->refundOrder($orderId, $staffId, $amount, $reason);
+    public function getRefundEligibility(int $orderId, mixed $amount): array {
+        return (new PaymentService())->getRefundEligibility($orderId, $amount);
+    }
+
+    public function refundOrder(int $orderId, int $staffId, mixed $amount, mixed $reason, array $bankDetails = []): array {
+        return (new PaymentService())->refundOrder($orderId, $staffId, $amount, $reason, $bankDetails);
     }
 
     public function refreshRefundStatus(int $orderId): array {

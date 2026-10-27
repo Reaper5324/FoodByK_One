@@ -53,11 +53,21 @@ class OrderController extends Controller {
     }
 
     public function refund(Request $request, array $params): Response {
+        $bankDetails = $request->input('bank_details', []);
+        if (!is_array($bankDetails)) return Response::error('Invalid bank payout details.', 400);
         return $this->respond((new OrderService())->refundOrder(
             (int) $this->param($params, 'id'),
             $request->user()->id,
             $request->input('amount'),
-            $request->input('reason')
+            $request->input('reason'),
+            $bankDetails
+        ));
+    }
+
+    public function refundEligibility(Request $request, array $params): Response {
+        return $this->respond((new OrderService())->getRefundEligibility(
+            (int) $this->param($params, 'id'),
+            $request->input('amount')
         ));
     }
 

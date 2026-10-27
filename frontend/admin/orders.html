@@ -739,10 +739,30 @@
                         <span class="refund-original-payment">Original payment: <strong id="refundPaidAmount">—</strong></span>
                     </div>
                     <label for="refundAmount">REFUND AMOUNT</label>
-                    <p class="slot-help">Refunds go to the original payment method when PayFast permits it. A refund already in progress blocks another request.</p>
+                    <p class="slot-help">Check PayFast’s available refund method for this amount before submitting. A refund already in progress blocks another request.</p>
                     <input type="number" id="refundAmount" min="0.01" step="0.01" inputmode="decimal" placeholder="Amount in rand">
+                    <button type="button" class="check-refund-options-btn">Check PayFast refund options</button>
+                    <p id="refundMethodInfo" class="refund-method-info" hidden></p>
+                    <fieldset id="refundBankDetails" class="refund-bank-details" hidden>
+                        <legend>Bank payout details</legend>
+                        <p>PayFast requires these details for this refund. They are sent directly to PayFast and are not saved in Food by K.</p>
+                        <label for="refundBankHolder">Account holder name</label>
+                        <input type="text" id="refundBankHolder" maxlength="255" autocomplete="off">
+                        <label for="refundBankName">Bank</label>
+                        <select id="refundBankName"><option value="">Choose a bank</option></select>
+                        <label for="refundBranchCode">Branch code</label>
+                        <input type="text" id="refundBranchCode" inputmode="numeric" maxlength="6" autocomplete="off">
+                        <label for="refundAccountNumber">Account number</label>
+                        <input type="text" id="refundAccountNumber" inputmode="numeric" maxlength="12" autocomplete="off">
+                        <label for="refundAccountType">Account type</label>
+                        <select id="refundAccountType">
+                            <option value="">Choose account type</option>
+                            <option value="current">Current</option>
+                            <option value="savings">Savings</option>
+                        </select>
+                    </fieldset>
                     <textarea id="refundReason" maxlength="255" placeholder="Reason for refund (3–255 characters)"></textarea>
-                    <button type="button" class="submit-refund-btn">Submit Refund</button>
+                    <button type="button" class="submit-refund-btn" disabled>Submit Refund</button>
                     <button type="button" class="check-refund-status-btn" hidden>Check PayFast status</button>
                     <p id="refundFeedback" class="refund-feedback" role="status" aria-live="polite" hidden></p>
                     <div id="refundHistory" class="refund-history" aria-live="polite"></div>

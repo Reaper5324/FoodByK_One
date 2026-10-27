@@ -71,6 +71,7 @@ function registerRoutes(Router $router): void {
     $router->post('/staff/orders/{id}/adjust', [OrderController::class, 'adjust'], $staff);
     $router->post('/staff/orders/{id}/confirm', [OrderController::class, 'confirm'], $staff);
     $router->post('/staff/orders/{id}/decline', [OrderController::class, 'decline'], $staff);
+    $router->post('/staff/orders/{id}/refund-eligibility', [OrderController::class, 'refundEligibility'], $staff);
     $router->post('/staff/orders/{id}/refund', [OrderController::class, 'refund'], $staff);
     $router->get('/staff/orders/{id}/refund-status', [OrderController::class, 'refundStatus'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
     $router->post('/staff/orders/{id}/advance', [OrderController::class, 'advance'], $staff);

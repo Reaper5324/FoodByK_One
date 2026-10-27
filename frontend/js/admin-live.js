@@ -758,6 +758,7 @@ const initializeAdminLive = async () => {
 
     let currentReviewOrderId = null;
     let currentReviewData = null;
+    let currentRefundEligibility = null;
     let orderEditProducts = [];
     const money = (value) => "R" + Number(value || 0).toFixed(2);
     const displayDateTime = (value) => {
@@ -769,6 +770,25 @@ const initializeAdminLive = async () => {
         const element = document.getElementById(id);
         if (element) element.textContent = value == null || value === "" ? "—" : String(value);
     };
+
+    document.getElementById("refundAmount")?.addEventListener("input", () => {
+        currentRefundEligibility = null;
+        const submit = document.querySelector(".submit-refund-btn");
+        const methodInfo = document.getElementById("refundMethodInfo");
+        const bankDetails = document.getElementById("refundBankDetails");
+        if (submit) submit.disabled = true;
+        if (methodInfo) methodInfo.hidden = true;
+        if (bankDetails) bankDetails.hidden = true;
+        ["refundBankHolder", "refundBranchCode", "refundAccountNumber"].forEach((id) => {
+            const input = document.getElementById(id);
+            if (input) input.value = "";
+        });
+        const bankSelect = document.getElementById("refundBankName");
+        if (bankSelect) bankSelect.value = "";
+        const typeSelect = document.getElementById("refundAccountType");
+        if (typeSelect) typeSelect.value = "";
+        setRefundFeedback("Check PayFast refund options again after changing the amount.", "info");
+    });
     const localDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     const johannesburgDateKey = (date) => {
         const parts = new Intl.DateTimeFormat("en-GB", {
@@ -907,6 +927,7 @@ const initializeAdminLive = async () => {
             refundSection.classList.toggle("show", refundEligible);
         }
         const refundAmount = document.getElementById("refundAmount");
+        currentRefundEligibility = null;
         const refundInProgress = (data.refunds || []).some((refund) => ["pending", "submitted"].includes(refund.status));
         const refundPaidAmount = document.getElementById("refundPaidAmount");
         if (refundPaidAmount) refundPaidAmount.textContent = money(payment.amount);
@@ -917,11 +938,25 @@ const initializeAdminLive = async () => {
             refundAmount.disabled = Number(refundAmount.max) <= 0 || refundInProgress;
             refundAmount.value = "";
         }
+        const methodInfo = document.getElementById("refundMethodInfo");
+        if (methodInfo) { methodInfo.hidden = true; methodInfo.textContent = ""; }
+        const bankDetails = document.getElementById("refundBankDetails");
+        if (bankDetails) bankDetails.hidden = true;
+        ["refundBankHolder", "refundBranchCode", "refundAccountNumber"].forEach((id) => {
+            const input = document.getElementById(id);
+            if (input) input.value = "";
+        });
+        const bankSelect = document.getElementById("refundBankName");
+        if (bankSelect) bankSelect.replaceChildren(new Option("Choose a bank", ""));
+        const typeSelect = document.getElementById("refundAccountType");
+        if (typeSelect) typeSelect.value = "";
         const refundReason = document.getElementById("refundReason");
         if (refundReason) { refundReason.value = ""; refundReason.disabled = refundInProgress; }
         const refundHistory = document.getElementById("refundHistory");
         const submitRefundButton = document.querySelector(".submit-refund-btn");
-        if (submitRefundButton) submitRefundButton.disabled = refundInProgress || Number(refundAmount?.max || 0) <= 0;
+        if (submitRefundButton) submitRefundButton.disabled = true;
+        const checkOptionsButton = document.querySelector(".check-refund-options-btn");
+        if (checkOptionsButton) checkOptionsButton.disabled = refundInProgress || Number(refundAmount?.max || 0) <= 0;
         const checkRefundButton = document.querySelector(".check-refund-status-btn");
         if (checkRefundButton) checkRefundButton.hidden = !refundInProgress;
         if (checkRefundButton) checkRefundButton.disabled = false;
@@ -1048,10 +1083,10 @@ const initializeAdminLive = async () => {
 
     
     document.addEventListener("click", async (event) => {
-        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn");
+        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn, .check-refund-options-btn");
         if (!target) return;
         const action = target.dataset.adminAction;
-        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn")) return;
+        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn, .check-refund-options-btn")) return;
         event.preventDefault(); event.stopImmediatePropagation();
 
         if (action === "support-ticket-open") return openSupportTicket(target.dataset.id);
@@ -1230,16 +1265,79 @@ const initializeAdminLive = async () => {
             const result = await apiPost(`/staff/orders/${currentReviewOrderId}/decline`, { reason });
             target.disabled = false;
             if (showResult(result)) { closeModal("#orderModal"); await loadOrders(); }
+        } else if (target.matches(".check-refund-options-btn") && currentReviewOrderId) {
+            const amount = Number(document.getElementById("refundAmount")?.value);
+            if (!Number.isFinite(amount) || amount <= 0) return setRefundFeedback("Enter a positive refund amount first.", "error");
+            target.disabled = true;
+            setRefundFeedback("Checking the available refund method with PayFast…", "info");
+            const result = await apiPost(`/staff/orders/${currentReviewOrderId}/refund-eligibility`, { amount });
+            target.disabled = false;
+            if (!result?.success || !result.data) return setRefundFeedback(result?.error || "PayFast could not check the refund options.", "error");
+            const options = result.data;
+            currentRefundEligibility = { amount: Number(amount.toFixed(2)), ...options };
+            const methodInfo = document.getElementById("refundMethodInfo");
+            const bankDetails = document.getElementById("refundBankDetails");
+            const submit = document.querySelector(".submit-refund-btn");
+            const method = String(options.method || "");
+            if (method === "BANK_PAYOUT") {
+                const bankSelect = document.getElementById("refundBankName");
+                const banks = Array.isArray(options.bank_names) ? options.bank_names : [];
+                if (bankSelect) {
+                    bankSelect.replaceChildren(new Option("Choose a bank", ""));
+                    banks.forEach((bank) => {
+                        const value = typeof bank === "string" ? bank : (bank.bank_name || bank.value || bank.code || "");
+                        const label = typeof bank === "string" ? bank : (bank.label || bank.name || value);
+                        if (value) bankSelect.add(new Option(label, value));
+                    });
+                }
+                if (methodInfo) {
+                    methodInfo.textContent = banks.length ? "PayFast requires a bank payout for this amount. Enter the customer’s payout details below." : "PayFast requires a bank payout, but did not return an eligible bank list. Refresh the options or handle the payout in PayFast.";
+                    methodInfo.hidden = false;
+                }
+                if (bankDetails) bankDetails.hidden = banks.length === 0;
+                if (submit) submit.disabled = banks.length === 0;
+                setRefundFeedback(banks.length ? "PayFast supports this refund as a bank payout." : "No eligible bank list was returned by PayFast, so this refund cannot be submitted here.", banks.length ? "success" : "error");
+            } else if (method === "PAYMENT_SOURCE") {
+                if (methodInfo) { methodInfo.textContent = "PayFast will return this refund to the original payment method."; methodInfo.hidden = false; }
+                if (bankDetails) bankDetails.hidden = true;
+                ["refundBankHolder", "refundBranchCode", "refundAccountNumber", "refundBankName", "refundAccountType"].forEach((id) => {
+                    const input = document.getElementById(id);
+                    if (input) input.value = "";
+                });
+                if (submit) submit.disabled = false;
+                setRefundFeedback("PayFast supports a refund to the original payment method.", "success");
+            } else {
+                currentRefundEligibility = null;
+                if (methodInfo) { methodInfo.textContent = "PayFast does not offer an automated refund method for this amount."; methodInfo.hidden = false; }
+                if (bankDetails) bankDetails.hidden = true;
+                if (submit) submit.disabled = true;
+                setRefundFeedback("PayFast does not offer an automated refund method for this amount.", "error");
+            }
         } else if (target.matches(".submit-refund-btn") && currentReviewOrderId) {
             const amount = Number(document.getElementById("refundAmount")?.value);
             const reason = document.getElementById("refundReason")?.value.trim() || "";
             if (!Number.isFinite(amount) || amount <= 0 || reason.length < 3 || reason.length > 255) {
                 return setRefundFeedback("Enter a positive refund amount and a reason between 3 and 255 characters.", "error");
             }
+            if (!currentRefundEligibility || currentRefundEligibility.amount !== Number(amount.toFixed(2))) {
+                return setRefundFeedback("Check PayFast refund options for this amount before submitting.", "error");
+            }
+            const bankDetails = {};
+            if (currentRefundEligibility.method === "BANK_PAYOUT") {
+                bankDetails.bank_account_holder = document.getElementById("refundBankHolder")?.value.trim() || "";
+                bankDetails.bank_name = document.getElementById("refundBankName")?.value || "";
+                bankDetails.bank_branch_code = document.getElementById("refundBranchCode")?.value.trim() || "";
+                bankDetails.bank_account_number = document.getElementById("refundAccountNumber")?.value.trim() || "";
+                bankDetails.bank_account_type = document.getElementById("refundAccountType")?.value || "";
+                if (!bankDetails.bank_account_holder || !bankDetails.bank_name || !bankDetails.bank_branch_code
+                    || !bankDetails.bank_account_number || !bankDetails.bank_account_type) {
+                    return setRefundFeedback("Complete all bank payout fields before submitting this refund.", "error");
+                }
+            }
             if (!confirm(`Submit a PayFast refund of ${money(amount)} for order #${currentReviewOrderId}?`)) return;
             target.disabled = true;
             setRefundFeedback("Sending the refund request to PayFast…", "info");
-            const result = await apiPost(`/staff/orders/${currentReviewOrderId}/refund`, { amount, reason });
+            const result = await apiPost(`/staff/orders/${currentReviewOrderId}/refund`, { amount, reason, bank_details: bankDetails });
             target.disabled = false;
             if (result?.success) {
                 await openOrderReview(currentReviewOrderId);

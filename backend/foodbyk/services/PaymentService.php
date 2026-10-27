@@ -264,7 +264,45 @@ class PaymentService {
     }
 
     /** Create a guarded refund against the successful charge, never against its token. */
-    public function refundOrder(int $orderId, int $staffId, mixed $amount, mixed $reason): array {
+    public function getRefundEligibility(int $orderId, mixed $amount): array {
+        if (!is_numeric($amount) || (float) $amount <= 0 || abs((float) $amount - round((float) $amount, 2)) > 0.00000001) {
+            return ['success' => false, 'error' => 'Enter a valid refund amount with up to two decimal places.'];
+        }
+        if ($this->passphrase() === '') {
+            return ['success' => false, 'error' => 'PayFast refunds require PAYFAST_PASSPHRASE.'];
+        }
+        $order = Order::findById($orderId);
+        $payment = $order?->getPayment();
+        if (!$order || !$payment || $payment->status !== Payment::STATUS_SUCCESS || !$payment->gateway_reference
+            || in_array($order->status, [Order::STATUS_CANCELLED, Order::STATUS_DECLINED], true)) {
+            return ['success' => false, 'error' => 'Only a successfully paid, non-cancelled order can be refunded.'];
+        }
+        $amountCents = (int) round((float) $amount * 100);
+        try {
+            $query = $this->postJson(
+                $this->apiUrl('/refunds/query/' . rawurlencode($payment->gateway_reference)),
+                [], $this->apiHeaders([]), 'GET'
+            );
+            $details = $query['data']['response'] ?? $query['data'] ?? $query;
+            $available = (int) ($details['amount_available_for_refund'] ?? -1);
+            if (($query['status'] ?? '') !== 'success' || ($details['status'] ?? '') !== 'REFUNDABLE' || $amountCents > $available) {
+                return ['success' => false, 'error' => 'PayFast reports that this payment is not refundable for that amount.'];
+            }
+            $method = $amountCents === $available
+                ? ($details['refund_full']['method'] ?? 'NOT_AVAILABLE')
+                : ($details['refund_partial']['method'] ?? 'NOT_AVAILABLE');
+            $banks = $details['bank_names'] ?? [];
+            return ['success' => true, 'data' => [
+                'method' => $method,
+                'amount_available_cents' => $available,
+                'bank_names' => is_array($banks) ? $banks : [],
+            ]];
+        } catch (Throwable $e) {
+            return ['success' => false, 'error' => 'PayFast could not check refund options: ' . $e->getMessage()];
+        }
+    }
+
+    public function refundOrder(int $orderId, int $staffId, mixed $amount, mixed $reason, array $bankDetails = []): array {
         if (!is_numeric($amount) || !is_string($reason)) {
             return ['success' => false, 'error' => 'Enter a valid refund amount and reason.'];
         }
@@ -335,15 +373,45 @@ class PaymentService {
                 return ['success' => false, 'error' => 'PayFast reports that this payment is not refundable for that amount.'];
             }
             $refundMethod = $amountCents === $available ? $fullMethod : $partialMethod;
-            if ($refundMethod !== 'PAYMENT_SOURCE') {
+            $body = ['amount' => $amountCents, 'reason' => $reason, 'notify_buyer' => true, 'notify_merchant' => true];
+            if ($refundMethod === 'BANK_PAYOUT') {
+                $holder = trim((string) ($bankDetails['bank_account_holder'] ?? ''));
+                $bankName = trim((string) ($bankDetails['bank_name'] ?? ''));
+                $branchCode = preg_replace('/\D+/', '', (string) ($bankDetails['bank_branch_code'] ?? ''));
+                $accountNumber = preg_replace('/\D+/', '', (string) ($bankDetails['bank_account_number'] ?? ''));
+                $accountType = strtolower(trim((string) ($bankDetails['bank_account_type'] ?? '')));
+                $bankNames = $details['bank_names'] ?? [];
+                $allowedBanks = [];
+                foreach (is_array($bankNames) ? $bankNames : [] as $bank) {
+                    if (is_string($bank)) $allowedBanks[] = $bank;
+                    elseif (is_array($bank)) {
+                        $name = $bank['bank_name'] ?? $bank['value'] ?? $bank['code'] ?? null;
+                        if (is_string($name)) $allowedBanks[] = $name;
+                    }
+                }
+                if (strlen($holder) < 2 || strlen($holder) > 255 || !in_array($bankName, $allowedBanks, true)
+                    || strlen($branchCode) < 1 || strlen($branchCode) > 6
+                    || strlen($accountNumber) < 1 || strlen($accountNumber) > 12
+                    || !in_array($accountType, ['current', 'savings'], true)) {
+                    $this->setRefundStatus((int) $refund->id, 'failed');
+                    return ['success' => false, 'error' => 'Enter valid bank payout details and choose a bank offered by PayFast.'];
+                }
+                $body += [
+                    'bank_account_holder' => $holder,
+                    'bank_name' => $bankName,
+                    'bank_branch_code' => $branchCode,
+                    'bank_account_number' => $accountNumber,
+                    'bank_account_type' => $accountType,
+                ];
+            } elseif ($refundMethod !== 'PAYMENT_SOURCE') {
                 $this->setRefundStatus((int) $refund->id, 'failed');
-                return ['success' => false, 'error' => 'PayFast cannot return this refund to the original payment method. The available refund method is ' . $refundMethod . '. Handle it in PayFast and record it there.'];
+                return ['success' => false, 'error' => 'PayFast does not offer an automated refund method for this payment amount.'];
             }
 
             $response = $this->postJson(
                 $this->apiUrl('/refunds/' . rawurlencode($payment->gateway_reference)),
-                ['amount' => $amountCents, 'reason' => $reason, 'notify_buyer' => true, 'notify_merchant' => true],
-                $this->apiHeaders(['amount' => $amountCents, 'reason' => $reason, 'notify_buyer' => true, 'notify_merchant' => true])
+                $body,
+                $this->apiHeaders($body)
             );
             $accepted = $response['data']['response'] ?? null;
             if (($response['status'] ?? '') === 'failed'
