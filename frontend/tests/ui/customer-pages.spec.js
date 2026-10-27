@@ -1,9 +1,7 @@
 const { test, expect } = require('@playwright/test');
 
-const API = 'https://foodbykone-production.up.railway.app';
-
 async function mockAnonymousSession(page) {
-  await page.route(`${API}/auth/me`, (route) => route.fulfill({
+  await page.route(/\/auth\/me$/, (route) => route.fulfill({
     status: 401,
     contentType: 'application/json',
     body: JSON.stringify({ success: false, data: null, error: 'Authentication required.' }),
@@ -14,11 +12,11 @@ test('menu skeletons are replaced by loaded product cards', async ({ page }) => 
   let releaseProducts;
   const productsGate = new Promise((resolve) => { releaseProducts = resolve; });
   await mockAnonymousSession(page);
-  await page.route(`${API}/categories`, (route) => route.fulfill({
+  await page.route(/\/categories$/, (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({ success: true, data: [{ id: 1, name: 'Burgers' }] }),
   }));
-  await page.route(`${API}/products`, async (route) => {
+  await page.route(/\/products$/, async (route) => {
     await productsGate;
     await route.fulfill({
       contentType: 'application/json',
@@ -41,7 +39,7 @@ test('cart loading placeholders do not remain beside real cart items', async ({ 
   let releaseCart;
   const cartGate = new Promise((resolve) => { releaseCart = resolve; });
   await mockAnonymousSession(page);
-  await page.route(`${API}/cart`, async (route) => {
+  await page.route(/\/cart$/, async (route) => {
     await cartGate;
     await route.fulfill({
       contentType: 'application/json',
@@ -51,7 +49,7 @@ test('cart loading placeholders do not remain beside real cart items', async ({ 
       ] } }),
     });
   });
-  await page.route(`${API}/products`, (route) => route.fulfill({
+  await page.route(/\/products$/, (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({ success: true, data: [
       { id: 1, name: 'Classic Burger', price: 49.99 },
@@ -70,11 +68,11 @@ test('cart loading placeholders do not remain beside real cart items', async ({ 
 
 test('order tracking uses delivery-specific progress labels', async ({ page }) => {
   await mockAnonymousSession(page);
-  await page.route(/foodbykone-production\.up\.railway\.app\/orders\?limit=1$/, (route) => route.fulfill({
+  await page.route(/\/orders\?limit=1$/, (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({ success: true, data: { orders: [{ id: 73 }] } }),
   }));
-  await page.route(`${API}/orders/73`, (route) => route.fulfill({
+  await page.route(/\/orders\/73$/, (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify({ success: true, data: {
       order: {
