@@ -2932,6 +2932,16 @@ td {
 .order-item-line:last-child, .order-total-row:last-child { border-bottom: 0; }
 .order-item-name { display: flex; flex-direction: column; gap: 4px; }
 .order-item-name span { color: var(--grey); font-size: .78rem; }
+.order-item-edit-controls { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.order-item-edit-controls input { width: 76px; min-height: 36px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 7px; font: inherit; }
+.order-item-edit-controls button, .order-item-add-row button { border: 1px solid var(--border); border-radius: 7px; background: white; padding: 8px 10px; font: inherit; cursor: pointer; }
+.order-item-edit-controls button[data-remove-order-item] { color: #a52a2a; }
+.order-item-adjustment { margin-top: 14px; padding: 14px; border-radius: 10px; background: #fff8f2; }
+.order-item-adjustment label { display: block; color: var(--orange); font-size: .72rem; font-weight: 700; margin-bottom: 7px; }
+.order-item-add-row { display: flex; gap: 8px; }
+.order-item-add-row select { min-width: 0; flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 7px; font: inherit; }
+.order-review-modal #saveOrderAdjustmentsBtn { width: 100%; margin-top: 10px; padding: 11px; border: 0; border-radius: 8px; background: var(--green); color: white; font: inherit; font-weight: 600; cursor: pointer; }
+.order-review-modal #saveOrderAdjustmentsBtn:disabled { opacity: .55; cursor: not-allowed; }
 .order-grand-total { border-top: 1px solid var(--border); font-size: 1rem; }
 .order-review-modal .decision-buttons { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .order-review-modal .accept-order-btn, .order-review-modal .confirm-time-btn, .order-review-modal .confirm-decline-btn, .order-review-modal .save-status-btn { width: 100%; border: 0; border-radius: 8px; padding: 12px; margin-top: 10px; font: inherit; font-weight: 600; cursor: pointer; }

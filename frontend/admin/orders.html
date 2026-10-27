@@ -715,6 +715,15 @@
                 <section class="order-items-section">
                     <h4>Items ordered</h4>
                     <div id="modalItems" class="order-items-list"><p>Loading order items…</p></div>
+                    <div id="orderItemAdjustment" class="order-item-adjustment" hidden>
+                        <label for="addOrderItemSelect">ADD A MENU ITEM</label>
+                        <div class="order-item-add-row">
+                            <select id="addOrderItemSelect" aria-label="Choose a menu item to add"><option value="">Choose a menu item</option></select>
+                            <button type="button" id="addOrderItemBtn">Add item</button>
+                        </div>
+                        <button type="button" id="saveOrderAdjustmentsBtn">Save item changes &amp; accept order</button>
+                        <p class="slot-help">The backend will recalculate the order total and charge the updated amount.</p>
+                    </div>
                 </section>
                 <section class="order-totals-section">
                     <div class="order-total-row"><span>Subtotal</span><strong id="modalSubtotal">—</strong></div>

@@ -2,6 +2,8 @@
 
 class OrderService {
 
+    private const PAYMENT_SETUP_TIMEOUT_MINUTES = 30;
+
     // Keep each order change and its status history in the same transaction.
     private function transactional(callable $work): array {
         $db = Database::getConnection();
@@ -16,6 +18,68 @@ class OrderService {
             }
             return ['success' => false, 'data' => null, 'error' => $e->getMessage()];
         }
+    }
+
+    /** Mark abandoned zero-charge PayFast setup attempts as cancelled. */
+    public function expireAbandonedPaymentSetups(): int {
+        $db = Database::getConnection();
+        $stmt = $db->query(
+            "SELECT o.id FROM orders o
+             JOIN payments p ON p.order_id = o.id
+             WHERE o.status = 'submitted' AND p.status = 'tokenized'
+               AND p.gateway_token IS NULL
+               AND o.created_at <= CURRENT_TIMESTAMP() - INTERVAL " . self::PAYMENT_SETUP_TIMEOUT_MINUTES . " MINUTE
+             ORDER BY o.id LIMIT 100"
+        );
+        $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        $expiredCount = 0;
+
+        foreach ($ids as $orderId) {
+            try {
+                $db->beginTransaction();
+                $order = Order::lockById($orderId);
+                $payment = $order?->getPayment();
+                if (!$order || $order->status !== Order::STATUS_SUBMITTED || !$payment
+                    || $payment->status !== Payment::STATUS_TOKENIZED || $payment->gateway_token !== null) {
+                    $db->commit();
+                    continue;
+                }
+
+                $expired = $db->prepare(
+                    'SELECT created_at <= CURRENT_TIMESTAMP() - INTERVAL ' . self::PAYMENT_SETUP_TIMEOUT_MINUTES . ' MINUTE
+                     FROM orders WHERE id = ?'
+                );
+                $expired->execute([$orderId]);
+                if (!(bool) $expired->fetchColumn()) {
+                    $db->commit();
+                    continue;
+                }
+
+                $order->status = Order::STATUS_CANCELLED;
+                $order->cancel_reason = 'Card setup was not completed.';
+                $loyaltyRefund = (new LoyaltyService())->refundOrderRedemption($order);
+                if (!$loyaltyRefund['success']) {
+                    throw new RuntimeException('Unable to return reserved loyalty points for abandoned payment setup.');
+                }
+                if (!$payment->voidToken() || !$order->save()) {
+                    throw new RuntimeException('Unable to expire abandoned payment setup.');
+                }
+                $this->logTransition(
+                    $order->id,
+                    Order::STATUS_SUBMITTED,
+                    Order::STATUS_CANCELLED,
+                    null,
+                    'PayFast card setup was not completed within ' . self::PAYMENT_SETUP_TIMEOUT_MINUTES . ' minutes.'
+                );
+                $db->commit();
+                $expiredCount++;
+            } catch (Throwable $error) {
+                if ($db->inTransaction()) $db->rollBack();
+                error_log('Could not expire abandoned card setup for order ' . $orderId . ': ' . $error->getMessage());
+            }
+        }
+
+        return $expiredCount;
     }
 
     public function confirmOrder(int $orderId, int $staffId, ?string $confirmedStart = null, ?string $confirmedEnd = null): array {
@@ -160,18 +224,22 @@ class OrderService {
 
     // Load customer details with the orders in one query.
     public function getPendingOrdersForStaffDashboard(): array {
+        $this->expireAbandonedPaymentSetups();
         $db = Database::getConnection();
         $rows = $db->query(
             "SELECT o.*, u.name AS customer_name, u.email AS customer_email
              FROM orders o
              JOIN users u ON u.id = o.customer_id
+             JOIN payments p ON p.order_id = o.id
              WHERE o.status = '" . Order::STATUS_SUBMITTED . "'
+               AND p.gateway_token IS NOT NULL
              ORDER BY o.created_at ASC"
         )->fetchAll();
         return ['success' => true, 'data' => $rows, 'error' => null];
     }
 
     public function getOrdersForStaffDashboard(int $limit = 50, int $offset = 0, bool $todayOnly = false): array {
+        $this->expireAbandonedPaymentSetups();
         $limit = max(1, min(100, $limit));
         $offset = max(0, $offset);
         $db = Database::getConnection();
@@ -186,7 +254,8 @@ class OrderService {
             // Requested and confirmed windows are stored as local wall-clock DATETIME values.
             $windowStart = $today->format('Y-m-d H:i:s');
             $windowEnd = $tomorrow->format('Y-m-d H:i:s');
-            $where = ' WHERE o.created_at >= :created_start AND o.created_at < :created_end
+            $where = ' WHERE p.gateway_token IS NOT NULL
+                       AND o.created_at >= :created_start AND o.created_at < :created_end
                        AND COALESCE(o.confirmed_window_start, o.requested_window_start) >= :window_start
                        AND COALESCE(o.confirmed_window_start, o.requested_window_start) < :window_end';
             $bindings = [
@@ -197,7 +266,8 @@ class OrderService {
             ];
         }
 
-        $count = $db->prepare('SELECT COUNT(*) FROM orders o' . $where);
+        if ($where === '') $where = ' WHERE p.gateway_token IS NOT NULL';
+        $count = $db->prepare('SELECT COUNT(*) FROM orders o JOIN payments p ON p.order_id = o.id' . $where);
         foreach ($bindings as $name => $value) $count->bindValue($name, $value);
         $count->execute();
         $total = (int) $count->fetchColumn();
@@ -210,7 +280,7 @@ class OrderService {
                         - o.loyalty_points_redeemed + o.loyalty_points_refunded) AS total
              FROM orders o
              JOIN users u ON u.id = o.customer_id
-             LEFT JOIN payments p ON p.order_id = o.id" . $where . "
+             JOIN payments p ON p.order_id = o.id" . $where . "
              ORDER BY o.created_at DESC, o.id DESC
              LIMIT :limit OFFSET :offset"
         );
@@ -391,23 +461,25 @@ class OrderService {
             return ['order' => $order, 'payment_setup' => $setupResult['data']];
         });
 
-        if ($result['success']) {
-            (new NotificationService())->notifyOrderEvent($result['data']['order'], 'submitted', 'staff');
-        }
-
         return $result;
     }
 
     /** Loads one order with its related details. */
     public function getOrderById(int $orderId, ?int $customerId = null): array {
+        $this->expireAbandonedPaymentSetups();
         $order = Order::findById($orderId);
         if (!$order || ($customerId !== null && $order->customer_id !== $customerId)) {
             return $this->failure('Order not found.');
         }
 
+        $payment = $order->getPayment();
+        if ($customerId !== null && $order->status === Order::STATUS_SUBMITTED
+            && (!$payment || $payment->gateway_token === null)) {
+            return $this->failure('Order payment setup is not complete yet.');
+        }
+
         $items = $order->getItems();
         $this->attachCurrentProductImages($items);
-        $payment = $order->getPayment();
 
         return $this->success([
             'order' => $order,
@@ -421,19 +493,26 @@ class OrderService {
 
     /** Returns a customer's orders a page at a time. */
     public function getCustomerOrders(int $customerId, int $limit = 20, int $offset = 0): array {
+        $this->expireAbandonedPaymentSetups();
         $db = Database::getConnection();
 
         $limit = max(1, min($limit, 100));
         $offset = max(0, $offset);
 
-        $countStmt = $db->prepare('SELECT COUNT(*) as total FROM orders WHERE customer_id = ?');
-        $countStmt->execute([$customerId]);
+        $visiblePayment = '(p.gateway_token IS NOT NULL OR p.status = ?)';
+        $countStmt = $db->prepare(
+            'SELECT COUNT(*) as total FROM orders o JOIN payments p ON p.order_id = o.id
+             WHERE o.customer_id = ? AND ' . $visiblePayment
+        );
+        $countStmt->execute([$customerId, Payment::STATUS_SUCCESS]);
         $total = (int) $countStmt->fetch()['total'];
 
         $stmt = $db->prepare(
-            'SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?'
+            'SELECT o.* FROM orders o JOIN payments p ON p.order_id = o.id
+             WHERE o.customer_id = ? AND ' . $visiblePayment . '
+             ORDER BY o.created_at DESC, o.id DESC LIMIT ? OFFSET ?'
         );
-        $stmt->execute([$customerId, $limit, $offset]);
+        $stmt->execute([$customerId, Payment::STATUS_SUCCESS, $limit, $offset]);
         $orders = $stmt->fetchAll();
 
         return $this->success([
@@ -452,6 +531,30 @@ class OrderService {
         ?string $newWindowStart = null,
         ?string $newWindowEnd = null
     ): array {
+        if ($adjustedItems !== null) {
+            if (count($adjustedItems) > 50) {
+                return $this->failure('An adjusted order can contain at most 50 menu items.');
+            }
+            $combinedItems = [];
+            foreach ($adjustedItems as $item) {
+                if (!is_array($item)) {
+                    return $this->failure('Each adjusted item must include a product and quantity.');
+                }
+                $productId = filter_var($item['product_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+                $quantity = filter_var($item['quantity'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 99]]);
+                if ($productId === false || $quantity === false) {
+                    return $this->failure('Adjusted items need a valid product and a quantity from 1 to 99.');
+                }
+                $combinedItems[$productId] = ($combinedItems[$productId] ?? 0) + $quantity;
+                if ($combinedItems[$productId] > 99) {
+                    return $this->failure('The quantity for a menu item cannot exceed 99.');
+                }
+            }
+            $adjustedItems = [];
+            foreach ($combinedItems as $productId => $quantity) {
+                $adjustedItems[] = ['product_id' => (int) $productId, 'quantity' => $quantity];
+            }
+        }
         if (($newWindowStart === null) !== ($newWindowEnd === null)) {
             return $this->failure('Both confirmed window start and end are required.');
         }
@@ -483,9 +586,6 @@ class OrderService {
                 $capacity = $slotService->reserveCapacityLocked($newWindowStart, $order->id);
                 if (!$capacity['success']) throw new \Exception($capacity['error']);
             }
-
-            $oldSubtotal = $order->subtotal;
-            $oldDiscount = $order->locked_discount;
 
             if ($adjustedItems !== null) {
                 if ($adjustedItems === []) {
@@ -528,9 +628,8 @@ class OrderService {
                 if ($order->promotion_id) {
                     $promotionService = new PromotionService();
                     $revalidate = $promotionService->revalidateForOrder($order);
-                    if ($revalidate['success']) {
-                        $order->locked_discount = $revalidate['data']['discount'];
-                    }
+                    if (!$revalidate['success']) throw new \Exception($revalidate['error']);
+                    $order->locked_discount = (float) ($revalidate['data']['discount'] ?? 0);
                 }
 
                 $redemptionRefund = (new LoyaltyService())->refundExcessOrderRedemption($order);
@@ -573,11 +672,16 @@ class OrderService {
     }
 
 public function getOrderForStaff(int $orderId): array {
+        $this->expireAbandonedPaymentSetups();
         $order = Order::findById($orderId);
         if (!$order) {
             return $this->failure('Order not found.');
         }
 $payment = $order->getPayment();
+        if ($order->status === Order::STATUS_SUBMITTED
+            && (!$payment || $payment->gateway_token === null)) {
+            return $this->failure('Order is not available for staff review until card setup is complete.');
+        }
 
         $items = $order->getItems();
         $this->attachCurrentProductImages($items);

@@ -22,6 +22,7 @@ class SlotService {
         if ($date < $today) {
             return ['success' => false, 'data' => null, 'error' => 'Past dates cannot be scheduled.'];
         }
+        (new OrderService())->expireAbandonedPaymentSetups();
         if ($date->format('N') === '7') {
             return ['success' => true, 'data' => [], 'error' => null];
         }

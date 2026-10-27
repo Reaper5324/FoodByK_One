@@ -738,6 +738,7 @@ const initializeAdminLive = async () => {
 
     let currentReviewOrderId = null;
     let currentReviewData = null;
+    let orderEditProducts = [];
     const money = (value) => "R" + Number(value || 0).toFixed(2);
     const displayDateTime = (value) => {
         if (!value) return "—";
@@ -803,13 +804,42 @@ const initializeAdminLive = async () => {
         if (!Array.isArray(items) || !items.length) {
             const empty = document.createElement("p"); empty.textContent = "No item details were returned for this order."; container.appendChild(empty); return;
         }
+        const canEditItems = currentReviewData?.order?.status === "submitted"
+            && currentReviewData?.payment?.status === "tokenized";
         items.forEach((item) => {
             const row = document.createElement("div"); row.className = "order-item-line";
+            row.dataset.productId = String(item.product_id || "");
             const name = document.createElement("div"); name.className = "order-item-name";
             const title = document.createElement("strong"); title.textContent = item.product_name || item.name || `Menu item #${item.product_id || "?"}`; name.appendChild(title);
             const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} × ${money(item.unit_price ?? item.price)}`; name.appendChild(detail);
+            if (canEditItems) {
+                const controls = document.createElement("div"); controls.className = "order-item-edit-controls";
+                const quantity = document.createElement("input");
+                quantity.type = "number"; quantity.min = "1"; quantity.max = "99"; quantity.step = "1";
+                quantity.value = String(item.quantity || 1); quantity.setAttribute("aria-label", `Quantity for ${title.textContent}`);
+                const remove = document.createElement("button"); remove.type = "button"; remove.dataset.removeOrderItem = "true"; remove.textContent = "Remove";
+                controls.append(quantity, remove); name.appendChild(controls);
+            }
             const total = document.createElement("strong"); total.textContent = money(item.line_total ?? (Number(item.quantity || 0) * Number(item.unit_price ?? item.price ?? 0)));
             row.append(name, total); container.appendChild(row);
+        });
+    };
+
+    const loadOrderEditProducts = async () => {
+        const select = document.getElementById("addOrderItemSelect");
+        if (!select) return;
+        select.replaceChildren(new Option("Loading menu items…", ""));
+        const result = await apiGet("/products");
+        if (!result.success) {
+            select.replaceChildren(new Option("Menu items unavailable", ""));
+            return;
+        }
+        orderEditProducts = (Array.isArray(result.data) ? result.data : []).filter((product) =>
+            product.is_available === true || Number(product.is_available) === 1
+        );
+        select.replaceChildren(new Option(orderEditProducts.length ? "Choose a menu item" : "No available menu items", ""));
+        orderEditProducts.forEach((product) => {
+            select.add(new Option(`${product.name} · ${money(product.price)}`, String(product.id)));
         });
     };
     const openOrderReview = async (id) => {
@@ -823,6 +853,10 @@ const initializeAdminLive = async () => {
         const data = result.data || {};
         const order = data.order || data;
         currentReviewData = { ...data, order };
+        const itemAdjustment = document.getElementById("orderItemAdjustment");
+        const canEditItems = order.status === "submitted" && data.payment?.status === "tokenized";
+        if (itemAdjustment) itemAdjustment.hidden = !canEditItems;
+        if (canEditItems) await loadOrderEditProducts();
         const customer = data.customer || {};
         const address = data.address || {};
         setText("modalOrderId", `Order #${order.id || id}`);
@@ -845,8 +879,13 @@ const initializeAdminLive = async () => {
         setText("modalNotes", order.customer_notes || order.special_instructions || order.notes || "None");
         const refundSection = document.getElementById("refundSection");
         const payment = data.payment || {};
-        const refundEligible = payment.status === "success" && !["cancelled", "declined"].includes(order.status);
-        if (refundSection) refundSection.hidden = !refundEligible;
+        const paymentStatus = String(payment.status || "").toLowerCase();
+        const refundEligible = paymentStatus === "success" && Boolean(payment.gateway_reference)
+            && !["cancelled", "declined"].includes(String(order.status || "").toLowerCase());
+        if (refundSection) {
+            refundSection.hidden = !refundEligible;
+            refundSection.classList.toggle("show", refundEligible);
+        }
         const refundAmount = document.getElementById("refundAmount");
         if (refundAmount) {
             const submitted = (data.refunds || []).filter((refund) => ["pending", "submitted", "completed"].includes(refund.status))
@@ -983,10 +1022,10 @@ const initializeAdminLive = async () => {
 
     
     document.addEventListener("click", async (event) => {
-        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn");
+        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn");
         if (!target) return;
         const action = target.dataset.adminAction;
-        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn")) return;
+        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn")) return;
         event.preventDefault(); event.stopImmediatePropagation();
 
         if (action === "support-ticket-open") return openSupportTicket(target.dataset.id);
@@ -996,6 +1035,50 @@ const initializeAdminLive = async () => {
         if (target.matches("#closePromotionModal")) return closeModal("#promotionModal");
         if (target.matches("#closeUserModal, #cancelUserBtn")) return closeModal("#userModal");
         if (target.matches(".close-modal")) return closeModal(target.closest("#orderModal") ? "#orderModal" : "#customerModal");
+        if (target.matches("[data-remove-order-item]")) {
+            target.closest(".order-item-line")?.remove();
+            return;
+        }
+        if (target.matches("#addOrderItemBtn")) {
+            const productId = Number(document.getElementById("addOrderItemSelect")?.value);
+            const product = orderEditProducts.find((item) => Number(item.id) === productId);
+            if (!product || !Array.isArray(currentReviewData?.items)) return alert("Choose an available menu item first.");
+            const existing = currentReviewData.items.find((item) => Number(item.product_id) === productId);
+            if (existing) {
+                if (Number(existing.quantity) >= 99) return alert("An item quantity cannot exceed 99.");
+                existing.quantity = Number(existing.quantity) + 1;
+            } else {
+                currentReviewData.items.push({ product_id: productId, product_name: product.name, quantity: 1, unit_price: Number(product.price) });
+            }
+            renderOrderItems(currentReviewData.items);
+            return;
+        }
+        if (target.matches("#saveOrderAdjustmentsBtn") && currentReviewOrderId) {
+            const rows = [...(document.getElementById("modalItems")?.querySelectorAll(".order-item-line") || [])];
+            const adjustedItems = [];
+            for (const row of rows) {
+                const productId = Number(row.dataset.productId);
+                const quantity = Number(row.querySelector('input[type="number"]')?.value);
+                if (!Number.isInteger(productId) || productId < 1 || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+                    return alert("Each item needs a quantity between 1 and 99.");
+                }
+                adjustedItems.push({ product_id: productId, quantity });
+            }
+            if (!adjustedItems.length) return alert("An order must contain at least one menu item.");
+            if (!confirm(`Save these item changes and charge the updated total for order #${currentReviewOrderId}?`)) return;
+            const orderId = currentReviewOrderId;
+            target.disabled = true;
+            const result = await apiPost(`/staff/orders/${orderId}/adjust`, { adjusted_items: adjustedItems });
+            target.disabled = false;
+            if (!showResult(result)) {
+                await loadOrders();
+                await openOrderReview(orderId);
+                return;
+            }
+            await loadOrders();
+            await openOrderReview(orderId);
+            return;
+        }
         if (target.matches("#updateReportBtn")) return loadReports();
         if (target.matches("#printReportBtn")) return window.print();
         if (target.matches("#saveHoursBtn, #saveAccountBtn")) {

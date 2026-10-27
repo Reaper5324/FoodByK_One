@@ -52,7 +52,13 @@ document.addEventListener("DOMContentLoaded", () => {
         browse.href = "menu.html";
         empty.appendChild(browse);
         list.appendChild(empty);
-        setFeedback("", false);
+        if (paymentState === "pending") {
+            setFeedback("PayFast is confirming your card setup. Orders appear here after confirmation; incomplete setups expire automatically after 30 minutes.");
+        } else if (paymentState === "cancelled") {
+            setFeedback("Card setup was cancelled. No order was sent to the staff team.");
+        } else {
+            setFeedback("", false);
+        }
     }
 
     function renderOrder(bundle) {

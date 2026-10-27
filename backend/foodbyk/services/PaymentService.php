@@ -45,6 +45,15 @@ class PaymentService {
             return ['success' => false, 'error' => 'Order or token missing from ITN.'];
         }
 
+        (new OrderService())->expireAbandonedPaymentSetups();
+        $order = Order::findById($orderId);
+        $payment = $order?->getPayment();
+        if ($order && $order->status === Order::STATUS_CANCELLED && $payment
+            && $payment->status === Payment::STATUS_VOIDED) {
+            $this->releaseTokenValue($token);
+            return ['success' => true];
+        }
+
         $db = Database::getConnection();
         try {
             $db->beginTransaction();
@@ -70,6 +79,11 @@ class PaymentService {
             if ($db->inTransaction()) $db->rollBack();
             error_log('PayFast token ITN could not be saved: ' . $e->getMessage());
             return ['success' => false, 'error' => $e->getMessage()];
+        }
+
+        $readyOrder = Order::findById($orderId);
+        if ($readyOrder && $readyOrder->status === Order::STATUS_SUBMITTED) {
+            (new NotificationService())->notifyOrderEvent($readyOrder, 'submitted', 'staff');
         }
 
         return ['success' => true];
@@ -222,13 +236,17 @@ class PaymentService {
         $payment = $order->getPayment();
         if (!$payment || !$payment->gateway_token) return;
 
+        $this->releaseTokenValue($payment->gateway_token);
+    }
+
+    private function releaseTokenValue(string $token): void {
         try {
             $this->postJson(
-                self::apiUrl("/subscriptions/{$payment->gateway_token}/cancel"),
+                self::apiUrl('/subscriptions/' . rawurlencode($token) . '/cancel'),
                 [], $this->apiHeaders([]), 'PUT'
             );
         } catch (\Throwable $e) {
-            error_log('PayFast token release failed (non-fatal): ' . $e->getMessage());
+            error_log('PayFast token release failed (non-fatal).');
         }
     }
 
