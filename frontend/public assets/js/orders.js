@@ -146,7 +146,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         side.appendChild(element("h4", "", "Order total"));
         const rewardsUsed = Math.max(0, Number(order.loyalty_points_redeemed || 0) - Number(order.loyalty_points_refunded || 0));
-        const priceRows = [["Subtotal", order.subtotal], ["Promotion discount", -Number(order.locked_discount || 0)]];
+        const promotionCode = bundle.promotion?.code || order.promotion_code;
+        const promotionTargets = bundle.promotion?.target_product_names || [];
+        const promotionLabel = promotionCode
+            ? `Promotion ${promotionCode}${promotionTargets.length ? ` · ${promotionTargets.join(", ")}` : ""}`
+            : "Promotion discount";
+        const priceRows = [["Subtotal", order.subtotal], [promotionLabel, -Number(order.locked_discount || 0)]];
         if (rewardsUsed > 0) priceRows.push([`Loyalty points (${rewardsUsed.toFixed(2)})`, -rewardsUsed]);
         priceRows.push(["Delivery fee", order.delivery_fee]);
         priceRows.forEach(([label, amount]) => {

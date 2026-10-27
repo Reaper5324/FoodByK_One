@@ -83,7 +83,9 @@ order; historical order browsing is a later feature.
 | `buy_one_get_one` | Every pair of matching product items makes the lower-priced unit free. |
 | `free_delivery` | Discounts the delivery fee. |
 
-Promotion calculations use immutable order-item snapshots (`product_id`, `quantity`, `unit_price`) rather than live product prices. The computed discount must be stored on `orders.locked_discount` when an order is submitted and revalidated only if staff adjust the order.
+Promotions can apply to the whole order or to selected menu items. The `promotion_products` table stores those selections; an empty selection means all items are eligible. Percentage and fixed discounts use only eligible item totals, BOGO uses pairs of eligible matching products, and a targeted free-delivery offer waives delivery when the basket contains at least one selected item. Promotion calculations use immutable order-item snapshots (`product_id`, `quantity`, `unit_price`) rather than browser-submitted prices. The computed discount is stored on `orders.locked_discount` at submission and recalculated if staff adjust the order.
+
+When upgrading an existing database, run [`database/promotion_product_targets.sql`](database/promotion_product_targets.sql) once before deploying the promotion service changes. The main `migration.sql` includes this table for new installations.
 
 Admin-only `PUT /admin/staff/{id}`, `PUT /admin/products/{id}`, and `PUT /admin/promotions/{id}` routes edit records through their owning services. `DELETE /admin/staff/{id}` deactivates staff accounts, `DELETE /admin/products/{id}` marks products removed, and `DELETE /admin/promotions/{id}` deactivates promotions; these operations preserve historical references rather than deleting database rows. Staff updates accept `full_name`, `email`, `phone`, and optionally `is_active`. Promotion updates accept `code`, `discount_type`, `discount_value`, `start_date`, `end_date`, and `is_active`; send `null` for an optional date to clear it.
 

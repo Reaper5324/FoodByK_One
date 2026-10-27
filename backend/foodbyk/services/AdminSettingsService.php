@@ -34,7 +34,7 @@ class AdminSettingsService {
     public function listPromotions(): array {
         $promotions = Promotion::findAll();
         usort($promotions, fn(Promotion $a, Promotion $b) => $b->id <=> $a->id);
-        return $this->success($promotions);
+        return $this->success(Promotion::attachTargets($promotions));
     }
 
     public function addPromotion(array $input): array {
@@ -43,10 +43,16 @@ class AdminSettingsService {
         $value = $input['discount_value'] ?? null;
         $start = $input['start_date'] ?? null;
         $end   = $input['end_date'] ?? null;
+        $active = array_key_exists('is_active', $input)
+            ? filter_var($input['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+            : true;
+        $targetIds = $this->normalizePromotionTargets($input['target_product_ids'] ?? []);
 
         if ($code === '' || strlen($code) > 40) {
             return $this->failure('Promotion code must be between 1 and 40 characters.');
         }
+        if ($active === null) return $this->failure('Invalid promotion status.');
+        if ($targetIds === null) return $this->failure('Choose valid active menu items for this promotion.');
         if (!in_array($type, [Promotion::TYPE_PERCENTAGE, Promotion::TYPE_FIXED_AMOUNT, Promotion::TYPE_BUY_ONE_GET_ONE, Promotion::TYPE_FREE_DELIVERY], true)) {
             return $this->failure('Invalid discount type.');
         }
@@ -66,8 +72,22 @@ class AdminSettingsService {
             return $this->failure('A promotion with this code already exists.');
         }
 
-        $promo = new Promotion(code: $code, discount_type: $type, discount_value: (float) $value, start_date: $start, end_date: $end);
-        return $promo->save() ? $this->success($promo, 201) : $this->failure('Unable to create promotion.');
+        $promo = new Promotion(code: $code, discount_type: $type, discount_value: (float) $value, start_date: $start, end_date: $end, is_active: $active);
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            if (!$promo->save() || !$this->replacePromotionTargets($promo->id, $targetIds)) {
+                throw new RuntimeException('Unable to create promotion.');
+            }
+            $db->commit();
+            Promotion::attachTargets([$promo]);
+            return $this->success($promo, 201);
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            return $this->failure(str_contains($error->getMessage(), 'Duplicate')
+                ? 'A promotion with this code already exists.'
+                : 'Unable to create promotion.');
+        }
     }
 
     public function updatePromotion(int $promotionId, array $input): array {
@@ -82,10 +102,14 @@ class AdminSettingsService {
         $start = array_key_exists('start_date', $input) ? $input['start_date'] : $promotion->start_date;
         $end = array_key_exists('end_date', $input) ? $input['end_date'] : $promotion->end_date;
         $active = $promotion->is_active;
+        $targetIds = array_key_exists('target_product_ids', $input)
+            ? $this->normalizePromotionTargets($input['target_product_ids'])
+            : $promotion->getTargetProductIds();
 
         if ($code === '' || strlen($code) > 40) {
             return $this->failure('Promotion code must be between 1 and 40 characters.');
         }
+        if ($targetIds === null) return $this->failure('Choose valid active menu items for this promotion.');
         $duplicate = Promotion::findByCode($code);
         if ($duplicate !== null && $duplicate->id !== $promotion->id) {
             return $this->failure('A promotion with this code already exists.');
@@ -119,7 +143,50 @@ class AdminSettingsService {
         $promotion->end_date = $end;
         $promotion->is_active = $active;
 
-        return $promotion->save() ? $this->success($promotion) : $this->failure('Unable to update promotion.');
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            if (!$promotion->save() || !$this->replacePromotionTargets($promotion->id, $targetIds)) {
+                throw new RuntimeException('Unable to update promotion.');
+            }
+            $db->commit();
+            Promotion::attachTargets([$promotion]);
+            return $this->success($promotion);
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            return $this->failure(str_contains($error->getMessage(), 'Duplicate')
+                ? 'A promotion with this code already exists.'
+                : 'Unable to update promotion.');
+        }
+    }
+
+    private function normalizePromotionTargets(mixed $targetIds): ?array {
+        if (!is_array($targetIds) || count($targetIds) > 100) return null;
+        $ids = [];
+        foreach ($targetIds as $targetId) {
+            $id = filter_var($targetId, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($id === false) return null;
+            $ids[(int) $id] = (int) $id;
+        }
+        if ($ids === []) return [];
+        $products = Product::findByIds(array_values($ids));
+        foreach ($ids as $id) {
+            $product = $products[$id] ?? null;
+            if (!$product || $product->status !== Product::STATUS_ACTIVE) return null;
+        }
+        return array_values($ids);
+    }
+
+    private function replacePromotionTargets(int $promotionId, array $productIds): bool {
+        $db = Database::getConnection();
+        $delete = $db->prepare('DELETE FROM promotion_products WHERE promotion_id = ?');
+        if (!$delete->execute([$promotionId])) return false;
+        if ($productIds === []) return true;
+        $insert = $db->prepare('INSERT INTO promotion_products (promotion_id, product_id) VALUES (?, ?)');
+        foreach ($productIds as $productId) {
+            if (!$insert->execute([$promotionId, $productId])) return false;
+        }
+        return true;
     }
 
     public function deactivatePromotion(int $promotionId): array {

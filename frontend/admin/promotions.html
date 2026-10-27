@@ -259,8 +259,9 @@
                         <thead>
 
                             <tr>
-                                <th>Promotion</th>
-                                <th>Discount</th>
+                                <th>Promotion code</th>
+                                <th>Offer</th>
+                                <th>Applies to</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>
                                 <th>Status</th>
@@ -530,36 +531,33 @@
                 <form id="promotionForm">
 
                     <div class="form-group">
-
-                        <label for="promotionName">
-                            PROMOTION NAME
-                        </label>
-
-                        <input
-                            type="text"
-                            id="promotionName"
-                            placeholder="Enter promotion name"
-                            required
-                        >
-
+                        <label for="promotionName">PROMOTION CODE</label>
+                        <input type="text" id="promotionName" maxlength="40" placeholder="e.g. WEEKEND20" required>
+                        <small>Customers enter this code at checkout.</small>
                     </div>
 
+                    <div class="promotion-form-row">
+                        <div class="form-group">
+                            <label for="promotionType">OFFER TYPE</label>
+                            <select id="promotionType" required>
+                                <option value="percentage">Percentage off</option>
+                                <option value="fixed_amount">Fixed rand amount off</option>
+                                <option value="buy_one_get_one">Buy one, get one free</option>
+                                <option value="free_delivery">Free delivery</option>
+                            </select>
+                            <small id="promotionTypeHelp">Discount is taken from eligible menu items.</small>
+                        </div>
+                        <div class="form-group" id="promotionValueGroup">
+                            <label for="promotionDiscount" id="promotionValueLabel">DISCOUNT PERCENTAGE</label>
+                            <input type="number" id="promotionDiscount" min="0.01" max="100" step="0.01" placeholder="20" required>
+                            <small id="promotionValueHelp">Enter a value from 0.01 to 100.</small>
+                        </div>
+                    </div>
 
                     <div class="form-group">
-
-                        <label for="promotionDiscount">
-                            DISCOUNT PERCENTAGE
-                        </label>
-
-                        <input
-                            type="number"
-                            id="promotionDiscount"
-                            min="1"
-                            max="100"
-                            placeholder="Enter discount percentage"
-                            required
-                        >
-
+                        <label for="promotionProducts">APPLIES TO MENU ITEMS</label>
+                        <select id="promotionProducts" multiple size="6" aria-describedby="promotionProductsHelp"></select>
+                        <small id="promotionProductsHelp">Leave all items unselected to apply the offer to the whole order. For free delivery, selected items qualify the basket for the delivery discount.</small>
                     </div>
 
 
@@ -574,7 +572,6 @@
                             <input
                                 type="date"
                                 id="promotionStartDate"
-                                required
                             >
 
                         </div>
@@ -589,7 +586,6 @@
                             <input
                                 type="date"
                                 id="promotionEndDate"
-                                required
                             >
 
                         </div>

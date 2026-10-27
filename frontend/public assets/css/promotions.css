@@ -102,6 +102,13 @@
     overflow-wrap: anywhere;
 }
 
+.promotion-eligibility {
+    margin: -8px 0 17px;
+    color: #625d56;
+    font-size: 13px;
+    line-height: 1.55;
+}
+
 .promotion-code {
     display: inline-flex;
     align-self: flex-start;

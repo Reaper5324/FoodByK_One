@@ -4,7 +4,7 @@ class PromotionService {
 
     public function listActive(): array {
         $promotions = array_values(array_filter(Promotion::findAll(), fn(Promotion $promotion) => $promotion->isActiveAt()));
-        return $this->success($promotions);
+        return $this->success(Promotion::attachTargets($promotions));
     }
 
     // Pass the calculated discount to the order so its submitted price is retained.
@@ -18,11 +18,18 @@ class PromotionService {
             return $this->failure('This promotion is not currently active.');
         }
 
+        Promotion::attachTargets([$promotion]);
+
         $discount = $promotion->calculateDiscount($subtotal, $lineItems, $deliveryFee);
 
         return $this->success([
             'promotion_id' => $promotion->id,
             'discount'     => $discount,
+            'promotion_code' => $promotion->code,
+            'discount_type' => $promotion->discount_type,
+            'discount_value' => $promotion->discount_value,
+            'target_product_ids' => $promotion->target_product_ids,
+            'target_product_names' => $promotion->target_product_names,
         ]);
     }
 
@@ -37,6 +44,7 @@ class PromotionService {
             // An expired promotion does not prevent staff from confirming the order.
             return $this->success(['discount' => 0.0, 'note' => 'Promotion expired before confirmation.']);
         }
+        Promotion::attachTargets([$promotion]);
 
         $lineItems = array_map(fn(OrderItem $item) => [
             'product_id' => $item->product_id,

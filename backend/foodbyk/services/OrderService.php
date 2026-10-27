@@ -480,10 +480,13 @@ class OrderService {
 
         $items = $order->getItems();
         $this->attachCurrentProductImages($items);
+        $promotion = $order->promotion_id ? Promotion::findById($order->promotion_id) : null;
+        if ($promotion) Promotion::attachTargets([$promotion]);
 
         return $this->success([
             'order' => $order,
             'items' => $items,
+            'promotion' => $promotion,
             'payment' => $order->getPayment(),
             'address' => $order->getAddress(),
             'customer' => $order->getCustomer(),
@@ -508,7 +511,9 @@ class OrderService {
         $total = (int) $countStmt->fetch()['total'];
 
         $stmt = $db->prepare(
-            'SELECT o.* FROM orders o JOIN payments p ON p.order_id = o.id
+            'SELECT o.*, pr.code AS promotion_code, pr.discount_type AS promotion_type
+             FROM orders o JOIN payments p ON p.order_id = o.id
+             LEFT JOIN promotions pr ON pr.id = o.promotion_id
              WHERE o.customer_id = ? AND ' . $visiblePayment . '
              ORDER BY o.created_at DESC, o.id DESC LIMIT ? OFFSET ?'
         );

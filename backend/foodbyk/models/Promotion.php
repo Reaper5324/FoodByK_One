@@ -3,6 +3,10 @@
 class Promotion extends Model {
     protected static string $table = 'promotions';
 
+    /** Product restrictions for this offer; an empty list means the whole order. */
+    public array $target_product_ids = [];
+    public array $target_product_names = [];
+
     public const TYPE_PERCENTAGE = 'percentage';
     public const TYPE_FIXED_AMOUNT = 'fixed_amount';
     public const TYPE_BUY_ONE_GET_ONE = 'buy_one_get_one';
@@ -29,6 +33,37 @@ class Promotion extends Model {
     public static function findByCode(string $code): ?static {
         $code = strtoupper(trim($code));
         return $code === '' ? null : static::findOneBy('code', $code);
+    }
+
+    /** Add selected menu items to promotion records for API responses. */
+    public static function attachTargets(array $promotions): array {
+        if ($promotions === []) return $promotions;
+        $ids = array_values(array_filter(array_map(fn(self $promotion) => $promotion->id, $promotions)));
+        if ($ids === []) return $promotions;
+        $marks = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = Database::getConnection()->prepare(
+            "SELECT pp.promotion_id, p.id AS product_id, p.name AS product_name
+             FROM promotion_products pp JOIN products p ON p.id = pp.product_id
+             WHERE pp.promotion_id IN ({$marks}) ORDER BY p.name"
+        );
+        $stmt->execute($ids);
+        $targets = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $promotionId = (int) $row['promotion_id'];
+            $targets[$promotionId]['ids'][] = (int) $row['product_id'];
+            $targets[$promotionId]['names'][] = $row['product_name'];
+        }
+        foreach ($promotions as $promotion) {
+            $promotion->target_product_ids = $targets[$promotion->id]['ids'] ?? [];
+            $promotion->target_product_names = $targets[$promotion->id]['names'] ?? [];
+        }
+        return $promotions;
+    }
+
+    public function getTargetProductIds(): array {
+        $stmt = Database::getConnection()->prepare('SELECT product_id FROM promotion_products WHERE promotion_id = ? ORDER BY product_id');
+        $stmt->execute([$this->id]);
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
     }
 
     public function isActiveAt(?DateTimeImmutable $when = null): bool {
@@ -62,15 +97,29 @@ class Promotion extends Model {
             return 0.0;
         }
 
+        $eligibleItems = $this->eligibleLineItems($lineItems);
+        $eligibleSubtotal = array_sum(array_map(
+            fn(array|object $item) => (float) $this->lineItemValue($item, 'quantity') * (float) $this->lineItemValue($item, 'unit_price'),
+            $eligibleItems
+        ));
+        $discountableSubtotal = $this->target_product_ids === [] ? $subtotal : $eligibleSubtotal;
         $discount = match ($this->discount_type) {
-            self::TYPE_PERCENTAGE => $subtotal * (min(100.0, max(0.0, $this->discount_value)) / 100),
-            self::TYPE_FIXED_AMOUNT => min($subtotal, max(0.0, $this->discount_value)),
-            self::TYPE_BUY_ONE_GET_ONE => $this->calculateBuyOneGetOneDiscount($lineItems),
-            self::TYPE_FREE_DELIVERY => $deliveryFee,
+            self::TYPE_PERCENTAGE => $discountableSubtotal * (min(100.0, max(0.0, $this->discount_value)) / 100),
+            self::TYPE_FIXED_AMOUNT => min($discountableSubtotal, max(0.0, $this->discount_value)),
+            self::TYPE_BUY_ONE_GET_ONE => $this->calculateBuyOneGetOneDiscount($eligibleItems),
+            self::TYPE_FREE_DELIVERY => ($this->target_product_ids === [] || $eligibleItems !== []) ? $deliveryFee : 0.0,
             default => 0.0,
         };
 
         return round(min($subtotal + $deliveryFee, max(0.0, $discount)), 2);
+    }
+
+    private function eligibleLineItems(array $lineItems): array {
+        if ($this->target_product_ids === []) return $lineItems;
+        $targets = array_fill_keys(array_map('intval', $this->target_product_ids), true);
+        return array_values(array_filter($lineItems, function (array|object $item) use ($targets): bool {
+            return isset($targets[(int) $this->lineItemValue($item, 'product_id')]);
+        }));
     }
 
     public function isValid(): bool {

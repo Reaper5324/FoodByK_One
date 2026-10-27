@@ -180,7 +180,7 @@
         summary.appendChild(summaryHeading);
         [
             ["Subtotal", data.subtotal],
-            ["Discount", -Number(data.discount || 0)],
+            [data.discount_reason || "Promotion discount", -Number(data.discount || 0)],
             ["Delivery fee", data.delivery_fee]
         ].forEach(([label, amount]) => {
             const row = document.createElement("p");
@@ -212,6 +212,20 @@
         totalValue.textContent = `R${Number(data.total).toFixed(2)}`;
         total.append(totalLabel, totalValue);
         summary.appendChild(total);
+        if (data.promotion && Number(data.discount || 0) === 0) {
+            const promoNote = document.createElement("p");
+            promoNote.className = "checkout-summary-note";
+            if (data.promotion.discount_type === "free_delivery" && data.fulfillment_type !== "delivery") {
+                promoNote.textContent = "Free-delivery offers apply to delivery orders only.";
+            } else if (data.promotion.discount_type === "buy_one_get_one") {
+                promoNote.textContent = "Buy-one-get-one offers need two of the same eligible menu item.";
+            } else if (data.promotion.target_product_names?.length) {
+                promoNote.textContent = `This offer applies to ${data.promotion.target_product_names.join(", ")}. Check that your basket meets the offer conditions.`;
+            } else {
+                promoNote.textContent = "This offer does not reduce this order total.";
+            }
+            summary.appendChild(promoNote);
+        }
         const summaryNote = document.createElement("p");
         summaryNote.className = "checkout-summary-note";
         summaryNote.textContent = "Your card is set up securely in the next step and is not charged while the team reviews your order.";

@@ -58,6 +58,7 @@ class CheckoutService {
 
         $discount = 0.0;
         $promotionId = null;
+        $promotionDetails = null;
         if ($promotionCode) {
             $promotionService = new PromotionService();
             $promoResult = $promotionService->validateAndCalculate(
@@ -71,6 +72,13 @@ class CheckoutService {
             }
             $discount = $promoResult['data']['discount'];
             $promotionId = $promoResult['data']['promotion_id'];
+            $promotionDetails = [
+                'code' => $promoResult['data']['promotion_code'],
+                'discount_type' => $promoResult['data']['discount_type'],
+                'discount_value' => $promoResult['data']['discount_value'],
+                'target_product_ids' => $promoResult['data']['target_product_ids'],
+                'target_product_names' => $promoResult['data']['target_product_names'],
+            ];
         }
 
         $redemption = (new LoyaltyService())->previewRedemption(
@@ -87,7 +95,12 @@ class CheckoutService {
             'items_count' => count($cartItems),
             'subtotal' => $subtotal,
             'discount' => $discount,
-            'discount_reason' => $promotionCode ? "Promo code: {$promotionCode}" : null,
+            'discount_reason' => $promotionDetails
+                ? 'Promo ' . $promotionDetails['code'] . ($promotionDetails['target_product_names']
+                    ? ' on ' . implode(', ', $promotionDetails['target_product_names'])
+                    : ' on eligible items')
+                : null,
+            'promotion' => $promotionDetails,
             'loyalty_points_redeemed' => $redemption['data']['points_to_redeem'],
             'loyalty_discount' => $loyaltyDiscount,
             'loyalty_points_balance' => $redemption['data']['available_points'],

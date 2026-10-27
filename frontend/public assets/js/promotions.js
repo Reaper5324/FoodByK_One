@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             case "fixed_amount":
                 return `R${value.toFixed(2)} off`;
             case "buy_one_get_one":
-                return "Buy one, get one";
+                return "Buy one, get one free";
             case "free_delivery":
                 return "Free delivery";
             default:
@@ -43,6 +43,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const title = document.createElement("h2");
         title.textContent = discountLabel(promotion);
+
+        const eligibility = document.createElement("p");
+        eligibility.className = "promotion-eligibility";
+        const targets = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
+        const appliesTo = targets.length ? `Applies to: ${targets.join(", ")}. ` : "Applies across eligible orders. ";
+        const terms = promotion.discount_type === "buy_one_get_one"
+            ? "Buy two of the same eligible item; the lower-priced one is free."
+            : promotion.discount_type === "free_delivery"
+                ? "For delivery orders only."
+                : "Discount is calculated at checkout.";
+        eligibility.textContent = appliesTo + terms;
 
         const code = document.createElement("p");
         code.className = "promotion-code";
@@ -77,7 +88,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
-        article.append(kicker, title, code, validity, apply);
+        article.append(kicker, title, eligibility, code, validity, apply);
         return article;
     };
 

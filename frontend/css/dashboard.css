@@ -1880,6 +1880,23 @@ td {
     gap: 15px;
 }
 
+#promotionProducts {
+    min-height: 142px;
+    padding: 8px;
+}
+
+#promotionProducts option {
+    padding: 6px;
+}
+
+#promotionForm .form-group small {
+    display: block;
+    margin-top: 6px;
+    color: #6f6a63;
+    font-size: .72rem;
+    line-height: 1.45;
+}
+
 
 /* ========================================
    PROMOTION RESPONSIVE

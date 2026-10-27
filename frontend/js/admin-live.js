@@ -514,8 +514,15 @@ const initializeAdminLive = async () => {
     };
 
     const loadPromotions = async () => {
-        const result = await apiGet("/admin/promotions");
+        const [result, productsResult] = await Promise.all([apiGet("/admin/promotions"), apiGet("/admin/products")]);
         if (!showResult(result)) return;
+        const promotionProducts = document.getElementById("promotionProducts");
+        if (promotionProducts && productsResult.success) {
+            const products = Array.isArray(productsResult.data) ? productsResult.data : [];
+            promotionProducts.replaceChildren(...products
+                .filter((product) => product.status === "active")
+                .map((product) => new Option(`${product.name} · ${money(product.price)}`, String(product.id))));
+        }
         const body = document.getElementById("promotionTableBody");
         if (!body) return;
         body.replaceChildren();
@@ -523,7 +530,13 @@ const initializeAdminLive = async () => {
             const row = document.createElement("tr");
             row.dataset.id = promo.id;
             makeCell(row, promo.code);
-            makeCell(row, promo.discount_type === "percentage" ? `${promo.discount_value}%` : `${promo.discount_type}: ${promo.discount_value}`);
+            const value = Number(promo.discount_value || 0);
+            const offer = promo.discount_type === "percentage" ? `${value}% off`
+                : promo.discount_type === "fixed_amount" ? `${money(value)} off`
+                : promo.discount_type === "buy_one_get_one" ? "Buy one, get one free"
+                : promo.discount_type === "free_delivery" ? "Free delivery" : promo.discount_type;
+            makeCell(row, offer);
+            makeCell(row, promo.target_product_names?.length ? promo.target_product_names.join(", ") : "Whole order");
             makeCell(row, promo.start_date);
             makeCell(row, promo.end_date);
             makeCell(row, promo.is_active ? "Active" : "Inactive");
@@ -1088,7 +1101,15 @@ const initializeAdminLive = async () => {
         }
         if (target.matches("#addCategoryBtn")) { editingId = null; document.getElementById("categoryForm")?.reset(); openModal("#categoryModal"); return; }
         if (target.matches("#addMenuBtn")) { editingId = null; document.getElementById("menuForm")?.reset(); openModal("#menuModal"); return; }
-        if (target.matches("#addPromotionBtn")) { editingId = null; document.getElementById("promotionForm")?.reset(); openModal("#promotionModal"); return; }
+        if (target.matches("#addPromotionBtn")) {
+            editingId = null;
+            document.getElementById("promotionForm")?.reset();
+            const products = document.getElementById("promotionProducts");
+            if (products) [...products.options].forEach((option) => { option.selected = false; });
+            updatePromotionValueUI();
+            openModal("#promotionModal");
+            return;
+        }
         if (target.matches("#addUserBtn")) { editingId = null; document.getElementById("userForm")?.reset(); openModal("#userModal"); return; }
 
         const id = Number(target.dataset.id);
@@ -1126,13 +1147,19 @@ const initializeAdminLive = async () => {
             const result = await apiPut(`/admin/promotions/${id}`, { is_active: !Boolean(Number(record.is_active)) });
             if (showResult(result)) await loadPromotions();
         } else if (action === "promotion-edit" && record) {
-            if (record.discount_type !== "percentage") return alert("This promotion type cannot be edited with the current form.");
             editingId = id;
             document.getElementById("promotionName").value = record.code;
             document.getElementById("promotionDiscount").value = record.discount_value;
+            document.getElementById("promotionType").value = record.discount_type;
             document.getElementById("promotionStartDate").value = record.start_date || "";
             document.getElementById("promotionEndDate").value = record.end_date || "";
             document.getElementById("promotionStatus").value = record.is_active ? "active" : "inactive";
+            const products = document.getElementById("promotionProducts");
+            if (products) {
+                const targets = new Set((record.target_product_ids || []).map(Number));
+                [...products.options].forEach((option) => { option.selected = targets.has(Number(option.value)); });
+            }
+            updatePromotionValueUI();
             openModal("#promotionModal");
         } else if ((action === "staff-toggle" || action === "staff-edit") && record) {
             if (action === "staff-toggle") {
@@ -1270,7 +1297,17 @@ const initializeAdminLive = async () => {
             if (showResult(result)) { closeModal("#menuModal"); await loadProducts(); }
         } else if (form.id === "promotionForm") {
             event.preventDefault(); event.stopImmediatePropagation();
-            const body = { code: document.getElementById("promotionName").value.trim().toUpperCase(), discount_type: "percentage", discount_value: Number(document.getElementById("promotionDiscount").value), start_date: document.getElementById("promotionStartDate").value || null, end_date: document.getElementById("promotionEndDate").value || null, is_active: document.getElementById("promotionStatus").value === "active" };
+            const type = document.getElementById("promotionType").value;
+            const valueRequired = ["percentage", "fixed_amount"].includes(type);
+            const body = {
+                code: document.getElementById("promotionName").value.trim().toUpperCase(),
+                discount_type: type,
+                discount_value: valueRequired ? Number(document.getElementById("promotionDiscount").value || 0) : 0,
+                target_product_ids: [...(document.getElementById("promotionProducts")?.selectedOptions || [])].map((option) => Number(option.value)),
+                start_date: document.getElementById("promotionStartDate").value || null,
+                end_date: document.getElementById("promotionEndDate").value || null,
+                is_active: document.getElementById("promotionStatus").value === "active"
+            };
             result = id ? await apiPut(`/admin/promotions/${id}`, body) : await apiPost("/admin/promotions", body);
             if (showResult(result)) { closeModal("#promotionModal"); await loadPromotions(); }
         } else if (form.id === "userForm") {
@@ -1310,6 +1347,37 @@ const initializeAdminLive = async () => {
     });
     document.getElementById("reportPeriod")?.addEventListener("change", loadReports);
     document.getElementById("supportStatusFilter")?.addEventListener("change", () => loadSupportTickets());
+
+    const updatePromotionValueUI = () => {
+        const type = document.getElementById("promotionType")?.value;
+        const input = document.getElementById("promotionDiscount");
+        const label = document.getElementById("promotionValueLabel");
+        const help = document.getElementById("promotionValueHelp");
+        const typeHelp = document.getElementById("promotionTypeHelp");
+        const group = document.getElementById("promotionValueGroup");
+        const required = type === "percentage" || type === "fixed_amount";
+        if (group) group.hidden = !required;
+        if (input) {
+            input.required = required;
+            input.disabled = !required;
+            input.min = "0.01";
+            if (type === "percentage") input.max = "100";
+            else if (type === "fixed_amount") input.max = "999999.99";
+        }
+        if (label) label.textContent = type === "fixed_amount" ? "DISCOUNT AMOUNT (RAND)" : "DISCOUNT PERCENTAGE";
+        if (help) help.textContent = type === "fixed_amount"
+            ? "Enter the rand amount to discount from eligible items. The discount cannot exceed their total."
+            : "Enter a value greater than 0 and no more than 100.";
+        if (typeHelp) typeHelp.textContent = type === "percentage"
+            ? "Percentage off the eligible item subtotal."
+            : type === "fixed_amount"
+                ? "Rand amount off eligible items, capped at their subtotal."
+                : type === "buy_one_get_one"
+                    ? "For each eligible product, buy two and the lower-priced unit is free."
+                    : "Waives the delivery fee. Selected products can be required in the basket.";
+    };
+    document.getElementById("promotionType")?.addEventListener("change", updatePromotionValueUI);
+    updatePromotionValueUI();
 
     const filterRows = (bodySelector, searchSelector, statusSelector, roleSelector) => {
         const body = document.querySelector(bodySelector);

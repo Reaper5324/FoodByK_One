@@ -482,6 +482,7 @@ UNLOCK TABLES;
 -- Table structure for table `promotions`
 --
 
+DROP TABLE IF EXISTS `promotion_products`;
 DROP TABLE IF EXISTS `promotions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -512,6 +513,19 @@ LOCK TABLES `promotions` WRITE;
 INSERT INTO `promotions` VALUES (1,'WEEKEND SPECIAL','percentage',20.00,'2026-10-01','2026-10-04',0,'2026-10-01 09:34:58','2026-10-08 07:33:10'),(2,'LOYALTY PROMO','percentage',25.00,'2026-10-05','2026-10-07',0,'2026-10-05 15:34:46','2026-10-12 20:09:13'),(3,'TEST PROMO','percentage',40.00,'2026-10-06','2026-10-08',0,'2026-10-06 10:42:23','2026-10-12 20:09:16'),(4,'KMADEIT','percentage',20.00,'2026-10-17','2026-10-23',1,'2026-10-17 11:03:12','2026-10-17 11:03:12');
 /*!40000 ALTER TABLE `promotions` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `promotion_products`
+--
+
+CREATE TABLE `promotion_products` (
+  `promotion_id` int unsigned NOT NULL,
+  `product_id` int unsigned NOT NULL,
+  PRIMARY KEY (`promotion_id`,`product_id`),
+  KEY `idx_promotion_products_product` (`product_id`),
+  CONSTRAINT `fk_promotion_products_promotion` FOREIGN KEY (`promotion_id`) REFERENCES `promotions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_promotion_products_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Table structure for table `roles`

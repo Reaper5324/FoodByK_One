@@ -147,11 +147,11 @@ function showLatestPromotion(promotion) {
     let title = "Food by K special";
     if (type === "percentage" && Number.isFinite(value)) title = `${value}% off`;
     else if (type === "fixed_amount" && Number.isFinite(value)) title = `R${value.toFixed(2).replace(/\.00$/, "")} off`;
-    else if (type === "buy_one_get_one") title = "Buy one, get one";
+    else if (type === "buy_one_get_one") title = "Buy one, get one free";
     else if (type === "free_delivery") title = "Free delivery";
 
     document.getElementById("promotionModalTitle").textContent = title;
-    document.getElementById("promotionModalDescription").textContent = "Use this offer when you place your order.";
+    document.getElementById("promotionModalDescription").textContent = promotionEligibilityText(promotion);
     document.getElementById("promotionModalCode").textContent = promotion.code ? `Use code: ${promotion.code}` : "Ask us how to claim this offer.";
 
     const expiry = document.getElementById("promotionModalExpiry");
@@ -190,12 +190,12 @@ function createPromotionCard(promotion) {
     const type = promotion.discount_type;
     if (type === "percentage") title.textContent = `${value}% off`;
     else if (type === "fixed_amount") title.textContent = `R${value.toFixed(2).replace(/\.00$/, "")} off`;
-    else if (type === "buy_one_get_one") title.textContent = "Buy one, get one";
+    else if (type === "buy_one_get_one") title.textContent = "Buy one, get one free";
     else if (type === "free_delivery") title.textContent = "Free delivery";
     else title.textContent = "Food by K special";
 
     const description = document.createElement("p");
-    description.textContent = "Use this offer when you place your order.";
+    description.textContent = promotionEligibilityText(promotion);
 
     const code = document.createElement("span");
     code.className = "promo-code";
@@ -209,6 +209,17 @@ function createPromotionCard(promotion) {
         card.append(expiry);
     }
     return card;
+}
+
+function promotionEligibilityText(promotion) {
+    const targets = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
+    const appliesTo = targets.length ? `Applies to ${targets.join(", ")}. ` : "Applies across eligible orders. ";
+    const terms = promotion.discount_type === "buy_one_get_one"
+        ? "Buy two of the same eligible item; the lower-priced one is free."
+        : promotion.discount_type === "free_delivery"
+            ? "For delivery orders only."
+            : "Discount is calculated at checkout.";
+    return `${appliesTo}${terms}`;
 }
 
 function formatPromotionDate(dateValue) {
