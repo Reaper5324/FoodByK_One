@@ -1,0 +1,160 @@
+
+/* =========================================
+   FOOD BY K — PRIVACY NOTICE PAGE
+   Page-specific styling
+   ========================================= */
+
+.privacy-page {
+    min-height: 100vh;
+    padding: clamp(40px, 7vw, 90px) 6%;
+    background: var(--food-light, #F7F7F7);
+    color: var(--food-black, #111111);
+}
+
+.privacy-document {
+    width: min(100%, 1000px);
+    margin: 0 auto;
+    padding: clamp(26px, 5vw, 64px);
+    background: var(--food-white, #FFFFFF);
+    border: 1px solid var(--food-border, #E5E5E5);
+    border-top: 5px solid var(--food-red, #D71920);
+    box-shadow: var(--shadow-soft, 0 8px 30px rgba(0, 0, 0, 0.06));
+}
+
+/* Main heading */
+.privacy-document h1 {
+    margin: 0 0 22px;
+    color: var(--food-black, #111111);
+    font-size: clamp(2.2rem, 5vw, 4rem);
+    font-weight: 950;
+    line-height: 1.05;
+    letter-spacing: -0.06em;
+    text-transform: uppercase;
+}
+
+/* Effective date */
+.privacy-document > p:first-of-type {
+    margin-bottom: 28px;
+    padding: 14px 16px;
+    border-left: 4px solid var(--food-yellow, #FFC928);
+    background: var(--food-light, #F7F7F7);
+    color: var(--food-grey, #6B6B6B);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.privacy-document > p:first-of-type strong {
+    color: var(--food-black, #111111);
+}
+
+/* Section headings */
+.privacy-document h2 {
+    margin: 38px 0 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--food-border, #E5E5E5);
+    color: var(--food-black, #111111);
+    font-size: clamp(1.2rem, 2.5vw, 1.55rem);
+    font-weight: 900;
+    line-height: 1.25;
+    letter-spacing: -0.035em;
+}
+
+/* Paragraphs */
+.privacy-document p {
+    margin: 0 0 18px;
+    color: #555555;
+    font-size: 15px;
+    line-height: 1.9;
+    overflow-wrap: anywhere;
+}
+
+.privacy-document strong {
+    color: var(--food-black, #111111);
+    font-weight: 800;
+}
+
+/* Lists */
+.privacy-document ul {
+    margin: 0 0 22px;
+    padding-left: 24px;
+}
+
+.privacy-document li {
+    margin-bottom: 12px;
+    padding-left: 5px;
+    color: #555555;
+    font-size: 15px;
+    line-height: 1.8;
+}
+
+.privacy-document li::marker {
+    color: var(--food-red, #D71920);
+}
+
+/* Links */
+.privacy-document a {
+    color: var(--food-red, #D71920);
+    font-weight: 800;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    overflow-wrap: anywhere;
+    transition: color 0.2s ease;
+}
+
+.privacy-document a:hover {
+    color: var(--food-red-dark, #A90F15);
+}
+
+.privacy-document a:focus-visible {
+    outline: 3px solid var(--food-yellow, #FFC928);
+    outline-offset: 4px;
+}
+
+/* Links at the bottom of the document */
+.privacy-document > p:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    margin-top: 38px;
+    padding-top: 22px;
+    border-top: 2px solid var(--food-black, #111111);
+    font-size: 13px;
+}
+
+/* Mobile layout */
+@media (max-width: 600px) {
+    .privacy-page {
+        padding: 24px 14px 40px;
+    }
+
+    .privacy-document {
+        padding: 25px 20px;
+    }
+
+    .privacy-document h1 {
+        font-size: clamp(2rem, 10vw, 2.8rem);
+    }
+
+    .privacy-document h2 {
+        margin-top: 30px;
+    }
+
+    .privacy-document p,
+    .privacy-document li {
+        font-size: 14px;
+        line-height: 1.8;
+    }
+
+    .privacy-document > p:last-child {
+        flex-direction: column;
+        gap: 14px;
+    }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .privacy-document a {
+        transition: none;
+    }
+}
