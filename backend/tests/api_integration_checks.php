@@ -42,11 +42,25 @@ function apiRequest(string $method, string $path, ?array $body = null, array $he
     foreach (preg_split('/\r?\n/', trim($rawHeaders)) as $line) {
         if (str_contains($line, ':')) {
             [$name, $value] = explode(':', $line, 2);
-            $responseHeaders[strtolower(trim($name))] = trim($value);
+            $name = strtolower(trim($name));
+            $value = trim($value);
+            if ($name === 'set-cookie') {
+                // A response can carry several Set-Cookie headers; keep them all.
+                $responseHeaders['set-cookie'][] = $value;
+            } else {
+                $responseHeaders[$name] = $value;
+            }
         }
     }
     $responseBody = substr($raw, $headerSize);
     return ['status' => $status, 'headers' => $responseHeaders, 'body' => $responseBody, 'json' => json_decode($responseBody, true)];
+}
+
+/**
+ * Returns the cookie name from a raw Set-Cookie header value.
+ */
+function cookieName(string $setCookie): string {
+    return trim(explode('=', $setCookie, 2)[0]);
 }
 
 $pdo = new PDO(
@@ -74,18 +88,32 @@ try {
     apiExpect($invalidRegistration['status'] >= 400 && $invalidRegistration['status'] < 500, 'Invalid registration data must be rejected by the API.');
 
     $registration = apiRequest('POST', '/auth/register', [
-    'name' => 'Integration Customer',
-    'email' => $email,
-    'password' => 'BlueRiver!9072',
-    'phone' => '+27820000000',
-    'terms_accepted' => true,
-    'privacy_notice_acknowledged' => true,
-    'email_verified_at' => null,
-], ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+        'name' => 'Integration Customer',
+        'email' => $email,
+        'password' => 'BlueRiver!9072',
+        'phone' => '+27820000000',
+        'terms_accepted' => true,
+        'privacy_notice_acknowledged' => true,
+        'email_verified_at' => null,
+    ], ['Origin: https://foodbyks.netlify.app'], $cookieFile);
     apiExpect($registration['status'] === 201 && ($registration['json']['success'] ?? false), 'Valid customer registration must create a signed-in customer.');
-    $sessionCookie = $registration['headers']['set-cookie'] ?? '';
-    apiExpect(stripos($sessionCookie, 'httponly') !== false, 'Authentication session cookies must be HttpOnly.');
-    apiExpect(stripos($sessionCookie, 'samesite=') !== false, 'Authentication session cookies must define SameSite behavior.');
+
+    // Every cookie the API sets, except a JS-readable CSRF cookie (if any), is
+    // treated as an authentication cookie and must be HttpOnly with SameSite.
+    $cookies = $registration['headers']['set-cookie'] ?? [];
+    apiExpect($cookies !== [], 'Registration must set at least one cookie.');
+
+    $authCookies = array_values(array_filter(
+        $cookies,
+        static fn (string $cookie): bool => stripos(cookieName($cookie), 'csrf') === false
+    ));
+    apiExpect($authCookies !== [], 'Registration must set an authentication session cookie.');
+
+    foreach ($authCookies as $authCookie) {
+        $name = cookieName($authCookie);
+        apiExpect(stripos($authCookie, 'httponly') !== false, "Authentication cookie '{$name}' must be HttpOnly.");
+        apiExpect(stripos($authCookie, 'samesite=') !== false, "Authentication cookie '{$name}' must define SameSite behavior.");
+    }
 
     $me = apiRequest('GET', '/auth/me', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
     apiExpect($me['status'] === 200 && ($me['json']['success'] ?? false), 'Registration must establish a usable session.');
