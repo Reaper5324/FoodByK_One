@@ -80,6 +80,7 @@ try {
     'phone' => '+27820000000',
     'terms_accepted' => true,
     'privacy_notice_acknowledged' => true,
+    'email_verified_at' => null,
 ], ['Origin: https://foodbyks.netlify.app'], $cookieFile);
     apiExpect($registration['status'] === 201 && ($registration['json']['success'] ?? false), 'Valid customer registration must create a signed-in customer.');
     $sessionCookie = $registration['headers']['set-cookie'] ?? '';
