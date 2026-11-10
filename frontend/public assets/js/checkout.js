@@ -14,6 +14,7 @@
     const loyaltyBalanceMessage = document.getElementById("loyaltyBalanceMessage");
     const selectedPromotionKey = "foodbykSelectedPromotion";
     let previewReady = false;
+    let addressesLoaded = false;
 
     const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, {
         minimumFractionDigits: 2,
@@ -60,33 +61,65 @@
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     };
 
-    const loadAddresses = async () => {
-        addressSelect.setAttribute("aria-busy", "true");
-        addressSelect.replaceChildren(new Option("Loading saved addresses…", ""));
-        const result = await apiGet("/addresses");
-        if (!result.success) {
-            addressSelect.replaceChildren(new Option("Unable to load addresses", ""));
-            addressSelect.setAttribute("aria-busy", "false");
-            showMessage(result.error || "Log in to continue to checkout.", true);
-            return false;
-        }
+   const loadAddresses = async () => {
+       if (addressesLoaded) {
+           return addressSelect.options.length > 0;
+       }
 
-        addressSelect.replaceChildren();
-        result.data.forEach((address) => {
-            const option = document.createElement("option");
-            option.value = address.id;
-            option.textContent = address.raw_address || [address.street, address.city, address.postal_code].filter(Boolean).join(", ");
-            option.selected = Boolean(address.is_default);
-            addressSelect.appendChild(option);
-        });
-        addressSelect.setAttribute("aria-busy", "false");
-        if (addressSelect.options.length === 0) {
-            showMessage("Add a delivery address to your account before choosing delivery.", true);
-            return false;
-        }
-        return true;
-    };
+       addressSelect.setAttribute("aria-busy", "true");
+       addressSelect.replaceChildren(
+           new Option("Loading saved addresses…", "")
+       );
 
+       const result = await apiGet("/addresses");
+
+       if (!result.success) {
+           addressSelect.replaceChildren(
+               new Option("Unable to load addresses", "")
+           );
+           addressSelect.setAttribute("aria-busy", "false");
+
+           showMessage(
+               result.error || "Log in to continue to checkout.",
+               true
+           );
+
+           return false;
+       }
+
+       addressesLoaded = true;
+       addressSelect.replaceChildren();
+
+       result.data.forEach((address) => {
+           const option = document.createElement("option");
+
+           option.value = address.id;
+           option.textContent = address.raw_address ||
+               [address.street, address.city, address.postal_code]
+                   .filter(Boolean)
+                   .join(", ");
+
+           option.selected = Boolean(address.is_default);
+           addressSelect.appendChild(option);
+       });
+
+       addressSelect.setAttribute("aria-busy", "false");
+
+       if (addressSelect.options.length === 0) {
+           addressSelect.appendChild(
+               new Option("No saved addresses available", "")
+           );
+
+           showMessage(
+               "Add a delivery address to your account before choosing delivery.",
+               true
+           );
+
+           return false;
+       }
+
+       return true;
+   };
     const loadSlots = async () => {
         const date = dateInput.value;
         slotSelect.replaceChildren();
@@ -133,6 +166,13 @@
     const requestPreview = async () => {
         message.hidden = true;
         clearPreview();
+        if (!fulfilment.value) {
+            showMessage(
+                "Choose collection or delivery before reviewing your order.",
+                true
+            );
+            return;
+        }
         if (!slotSelect.value) {
             showMessage("Choose an available fulfilment time.", true);
             return;
@@ -235,21 +275,46 @@
         previewReady = true;
         showMessage("Total reviewed. Check the breakdown below before continuing.");
     };
+const refreshPreviewIfReady = () => {
+    if (!fulfilment.value) return;
+    if (!slotSelect.value) return;
 
-    fulfilment.addEventListener("change", async () => {
-        addressField.hidden = fulfilment.value !== "delivery";
-        addressSelect.required = fulfilment.value === "delivery";
-        clearPreview();
-        if (fulfilment.value === "delivery" && addressSelect.options.length === 0) await loadAddresses();
-    });
-    dateInput.addEventListener("change", async () => {
-        clearPreview();
-        await loadSlots();
-    });
-    [addressSelect, slotSelect, promotionInput, loyaltyPointsInput].filter(Boolean).forEach((input) => {
-        input.addEventListener("change", clearPreview);
-        input.addEventListener("input", clearPreview);
-    });
+    if (fulfilment.value === "delivery" && !addressSelect.value) {
+        return;
+    }
+
+    return requestPreview();
+};
+  fulfilment.addEventListener("change", async () => {
+      addressField.hidden = fulfilment.value !== "delivery";
+      addressSelect.required = fulfilment.value === "delivery";
+
+      clearPreview();
+
+      if (fulfilment.value === "delivery" && !addressesLoaded) {
+          const loaded = await loadAddresses();
+
+          if (!loaded) return;
+      }
+
+      await refreshPreviewIfReady();
+  });
+
+   dateInput.addEventListener("change", async () => {
+       clearPreview();
+       await loadSlots();
+   });
+
+   [addressSelect, slotSelect, promotionInput, loyaltyPointsInput]
+       .filter(Boolean)
+       .forEach((input) => {
+           input.addEventListener("change", async () => {
+               clearPreview();
+               await refreshPreviewIfReady();
+           });
+
+           input.addEventListener("input", clearPreview);
+       });
     promotionInput.addEventListener("input", () => {
         try {
             const savedPromotion = sessionStorage.getItem(selectedPromotionKey);
@@ -311,10 +376,12 @@
         paymentForm.submit();
     });
 
-    addressField.hidden = true;
-    dateInput.min = getLocalDate();
-    dateInput.value = getLocalDate();
-    await loadAddresses();
-    await loadSlots();
-    await loadLoyaltyBalance();
+   addressField.hidden = true;
+   addressSelect.required = false;
+
+   dateInput.min = getLocalDate();
+   dateInput.value = getLocalDate();
+
+   await loadSlots();
+   await loadLoyaltyBalance();
 });
