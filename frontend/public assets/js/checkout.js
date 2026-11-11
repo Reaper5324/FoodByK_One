@@ -1,9 +1,8 @@
-﻿"document.addEventListener("DOMContentLoaded", async () => {
+﻿document.addEventListener("DOMContentLoaded", async () => {
     const form = document.getElementById("checkoutForm");
     const fulfilment = document.getElementById("fulfilmentType");
     const addressField = document.getElementById("addressField");
     const addressSelect = document.getElementById("addressId");
-    const deliveryMessage = document.getElementById("deliveryMessage");
     const dateInput = document.getElementById("slotDate");
     const slotSelect = document.getElementById("slotSelect");
     const promotionInput = document.getElementById("promotionCode");
@@ -15,7 +14,7 @@
     const loyaltyBalanceMessage = document.getElementById("loyaltyBalanceMessage");
     const selectedPromotionKey = "foodbykSelectedPromotion";
     let previewReady = false;
-   let addressesLoaded = false;
+    let addressesLoaded = false;
 
     const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, {
         minimumFractionDigits: 2,
@@ -42,10 +41,6 @@
     } catch (error) {
         console.warn("Unable to restore the selected promotion code.", error);
     }
-    const showDeliveryMessage = (text) => {
-        deliveryMessage.textContent = text;
-        deliveryMessage.hidden = !text;
-    };
 
     const showMessage = (text, isError = false) => {
         message.hidden = false;
@@ -54,13 +49,12 @@
         message.classList.toggle("is-success", !isError);
     };
 
-   const clearPreview = () => {
-       previewReady = false;
-       summary.hidden = true;
-       submitButton.hidden = true;
-       message.hidden = true;
-       showDeliveryMessage("");
-   };
+    const clearPreview = () => {
+        previewReady = false;
+        summary.hidden = true;
+        submitButton.hidden = true;
+        message.hidden = true;
+    };
 
     const getLocalDate = () => {
         const now = new Date();
@@ -209,26 +203,7 @@
         if (!result.success) {
             summary.hidden = true;
             summary.setAttribute("aria-busy", "false");
-
-            const deliveryErrors = [
-                "Delivery is currently unavailable.",
-                "A geocoded delivery address is required.",
-                "Outside the delivery area - collection is available instead.",
-                "This address is outside our service area.",
-                "Delivery address not found."
-            ];
-
-            const errorMessage = result.error || "Unable to review this order.";
-
-            if (
-                fulfilment.value === "delivery" &&
-                deliveryErrors.includes(errorMessage)
-            ) {
-                showDeliveryMessage(errorMessage);
-            } else {
-                showMessage(errorMessage, true);
-            }
-
+            showMessage(result.error || "Unable to review this order.", true);
             return;
         }
 
@@ -389,4 +364,3 @@
    await loadSlots();
    await loadLoyaltyBalance();
 });
-"
