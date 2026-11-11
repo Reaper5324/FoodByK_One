@@ -40,9 +40,49 @@
         <option value="delivery">Delivery</option>
       </select>
     </label>
-    <label id="addressField" class="checkout-field" for="addressId" hidden>Delivery address
-      <select id="addressId" aria-busy="true"><option value="">Loading saved addresses…</option></select>
-    </label>
+    <div id="addressField" class="checkout-field" hidden>
+      <label for="addressId">Delivery address</label>
+
+      <select id="addressId" aria-busy="true">
+        <option value="">Loading saved addresses…</option>
+      </select>
+
+      <button id="showNewAddressButton" type="button" class="btn btn-secondary">
+        Add a new address
+      </button>
+
+      <div id="newAddressSection" hidden>
+        <h3>Add a delivery address</h3>
+
+        <label for="newDeliveryStreet">Street address, building, and unit</label>
+        <input id="newDeliveryStreet" type="text" maxlength="255"
+               autocomplete="street-address">
+
+        <label for="newDeliveryCity">Suburb / town / city</label>
+        <input id="newDeliveryCity" type="text" maxlength="100"
+               autocomplete="address-level2">
+
+        <label for="newDeliveryProvince">Province</label>
+        <input id="newDeliveryProvince" type="text" maxlength="100"
+               autocomplete="address-level1">
+
+        <label for="newDeliveryPostalCode">Postal code (optional)</label>
+        <input id="newDeliveryPostalCode" type="text" maxlength="20"
+               autocomplete="postal-code">
+
+        <label>
+          <input id="newDeliveryAddressDefault" type="checkbox">
+          Set as my default address
+        </label>
+
+        <div id="newAddressMessage" class="checkout-message"
+             role="status" aria-live="polite" hidden></div>
+
+        <button id="saveNewAddressButton" type="button" class="btn btn-primary">
+          Save address
+        </button>
+      </div>
+    </div>
     <div
             id="deliveryMessage"
             class="checkout-message is-error"
