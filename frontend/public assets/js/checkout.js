@@ -418,26 +418,43 @@
         summaryHeading.append(summaryKicker, summaryTitle);
         summary.appendChild(summaryHeading);
 
-        [
-            ["Subtotal", data.subtotal],
-            [data.discount_reason || "Promotion discount", -Number(data.discount || 0)],
-            ["Delivery fee", data.delivery_fee]
-        ].forEach(([label, amount]) => {
-            const row = document.createElement("p");
-            row.className = "checkout-summary-row";
+       // Build the main price breakdown
+       const priceRows = [
+           ["Subtotal", Number(data.subtotal || 0)]
+       ];
 
-            const title = document.createElement("span");
-            const value = document.createElement("strong");
+       // Only display a promotion discount when one was actually applied
+       if (Number(data.discount || 0) > 0) {
+           priceRows.push([
+               data.discount_reason || "Promotion discount",
+               -Number(data.discount)
+           ]);
+       }
 
-            title.textContent = label;
+       // Display the appropriate fulfilment fee
+       priceRows.push([
+           data.fulfillment_type === "delivery"
+               ? "Delivery fee"
+               : "Delivery fee (not applicable)",
+           Number(data.delivery_fee || 0)
+       ]);
 
-            value.textContent = Number(amount || 0) < 0
-                ? `-R${Math.abs(Number(amount)).toFixed(2)}`
-                : `R${Number(amount || 0).toFixed(2)}`;
+       priceRows.forEach(([label, amount]) => {
+           const row = document.createElement("p");
+           row.className = "checkout-summary-row";
 
-            row.append(title, value);
-            summary.appendChild(row);
-        });
+           const title = document.createElement("span");
+           const value = document.createElement("strong");
+
+           title.textContent = label;
+
+           value.textContent = amount < 0
+               ? `-R${Math.abs(amount).toFixed(2)}`
+               : `R${amount.toFixed(2)}`;
+
+           row.append(title, value);
+           summary.appendChild(row);
+       });
 
         if (Number(data.loyalty_points_redeemed || 0) > 0) {
             const rewardsRow = document.createElement("p");
