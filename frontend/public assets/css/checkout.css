@@ -462,3 +462,6 @@
     margin: 0;
     cursor: pointer;
 }
+.checkout-form > #deliveryMessage {
+    grid-column: 1 / -1;
+}
