@@ -52,7 +52,18 @@
       </button>
 
       <div id="newAddressSection" hidden>
-        <h3>Add a delivery address</h3>
+        <div class="new-address-heading">
+          <h3>Add a delivery address</h3>
+
+          <button
+                  id="closeNewAddressButton"
+                  type="button"
+                  class="close-address-button"
+                  aria-label="Close new address form"
+          >
+            &times;
+          </button>
+        </div>
 
         <label for="newDeliveryStreet">Street address, building, and unit</label>
         <input id="newDeliveryStreet" type="text" maxlength="255"
@@ -70,10 +81,15 @@
         <input id="newDeliveryPostalCode" type="text" maxlength="20"
                autocomplete="postal-code">
 
-        <label>
-          <input id="newDeliveryAddressDefault" type="checkbox">
-          Set as my default address
-        </label>
+        <div class="address-checkbox">
+          <input
+                  id="newDeliveryAddressDefault"
+                  type="checkbox"
+          >
+          <label for="newDeliveryAddressDefault">
+            Set as my default address
+          </label>
+        </div>
 
         <div id="newAddressMessage" class="checkout-message"
              role="status" aria-live="polite" hidden></div>

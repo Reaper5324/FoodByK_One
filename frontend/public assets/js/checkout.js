@@ -1,5 +1,4 @@
-﻿
-document.addEventListener("DOMContentLoaded", async () => {
+﻿document.addEventListener("DOMContentLoaded", async () => {
     const form = document.getElementById("checkoutForm");
     const fulfilment = document.getElementById("fulfilmentType");
     const addressField = document.getElementById("addressField");
@@ -9,6 +8,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const newAddressSection = document.getElementById("newAddressSection");
     const newAddressMessage = document.getElementById("newAddressMessage");
     const saveNewAddressButton = document.getElementById("saveNewAddressButton");
+    const closeNewAddressButton = document.getElementById("closeNewAddressButton");
 
     const newDeliveryStreet = document.getElementById("newDeliveryStreet");
     const newDeliveryCity = document.getElementById("newDeliveryCity");
@@ -92,6 +92,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         newAddressMessage.hidden = true;
         newAddressMessage.textContent = "";
         newAddressMessage.classList.remove("is-error");
+
+        clearPreview();
+    });
+    // Close the new address form
+    closeNewAddressButton.addEventListener("click", () => {
+        newAddressSection.hidden = true;
+        showNewAddressButton.hidden = false;
+
+        newAddressMessage.hidden = true;
+        newAddressMessage.textContent = "";
+        newAddressMessage.classList.remove("is-error");
+
+        newDeliveryStreet.value = "";
+        newDeliveryCity.value = "";
+        newDeliveryProvince.value = "";
+        newDeliveryPostalCode.value = "";
+        newDeliveryAddressDefault.checked = false;
 
         clearPreview();
     });
