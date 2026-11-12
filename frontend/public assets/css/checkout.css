@@ -465,3 +465,6 @@
 .checkout-form > #deliveryMessage {
     grid-column: 1 / -1;
 }
+.checkout-form > #checkoutMessage {
+    grid-column: 1 / -1;
+}
