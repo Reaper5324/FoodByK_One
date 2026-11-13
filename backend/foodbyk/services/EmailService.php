@@ -22,15 +22,25 @@ class EmailService {
             return false;
         }
 
+        $payload = [
+            'from' => RESEND_FROM_EMAIL,
+            'to' => [$to],
+            'subject' => $subject,
+            'text' => $body,
+            // Resend's click tracking rewrites links in HTML email bodies.
+            // Keep text for clients that prefer plain-text messages.
+            'html' => $this->plainTextToHtml($body),
+        ];
+        $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($json === false) {
+            error_log('Resend email was not sent because the message could not be encoded.');
+            return false;
+        }
+
         $context = stream_context_create(['http' => [
             'method' => 'POST',
             'header' => "Authorization: Bearer " . RESEND_API_KEY . "\r\nContent-Type: application/json\r\n",
-            'content' => json_encode([
-                'from' => RESEND_FROM_EMAIL,
-                'to' => [$to],
-                'subject' => $subject,
-                'text' => $body,
-            ], JSON_UNESCAPED_UNICODE),
+            'content' => $json,
             'timeout' => 10,
             'ignore_errors' => true,
         ]]);
@@ -43,6 +53,24 @@ class EmailService {
         }
 
         return true;
+    }
+
+    private function plainTextToHtml(string $body): string {
+        $escapedBody = htmlspecialchars($body, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $withLinks = preg_replace_callback(
+            '~https?://[^\s<]+~iu',
+            static function (array $matches): string {
+                $url = rtrim($matches[0], '.,!?;:)]}');
+                $trailing = substr($matches[0], strlen($url));
+                $escapedUrl = htmlspecialchars($url, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                return '<a href="' . $escapedUrl . '">' . $escapedUrl . '</a>' . $trailing;
+            },
+            $escapedBody
+        );
+
+        return '<!doctype html><html><body><p>'
+            . nl2br($withLinks ?? $escapedBody, false)
+            . '</p></body></html>';
     }
 
     private function sendWithSmtp(string $to, string $subject, string $body): bool {
