@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         message.hidden = !text;
         message.textContent = text;
         message.classList.toggle("is-error", isError);
+        if (text) window.foodByKNotify?.(text, isError ? "error" : "success");
     };
 
     const formatDate = (value) => {

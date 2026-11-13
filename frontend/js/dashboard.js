@@ -1,6 +1,12 @@
 const adminLiveScript = document.createElement("script");
 adminLiveScript.src = new URL("admin-live.js", document.currentScript.src).href;
 document.head.appendChild(adminLiveScript);
+if (!document.querySelector('link[rel="manifest"]')) {
+    const pwaManifest = document.createElement("link"); pwaManifest.rel = "manifest"; pwaManifest.href = "/manifest.webmanifest"; document.head.appendChild(pwaManifest);
+}
+if (!document.querySelector('script[data-foodbyk-pwa]')) {
+    const pwaScript = document.createElement("script"); pwaScript.src = "/public%20assets/js/pwa.js"; pwaScript.dataset.foodbykPwa = "true"; document.head.appendChild(pwaScript);
+}
 
 /* ========================================
    MOBILE SIDEBAR

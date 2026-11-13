@@ -24,7 +24,6 @@
     const summary = document.getElementById("checkoutSummary");
     const previewButton = document.getElementById("previewButton");
     const submitButton = document.getElementById("submitButton");
-    const savePaymentMethodButton = document.getElementById("savePaymentMethodButton");
     const loyaltyPointsInput = document.getElementById("loyaltyPointsToRedeem");
     const loyaltyBalanceMessage = document.getElementById("loyaltyBalanceMessage");
 
@@ -32,7 +31,6 @@
 
     let previewReady = false;
     let addressesLoaded = false;
-    let paymentMethodSaved = false;
 
     const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, {
         minimumFractionDigits: 2,
@@ -76,6 +74,7 @@
         message.textContent = text;
         message.classList.toggle("is-error", isError);
         message.classList.toggle("is-success", !isError);
+        window.foodByKNotify?.(text, isError ? "error" : "success");
     };
 
     const clearPreview = () => {
@@ -561,40 +560,11 @@
 
     previewButton.addEventListener("click", requestPreview);
 
-    savePaymentMethodButton.addEventListener("click", async () => {
-        savePaymentMethodButton.disabled = true;
-        showMessage("Opening PayFast to securely save your payment method…");
-        const result = await apiPost("/payments/customer-token-setup", {});
-        const setup = result.data;
-        if (!result.success || !setup?.redirect_url || !setup?.fields) {
-            savePaymentMethodButton.disabled = false;
-            showMessage(result.error || "Unable to start secure payment method setup.", true);
-            return;
-        }
-        const paymentForm = document.createElement("form");
-        paymentForm.method = "POST";
-        paymentForm.action = setup.redirect_url;
-        Object.entries(setup.fields).forEach(([name, value]) => {
-            const input = document.createElement("input");
-            input.type = "hidden";
-            input.name = name;
-            input.value = String(value);
-            paymentForm.appendChild(input);
-        });
-        document.body.appendChild(paymentForm);
-        paymentForm.submit();
-    });
-
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
 
         if (!previewReady) {
             showMessage("Review the order total before continuing.", true);
-            return;
-        }
-
-        if (!paymentMethodSaved) {
-            showMessage("Save a payment method before placing an order.", true);
             return;
         }
 
@@ -616,7 +586,7 @@
             loyalty_points_to_redeem: Number(loyaltyPointsInput?.value || 0)
         });
 
-        if (!result.success || !result.data?.order) {
+        if (!result.success || !result.data?.order || !result.data?.payment_setup?.redirect_url || !result.data?.payment_setup?.fields) {
             submitButton.disabled = false;
 
             showMessage(
@@ -633,7 +603,20 @@
             console.warn("Unable to clear the selected promotion code after order submission.", error);
         }
 
-        window.location.href = "orders.html";
+        showMessage("Order details saved. Redirecting to PayFast to securely set up your card…");
+        const setup = result.data.payment_setup;
+        const paymentForm = document.createElement("form");
+        paymentForm.method = "POST";
+        paymentForm.action = setup.redirect_url;
+        Object.entries(setup.fields).forEach(([name, value]) => {
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            input.value = String(value);
+            paymentForm.appendChild(input);
+        });
+        document.body.appendChild(paymentForm);
+        paymentForm.submit();
     });
 
     addressField.hidden = true;
@@ -641,30 +624,6 @@
 
     dateInput.min = getLocalDate();
     dateInput.value = getLocalDate();
-
-    const paymentMethodResult = await apiGet("/checkout/payment-method");
-    paymentMethodSaved = Boolean(paymentMethodResult?.success && paymentMethodResult.data?.payment_method_saved);
-    savePaymentMethodButton.hidden = paymentMethodSaved;
-    submitButton.textContent = paymentMethodSaved ? "Place order" : "Save a payment method first";
-    if (!paymentMethodSaved) {
-        showMessage("A saved payment method is required before you can place an order.", true);
-    }
-
-    const paymentStatus = new URLSearchParams(window.location.search).get("payment_method");
-    if (paymentStatus === "saved") {
-        let refreshed = null;
-        for (let attempt = 0; attempt < 5; attempt += 1) {
-            refreshed = await apiGet("/checkout/payment-method");
-            paymentMethodSaved = Boolean(refreshed?.success && refreshed.data?.payment_method_saved);
-            if (paymentMethodSaved) break;
-            await new Promise((resolve) => window.setTimeout(resolve, 1500));
-        }
-        savePaymentMethodButton.hidden = paymentMethodSaved;
-        submitButton.textContent = paymentMethodSaved ? "Place order" : "Save a payment method first";
-        showMessage(paymentMethodSaved ? "Payment method saved. You can place your order." : "PayFast has not confirmed the saved payment method yet.", !paymentMethodSaved);
-    } else if (paymentStatus === "cancelled") {
-        showMessage("Payment method setup was cancelled. Save a payment method to place an order.", true);
-    }
 
     await loadSlots();
     await loadLoyaltyBalance();

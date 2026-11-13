@@ -1,4 +1,11 @@
 (() => {
+    const privacyScript = document.currentScript || document.querySelector('script[src*="privacy.js"]');
+    if (!document.querySelector('link[rel="manifest"]')) {
+        const manifest = document.createElement("link"); manifest.rel = "manifest"; manifest.href = "/manifest.webmanifest"; document.head.appendChild(manifest);
+    }
+    if (privacyScript?.src && !document.querySelector('script[data-foodbyk-pwa]')) {
+        const pwa = document.createElement("script"); pwa.src = new URL("pwa.js", privacyScript.src).href; pwa.dataset.foodbykPwa = "true"; document.head.appendChild(pwa);
+    }
     const KEY = "foodByKCookieChoice", VERSION = "2026-10-13";
     if (!document.querySelector('link[data-privacy-style]')) {
         const style = document.createElement("link"); style.rel = "stylesheet"; style.href = "/public%20assets/css/privacy.css"; style.dataset.privacyStyle = "true"; document.head.appendChild(style);

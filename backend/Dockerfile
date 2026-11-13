@@ -2,8 +2,8 @@ FROM php:8.3-apache
 
 # System deps + PHP extensions (zip is required for Composer dist downloads)
 RUN apt-get update \
- && apt-get install -y --no-install-recommends unzip git libzip-dev \
- && docker-php-ext-install pdo pdo_mysql zip \
+ && apt-get install -y --no-install-recommends unzip git libzip-dev libgmp-dev \
+ && docker-php-ext-install pdo pdo_mysql zip gmp \
  && rm -rf /var/lib/apt/lists/*
 
 RUN a2enmod rewrite headers

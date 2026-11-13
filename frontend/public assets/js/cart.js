@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         cartMessage.hidden = false;
         cartMessage.textContent = message;
         cartMessage.classList.toggle("is-error", isError);
+        window.foodByKNotify?.(message, isError ? "error" : "success");
         if (autoHide && !isError) {
             messageTimer = setTimeout(() => { cartMessage.hidden = true; }, 3200);
         }

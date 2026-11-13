@@ -48,10 +48,8 @@ function registerRoutes(Router $router): void {
     $router->delete('/cart', [CartController::class, 'clear'], $customerProtected);
 
     $router->post('/checkout/preview', [CheckoutController::class, 'preview'], $customerProtected);
-    $router->get('/checkout/payment-method', [CheckoutController::class, 'paymentMethodStatus'], $customerReadProtected);
     $router->get('/checkout/slots', [CheckoutController::class, 'slots'], $customerReadProtected);
     $router->post('/checkout/submit', [CheckoutController::class, 'submit'], $customerProtected);
-    $router->post('/payments/customer-token-setup', [PaymentController::class, 'beginCustomerTokenSetup'], $customerProtected);
 
     $router->get('/addresses', [AddressController::class, 'index'], $customerReadProtected);
     $router->post('/addresses', [AddressController::class, 'create'], $customerProtected);
@@ -63,6 +61,12 @@ function registerRoutes(Router $router): void {
     $router->post('/payments/charge-webhook', [PaymentController::class, 'chargeWebhook']);
     $router->get('/payments/return', [PaymentController::class, 'returnFromPayFast']);
     $router->get('/payments/cancel', [PaymentController::class, 'cancelFromPayFast']);
+
+    $router->get('/push/public-key', [PushController::class, 'publicKey']);
+    $router->post('/push/subscribe', [PushController::class, 'subscribe'], [new AuthMiddleware(), new CsrfMiddleware()]);
+    $router->post('/push/unsubscribe', [PushController::class, 'unsubscribe'], [new AuthMiddleware(), new CsrfMiddleware()]);
+    $router->get('/staff/orders/unacknowledged', [PushController::class, 'unacknowledgedOrders'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
+    $router->post('/staff/orders/{id}/acknowledge', [PushController::class, 'acknowledgeOrder'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin(), new CsrfMiddleware()]);
 
     $router->get('/staff/orders/incoming', [OrderController::class, 'incoming'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
     $router->get('/staff/orders', [OrderController::class, 'staffIndex'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);

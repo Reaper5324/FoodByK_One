@@ -68,6 +68,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         menuMessage.hidden = false;
         menuMessage.textContent = message;
         menuMessage.classList.toggle("is-error", isError);
+        window.foodByKNotify?.(message, isError ? "error" : "success");
     };
 
     const clearMessage = () => {

@@ -127,6 +127,7 @@ class OrderService {
 
         if (!$result['success']) return $result;
         (new NotificationService())->notifyOrderEvent($result['data'], 'confirmed', 'customer');
+        (new PushService())->notifyCustomerOfOrderStatus($result['data'], 'confirmed');
         return (new PaymentService())->chargeToken($result['data']);
     }
 
@@ -203,7 +204,7 @@ class OrderService {
     }
 
     public function advanceFulfilment(int $orderId, int $staffId, string $newStatus): array {
-        return $this->transactional(function () use ($orderId, $staffId, $newStatus) {
+        $result = $this->transactional(function () use ($orderId, $staffId, $newStatus) {
             $order = Order::lockById($orderId);
             if (!$order) throw new \Exception("Order {$orderId} not found.");
             if (!$order->canTransitionTo($newStatus)) {
@@ -220,6 +221,10 @@ class OrderService {
 
             return $order;
         });
+        if ($result['success']) {
+            (new PushService())->notifyCustomerOfOrderStatus($result['data'], $newStatus);
+        }
+        return $result;
     }
 
     // Load customer details with the orders in one query.
@@ -255,7 +260,8 @@ class OrderService {
             // Requested and confirmed windows are stored as local wall-clock DATETIME values.
             $windowStart = $today->format('Y-m-d H:i:s');
             $windowEnd = $tomorrow->format('Y-m-d H:i:s');
-            $where = ' WHERE p.gateway_token IS NOT NULL AND p.gateway_token <> :usable_token AND p.status = :payment_status
+            $where = ' WHERE ((p.gateway_token IS NOT NULL AND p.gateway_token <> :usable_token AND p.status = :payment_status)
+                       OR o.status IN (\'paid\', \'preparing\', \'ready\', \'completed\'))
                        AND o.created_at >= :created_start AND o.created_at < :created_end
                        AND COALESCE(o.confirmed_window_start, o.requested_window_start) >= :window_start
                        AND COALESCE(o.confirmed_window_start, o.requested_window_start) < :window_end';
@@ -273,7 +279,8 @@ class OrderService {
         }
 
         if ($where === '') {
-            $where = ' WHERE p.gateway_token IS NOT NULL AND p.gateway_token <> :usable_token AND p.status = :payment_status';
+            $where = ' WHERE ((p.gateway_token IS NOT NULL AND p.gateway_token <> :usable_token AND p.status = :payment_status)
+                       OR o.status IN (\'paid\', \'preparing\', \'ready\', \'completed\'))';
             $bindings = [
                 ':usable_token' => '',
                 ':payment_status' => Payment::STATUS_TOKENIZED,
@@ -357,17 +364,6 @@ class OrderService {
             if (!$customer) {
                 throw new \Exception('Customer not found.');
             }
-            $db = Database::getConnection();
-            $savedTokenStmt = $db->prepare('SELECT gateway_token FROM customer_payment_tokens WHERE user_id = ? FOR UPDATE');
-            $savedTokenStmt->execute([$customerId]);
-            $savedTokenCiphertext = $savedTokenStmt->fetchColumn();
-            $savedToken = is_string($savedTokenCiphertext) && $savedTokenCiphertext !== ''
-                ? Payment::decryptGatewayToken($savedTokenCiphertext)
-                : null;
-            if ($savedToken === null) {
-                throw new \Exception('Save a payment method before placing an order.');
-            }
-
             $order = new Order(
                 customer_id: $customerId,
                 fulfilment_type: $fulfilmentType,
@@ -453,7 +449,6 @@ class OrderService {
                 order_id: $order->id,
                 amount: $order->total()
             );
-            $payment->gateway_token = $savedToken;
             if (!$payment->save()) {
                 throw new \Exception('Unable to create payment record.');
             }
@@ -472,16 +467,25 @@ class OrderService {
                 }
             }
 
-            $clearResult = (new CartService())->clear($customerId);
-            if (!$clearResult['success']) throw new \Exception($clearResult['error']);
-
             // The initial history entry has no previous order status.
             $this->logTransition($order->id, '', Order::STATUS_SUBMITTED, $customerId);
 
-            return ['order' => $order];
+            return ['order' => $order, 'customer' => $customer];
         });
 
-        return $result;
+        if (!$result['success']) return $result;
+        $order = $result['data']['order'];
+        $setup = (new PaymentService())->beginTokenSetup($order, $result['data']['customer']);
+        if (!$setup['success']) {
+            $this->cancelOrder($order->id, $customerId, null, 'Payment setup could not be started.');
+            return $this->failure($setup['error'] ?? 'Unable to start secure payment setup.');
+        }
+        $clearResult = (new CartService())->clear($customerId);
+        if (!$clearResult['success']) {
+            $this->cancelOrder($order->id, $customerId, null, 'Checkout could not be completed.');
+            return $this->failure($clearResult['error']);
+        }
+        return $this->success(['order' => $order, 'payment_setup' => $setup['data']]);
     }
 
     /** Loads one order with its related details. */

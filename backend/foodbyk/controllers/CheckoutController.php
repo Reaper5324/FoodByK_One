@@ -40,11 +40,6 @@ class CheckoutController extends Controller {
         ), 201);
     }
 
-    public function paymentMethodStatus(Request $request): Response {
-        $saved = (new PaymentService())->hasSavedCustomerToken((int) $request->user()->id);
-        return Response::success(['payment_method_saved' => $saved]);
-    }
-
     public function slots(Request $request): Response {
         return $this->respond((new SlotService())->getAvailableSlotsForDate(
             (string) ($request->query['date'] ?? '')

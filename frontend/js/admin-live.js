@@ -276,16 +276,18 @@ const initializeAdminLive = async () => {
 
     const showResult = (result) => {
         if (!result?.success) {
+            const errorMessage = result?.error || "The request could not be completed.";
+            window.foodByKNotify?.(errorMessage, "error", 0);
             if (isInitialPageLoad) {
                 initialDataLoadError = true;
             } else {
                 const reportStatus = document.getElementById("liveReportStatus");
                 if (reportStatus) {
-                    reportStatus.textContent = result?.error || "The report could not be loaded. Try again.";
+                    reportStatus.textContent = errorMessage;
                     reportStatus.hidden = false;
                     reportStatus.classList.add("is-error");
                 } else {
-                    alert(result?.error || "The request could not be completed.");
+                    if (!window.foodByKNotify) alert(errorMessage);
                 }
             }
             return false;
@@ -294,12 +296,37 @@ const initializeAdminLive = async () => {
         if (reportStatus) reportStatus.classList.remove("is-error");
         return true;
     };
+
+    const installStaffPush = async () => {
+        if (!navigator.serviceWorker || !window.PushManager || !window.isSecureContext) return;
+        try {
+            const response = await apiGet("/push/public-key");
+            if (!response?.success || !response.data?.enabled || !response.data.public_key) return;
+            const registration = await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+            if (Notification.permission !== "granted") return;
+            const existing = await registration.pushManager.getSubscription();
+            const subscription = existing || await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: decodeVapidKey(response.data.public_key)
+            });
+            const saved = await apiPost("/push/subscribe", { subscription: subscription.toJSON() });
+            if (!saved?.success) console.warn("Unable to save staff notification subscription.", saved?.error);
+        } catch (error) {
+            console.warn("Staff push notifications could not be enabled.", error);
+        }
+    };
+    const decodeVapidKey = (value) => {
+        const padding = "=".repeat((4 - value.length % 4) % 4);
+        const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+        return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+    };
     const setRefundFeedback = (message = "", state = "info") => {
         const feedback = document.getElementById("refundFeedback");
         if (!feedback) return;
         feedback.textContent = message;
         feedback.hidden = !message;
         feedback.dataset.state = state;
+        if (message && state === "error") window.foodByKNotify?.(message, "error", 0);
     };
     const makeCell = (row, value) => {
         const cell = document.createElement("td");
@@ -346,15 +373,10 @@ const initializeAdminLive = async () => {
             setMessageRow(body, orders.error || "Unable to load incoming orders.", 7);
             return;
         }
-        const today = new Date();
-        const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-        const records = (orders.data || []).filter((order) => {
-            const requestedDate = String(order.requested_window_start || "").slice(0, 10);
-            return order.status === "submitted" && requestedDate === todayKey;
-        });
+        const records = (orders.data || []).filter((order) => order.status === "submitted");
         const pending = document.getElementById("dashboardPendingCount");
         if (pending) pending.textContent = String(records.length);
-        if (!records.length) return setMessageRow(body, "There are no orders due for review today.", 7);
+        if (!records.length) return setMessageRow(body, "There are no orders awaiting review.", 7);
         body.replaceChildren();
         records.slice(0, 5).forEach((order) => {
             const row = document.createElement("tr");
@@ -710,6 +732,50 @@ const initializeAdminLive = async () => {
         });
     };
 
+    let staffOrderPoller = null;
+    let lastStaffOrderIds = new Set();
+    let staffAcknowledgementInFlight = false;
+    const checkUnacknowledgedStaffOrders = async () => {
+        if (role === "customer" || staffAcknowledgementInFlight) return;
+        const result = await apiGet("/staff/orders/unacknowledged");
+        if (!result?.success || !Array.isArray(result.data)) return;
+        const pending = result.data;
+        if (pending.length) {
+            const foreground = document.visibilityState === "visible" && document.hasFocus();
+            if (foreground) {
+                const audio = window.foodByKOrderAlert;
+                if (audio && (lastStaffOrderIds.size === 0 || pending.some((order) => !lastStaffOrderIds.has(String(order.id))))) {
+                    audio.currentTime = 0;
+                    audio.play().catch(() => {});
+                }
+                for (const order of pending) {
+                    if (lastStaffOrderIds.has(String(order.id))) continue;
+                    const acknowledged = await apiPost(`/staff/orders/${order.id}/acknowledge`, {});
+                    if (acknowledged?.success) {
+                        lastStaffOrderIds.add(String(order.id));
+                        const notice = document.createElement("div");
+                        notice.className = "staff-order-alert";
+                        notice.setAttribute("role", "alert");
+                        const text = document.createElement("span");
+                        text.textContent = `New order #${order.id} from ${order.customer_name || "a customer"} needs review.`;
+                        const link = document.createElement("a"); link.href = `orders.html?order=${encodeURIComponent(order.id)}`; link.textContent = "Open order";
+                        notice.append(text, link); document.body.appendChild(notice);
+                        window.setTimeout(() => notice.remove(), 10000);
+                        break;
+                    }
+                }
+            } else {
+                await navigator.serviceWorker?.ready.then((registration) => registration.showNotification("Food by K: New order", {
+                    body: `${pending.length} order${pending.length === 1 ? "" : "s"} need${pending.length === 1 ? "s" : ""} review. Tap to open staff orders.`,
+                    icon: "/images/logo-mark.png", badge: "/images/logo-mark.png", tag: "foodbyk-pending-orders",
+                    renotify: true, requireInteraction: true, data: { url: "/admin/orders.html" }
+                })).catch(() => {});
+            }
+        }
+        const pendingIds = new Set(pending.map((order) => String(order.id)));
+        lastStaffOrderIds = new Set([...lastStaffOrderIds].filter((id) => pendingIds.has(id)));
+    };
+
     const loadOrders = async () => {
         const requestVersion = ++orderLoadVersion;
         const orderQuery = new URLSearchParams({
@@ -779,6 +845,11 @@ const initializeAdminLive = async () => {
             row.appendChild(actions); body.appendChild(row);
         });
         window.adminOrders = records;
+        const requestedOrder = new URLSearchParams(window.location.search).get("order");
+        if (requestedOrder && !window.foodByKOpenedOrder) {
+            const openButton = document.querySelector(`[data-admin-action="order-review"][data-id="${CSS.escape(requestedOrder)}"]`);
+            if (openButton) { window.foodByKOpenedOrder = requestedOrder; openButton.click(); }
+        }
     };
 
     let currentReviewOrderId = null;
@@ -1297,7 +1368,11 @@ const initializeAdminLive = async () => {
             setRefundFeedback("Checking the available refund method with PayFastâ€¦", "info");
             const result = await apiPost(`/staff/orders/${currentReviewOrderId}/refund-eligibility`, { amount });
             target.disabled = false;
-            if (!result?.success || !result.data) return setRefundFeedback(result?.error || "PayFast could not check the refund options.", "error");
+            if (!result?.success || !result.data) {
+                const error = result?.error || "PayFast could not check the refund options.";
+                setRefundFeedback(error, "error");
+                return;
+            }
             const options = result.data;
             currentRefundEligibility = { amount: Number(amount.toFixed(2)), ...options };
             const methodInfo = document.getElementById("refundMethodInfo");
@@ -1368,7 +1443,10 @@ const initializeAdminLive = async () => {
                 await openOrderReview(currentReviewOrderId);
                 setRefundFeedback("PayFast accepted the refund request. Use Check PayFast status to confirm settlement.", "success");
                 await loadOrders();
-            } else setRefundFeedback(result?.error || "PayFast could not confirm the refund request.", "error");
+            } else {
+                const error = result?.error || "PayFast could not confirm the refund request.";
+                setRefundFeedback(error, "error");
+            }
         } else if (target.matches(".check-refund-status-btn") && currentReviewOrderId) {
             target.disabled = true;
             setRefundFeedback("Checking refund history with PayFastâ€¦", "info");
@@ -1462,6 +1540,13 @@ const initializeAdminLive = async () => {
     if (password) password.closest(".form-group")?.replaceChildren(document.createTextNode("A secure account setup link is emailed to the new staff member."));
     try {
         if (pageLoaders[page]) await pageLoaders[page]();
+        if (role === "staff" || role === "admin") {
+            await installStaffPush();
+            await checkUnacknowledgedStaffOrders();
+            staffOrderPoller = window.setInterval(() => {
+                if (document.visibilityState === "visible") checkUnacknowledgedStaffOrders();
+            }, 30000);
+        }
         if (initialDataLoadError) {
             showLoadingError("Live data could not be loaded. Check your connection, then try again.");
         } else {

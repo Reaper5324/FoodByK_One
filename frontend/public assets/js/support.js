@@ -32,6 +32,7 @@
     feedback.textContent = message;
     feedback.hidden = false;
     feedback.classList.toggle("is-error", isError);
+    window.foodByKNotify?.(message, isError ? "error" : "success");
   };
   const showAccessNotice = (message, links = []) => {
     accessNotice.replaceChildren();

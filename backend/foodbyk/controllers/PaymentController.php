@@ -11,12 +11,6 @@ class PaymentController extends Controller {
         return $this->respond((new PaymentService())->handleChargeWebhook($request->body, $this->clientIp($request)));
     }
 
-    public function beginCustomerTokenSetup(Request $request): Response {
-        $customer = Customer::findCustomerById($request->user()->id);
-        if (!$customer) return Response::error('Customer account not found.', 404);
-        return $this->respond((new PaymentService())->beginCustomerTokenSetup($customer));
-    }
-
     private function clientIp(Request $request): ?string {
         // Railway's HTTP edge forwards the original client IP in X-Real-IP;
         // REMOTE_ADDR is the internal proxy address in the deployed container.
