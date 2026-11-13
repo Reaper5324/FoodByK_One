@@ -8,7 +8,230 @@
   <link rel="stylesheet" href="../../public%20assets/css/style.css">
   <link rel="stylesheet" href="../../public%20assets/css/home.css">
   <link rel="stylesheet" href="../../public%20assets/css/mobile-navigation.css">
-  <link rel="stylesheet" href="../../public%20assets/css/support.css">
+
+  <!-- Support page styles (replaces the missing support.css) -->
+  <style>
+    body.support-page {
+      --k-ink: #111111;
+      --k-text: #2f2b27;
+      --k-red: #d91e24;
+      --k-orange: #b85300;
+      --k-panel: #1b1917;
+      --k-panel-text: #f7f2ea;
+      --k-panel-muted: #d6cfc4;
+      --k-border: #8a8176;
+    }
+
+    /* keep the hidden attribute working even where display is set below */
+    body.support-page [hidden] { display: none !important; }
+
+    /* ---------- Layout ---------- */
+    body.support-page .support-main {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 56px 24px 80px;
+      box-sizing: border-box;
+    }
+
+    body.support-page .support-layout {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      align-items: start;
+      margin-top: 24px;
+    }
+
+    /* ---------- Intro ---------- */
+    body.support-page .support-intro { margin-bottom: 32px; }
+
+    body.support-page .support-intro .section-tag {
+      color: var(--k-red);
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      opacity: 1;
+      margin: 0 0 12px;
+    }
+
+    body.support-page .support-intro h1 {
+      color: var(--k-ink);
+      opacity: 1;
+      font-size: clamp(2.6rem, 7vw, 5rem);
+      line-height: 1.05;
+      margin: 0 0 16px;
+    }
+
+    body.support-page .support-intro h1 span {
+      color: var(--k-orange);
+      opacity: 1;
+    }
+
+    body.support-page .support-intro p:not(.section-tag) {
+      color: var(--k-text);
+      opacity: 1;
+      font-size: 1.15rem;
+      line-height: 1.6;
+      max-width: 60ch;
+      margin: 0;
+    }
+
+    /* ---------- Panels ---------- */
+    body.support-page .support-panel {
+      background: var(--k-panel);
+      color: var(--k-panel-text);
+      border: 2px solid #000;
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 10px 30px rgba(17, 17, 17, 0.18);
+      box-sizing: border-box;
+    }
+
+    body.support-page .support-panel h2 {
+      color: #ffffff;
+      margin: 0 0 20px;
+    }
+
+    body.support-page .support-panel p,
+    body.support-page .support-access-notice {
+      color: var(--k-panel-text);
+      font-size: 1.1rem;
+      line-height: 1.6;
+      opacity: 1;
+    }
+
+    body.support-page .support-empty,
+    body.support-page .support-panel small { color: var(--k-panel-muted); }
+
+    /* ---------- Sign-in notice buttons ---------- */
+    body.support-page .support-access-notice {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+    }
+
+    body.support-page .support-access-notice > p,
+    body.support-page .support-access-notice > span {
+      flex: 1 1 100%;
+      margin: 0;
+    }
+
+    body.support-page .support-access-notice a,
+    body.support-page .support-access-notice button {
+      display: inline-block;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: pointer;
+      border: 2px solid var(--k-red);
+      background: var(--k-red);
+      color: #ffffff;
+    }
+
+    body.support-page .support-access-notice a:nth-of-type(2),
+    body.support-page .support-access-notice button:nth-of-type(2) {
+      background: transparent;
+      border-color: #ffffff;
+    }
+
+    body.support-page .support-access-notice a:hover,
+    body.support-page .support-access-notice button:hover {
+      background: #ffffff;
+      border-color: #ffffff;
+      color: var(--k-ink);
+    }
+
+    /* ---------- Form ---------- */
+    body.support-page .support-panel label {
+      display: block;
+      color: var(--k-panel-text);
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    body.support-page .support-panel input,
+    body.support-page .support-panel select,
+    body.support-page .support-panel textarea {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 14px 16px;
+      box-sizing: border-box;
+      background: #ffffff;
+      color: var(--k-ink);
+      border: 2px solid var(--k-border);
+      border-radius: 10px;
+      font: inherit;
+      font-weight: 400;
+    }
+
+    body.support-page .support-panel textarea { resize: vertical; }
+
+    body.support-page .support-panel ::placeholder { color: #6b645b; opacity: 1; }
+
+    body.support-page .support-panel input:focus,
+    body.support-page .support-panel select:focus,
+    body.support-page .support-panel textarea:focus,
+    body.support-page .support-access-notice a:focus-visible,
+    body.support-page .support-access-notice button:focus-visible {
+      outline: 3px solid #ffb347;
+      outline-offset: 2px;
+      border-color: #ffb347;
+    }
+
+    body.support-page .support-panel .btn.btn-primary {
+      background: var(--k-red);
+      color: #ffffff;
+      border: 2px solid var(--k-red);
+      padding: 14px 32px;
+      border-radius: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    body.support-page .support-panel .btn.btn-primary:hover {
+      background: #ffffff;
+      color: var(--k-ink);
+      border-color: #ffffff;
+    }
+
+    /* ---------- Feedback + tickets ---------- */
+    body.support-page .support-feedback {
+      background: #ffffff;
+      color: var(--k-ink);
+      border-left: 6px solid var(--k-red);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    body.support-page .support-ticket-list > * {
+      background: #272320;
+      color: var(--k-panel-text);
+      border: 1px solid #5a5249;
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+    }
+
+    /* ---------- Mobile ---------- */
+    @media (max-width: 600px) {
+      body.support-page .support-main { padding: 36px 16px 64px; }
+      body.support-page .support-layout { grid-template-columns: 1fr; }
+      body.support-page .support-panel { padding: 22px; border-radius: 18px; }
+      body.support-page .support-access-notice a,
+      body.support-page .support-access-notice button {
+        flex: 1 1 100%;
+        text-align: center;
+      }
+    }
+  </style>
 </head>
 <body class="home-page support-page">
   <header class="navbar">
