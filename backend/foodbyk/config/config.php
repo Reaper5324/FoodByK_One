@@ -24,7 +24,9 @@ define('FRONTEND_URL', getenv('FRONTEND_URL') ?: '');
 define('RAG_SERVICE_URL', rtrim(getenv('RAG_SERVICE_URL') ?: '', '/'));
 define('RAG_SERVICE_API_KEY', getenv('RAG_SERVICE_API_KEY') ?: '');
 define('RESEND_API_KEY', getenv('RESEND_API_KEY') ?: '');
-define('RESEND_FROM_EMAIL', getenv('RESEND_FROM_EMAIL') ?: 'Food by K <onboarding@resend.dev>');
+// This address must use a domain verified in Resend. It is configurable per
+// deployment so staging and production can use their own verified identities.
+define('RESEND_FROM_EMAIL', getenv('RESEND_FROM_EMAIL') ?: 'Food by K <noreply@send.foodbyk.co.za>');
 define('EMAIL_PROVIDER', strtolower(trim(getenv('EMAIL_PROVIDER') ?: 'resend')));
 define('EMAIL_SMTP_HOST', getenv('EMAIL_SMTP_HOST') ?: 'smtp.gmail.com');
 define('EMAIL_SMTP_PORT', (int) (getenv('EMAIL_SMTP_PORT') ?: '587'));

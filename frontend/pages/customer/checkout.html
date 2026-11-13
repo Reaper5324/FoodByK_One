@@ -29,7 +29,7 @@
     <h1>Checkout<span>.</span></h1>
     <p>Choose collection or delivery, pick a time, and review your total before secure card setup.</p>
   </header>
-  <div id="checkoutMessage" class="checkout-message" role="status" aria-live="polite" hidden></div>
+
   <p class="support-context-link">Something not working at checkout? <a href="support.html?category=checkout&amp;context=checkout">Report a checkout issue</a>.</p>
 
   <form id="checkoutForm" class="checkout-form">
@@ -40,9 +40,66 @@
         <option value="delivery">Delivery</option>
       </select>
     </label>
-    <label id="addressField" class="checkout-field" for="addressId" hidden>Delivery address
-      <select id="addressId" aria-busy="true"><option value="">Loading saved addresses…</option></select>
-    </label>
+    <div id="addressField" class="checkout-field" hidden>
+      <label for="addressId">Delivery address</label>
+
+      <select id="addressId" aria-busy="true">
+        <option value="">Loading saved addresses…</option>
+      </select>
+
+      <button id="showNewAddressButton" type="button" class="btn btn-secondary">
+        Add a new address
+      </button>
+
+      <div id="newAddressSection" hidden>
+        <div class="new-address-heading">
+          <h3>Add a delivery address</h3>
+
+          <button
+                  id="closeNewAddressButton"
+                  type="button"
+                  class="close-address-button"
+                  aria-label="Close new address form"
+          >
+            &times;
+          </button>
+        </div>
+
+        <label for="newDeliveryStreet">Street address, building, and unit</label>
+        <input id="newDeliveryStreet" type="text" maxlength="255"
+               autocomplete="street-address">
+
+        <label for="newDeliveryCity">Suburb / town / city</label>
+        <input id="newDeliveryCity" type="text" maxlength="100"
+               autocomplete="address-level2">
+
+        <label for="newDeliveryProvince">Province</label>
+        <input id="newDeliveryProvince" type="text" maxlength="100"
+               autocomplete="address-level1">
+
+        <label for="newDeliveryPostalCode">Postal code (optional)</label>
+        <input id="newDeliveryPostalCode" type="text" maxlength="20"
+               autocomplete="postal-code">
+
+        <div class="address-checkbox">
+          <input
+                  id="newDeliveryAddressDefault"
+                  type="checkbox"
+          >
+          <label for="newDeliveryAddressDefault">
+            Set as my default address
+          </label>
+        </div>
+
+        <div id="newAddressMessage" class="checkout-message"
+             role="status" aria-live="polite" hidden></div>
+
+        <button id="saveNewAddressButton" type="button" class="btn btn-primary">
+          Save address
+        </button>
+      </div>
+    </div>
+
     <section class="checkout-time-panel" aria-labelledby="checkoutTimeTitle">
       <div class="checkout-panel-heading">
         <p class="checkout-panel-kicker">Set your fulfilment time</p>
@@ -72,6 +129,20 @@
       </label>
       <p class="checkout-loyalty-note">1 point is worth R1 off your order. You can use up to the value of this checkout.</p>
     </section>
+    <div
+            id="checkoutMessage"
+            class="checkout-message"
+            role="status"
+            aria-live="polite"
+            hidden
+    ></div>
+    <div
+            id="deliveryMessage"
+            class="checkout-message is-error"
+            role="alert"
+            aria-live="assertive"
+            hidden
+    ></div>
     <button id="previewButton" class="btn btn-secondary checkout-review-button" type="button">Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
     <section id="checkoutSummary" class="checkout-summary" hidden aria-live="polite"></section>
     <button id="submitButton" class="btn btn-primary checkout-submit-button" type="submit" hidden>Continue to secure card setup <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>

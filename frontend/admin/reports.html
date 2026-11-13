@@ -17,6 +17,45 @@
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
     <link rel="stylesheet" href="../css/dashboard.css">
+
+    <style>
+        /* ===== Live order & customer reports ===== */
+        .report-two-column:has(> :only-child) { grid-template-columns: 1fr; }
+        .live-report-status { font-size: 13px; margin: 0 0 16px; opacity: .75; }
+        .live-report-status.is-error { color: #d71920; opacity: 1; }
+        .live-stats { margin-bottom: 24px; }
+        .live-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 24px; align-items: start; }
+        .live-stack { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+        .live-grid > * { min-width: 0; }
+        @media (max-width: 900px) { .live-grid { grid-template-columns: 1fr; } }
+
+        .cust-legend { display: flex; gap: 18px; font-size: 13px; margin-bottom: 16px; flex-wrap: wrap; }
+        .cust-legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .cust-legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+        .cust-delivery { background: #f59e0b; }
+        .cust-collection { background: #3b82f6; }
+        .cust-chart { display: flex; align-items: stretch; gap: 10px; height: 240px; overflow-x: auto; padding-top: 8px; }
+        .cust-col { flex: 1; min-width: 44px; display: flex; flex-direction: column; align-items: center; }
+        .cust-pair { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 4px; }
+        .cust-bar-wrap { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; width: 38%; max-width: 30px; }
+        .cust-bar { width: 100%; border-radius: 6px 6px 0 0; min-height: 3px; transition: height .4s ease; }
+        .cust-bar-wrap small { font-size: 11px; margin-bottom: 3px; opacity: .8; }
+        .cust-label { font-size: 12px; margin-top: 8px; opacity: .8; text-align: center; }
+        .cust-note { font-size: 12px; opacity: .65; margin-top: 14px; }
+        .live-fill { height: 100%; border-radius: 999px; transition: width .4s ease; }
+
+        /* Expandable order status rows */
+        .sf-head { all: unset; box-sizing: border-box; display: block; width: 100%; cursor: pointer; padding: 4px 0; }
+        .sf-head:focus-visible { outline: 2px solid #d71920; outline-offset: 4px; border-radius: 6px; }
+        .sf-chev { font-size: 11px; margin-right: 8px; transition: transform .2s ease; display: inline-block; }
+        .sf-head[aria-expanded="true"] .sf-chev { transform: rotate(90deg); }
+        .sf-panel { margin: 10px 0 6px; border-left: 3px solid var(--sf-color, #999); background: rgba(0,0,0,.03); border-radius: 8px; max-height: 280px; overflow: auto; }
+        .sf-order { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 12px; font-size: 13px; border-bottom: 1px solid rgba(0,0,0,.06); }
+        .sf-order:last-child { border-bottom: 0; }
+        .sf-order span { opacity: .7; }
+        .sf-order .sf-total { grid-row: 1; grid-column: 2; font-weight: 600; }
+        .sf-empty { padding: 12px; font-size: 13px; opacity: .7; margin: 0; }
+    </style>
 </head>
 
 <body>
@@ -225,7 +264,7 @@
 
                     <div>
                         <p>Total Sales</p>
-                        <h3 id="reportSales">R18,450</h3>
+                        <h3 id="reportSales">—</h3>
                     </div>
 
                 </div>
@@ -239,7 +278,7 @@
 
                     <div>
                         <p>Total Orders</p>
-                        <h3 id="reportOrders">126</h3>
+                        <h3 id="reportOrders">—</h3>
                     </div>
 
                 </div>
@@ -253,7 +292,7 @@
 
                     <div>
                         <p>Average Order</p>
-                        <h3 id="reportAverage">R146</h3>
+                        <h3 id="reportAverage">—</h3>
                     </div>
 
                 </div>
@@ -341,175 +380,129 @@
             </div>
 
 
-            <!-- TWO REPORT CARDS -->
+            <!-- TOP SELLING ITEMS (rebuilt with live data by admin-live.js) -->
 
             <div class="report-two-column">
 
-
-                <!-- TOP MENU ITEMS -->
-
                 <div class="content-card report-section">
 
                     <div class="report-section-header">
-
                         <div>
-
-                            <p class="card-label">
-                                MENU PERFORMANCE
-                            </p>
-
+                            <p class="card-label">MENU PERFORMANCE</p>
                             <h3>Top Selling Items</h3>
-
                         </div>
-
                     </div>
 
-
-                    <div class="top-item">
-
-                        <div class="top-item-number">
-                            1
-                        </div>
-
-                        <div class="top-item-info">
-
-                            <strong>Kay Special</strong>
-
-                            <span>42 orders</span>
-
-                        </div>
-
-                        <strong>R3,864</strong>
-
-                    </div>
-
-
-                    <div class="top-item">
-
-                        <div class="top-item-number">
-                            2
-                        </div>
-
-                        <div class="top-item-info">
-
-                            <strong>Chicken Kota</strong>
-
-                            <span>35 orders</span>
-
-                        </div>
-
-                        <strong>R2,450</strong>
-
-                    </div>
-
-
-                    <div class="top-item">
-
-                        <div class="top-item-number">
-                            3
-                        </div>
-
-                        <div class="top-item-info">
-
-                            <strong>Food Platter</strong>
-
-                            <span>28 orders</span>
-
-                        </div>
-
-                        <strong>R4,760</strong>
-
-                    </div>
-
-
-                    <div class="top-item">
-
-                        <div class="top-item-number">
-                            4
-                        </div>
-
-                        <div class="top-item-info">
-
-                            <strong>Chicken Wrap</strong>
-
-                            <span>21 orders</span>
-
-                        </div>
-
-                        <strong>R1,680</strong>
-
-                    </div>
+                    <p>Loading…</p>
 
                 </div>
 
+            </div>
+
+
+            <!-- LIVE CUSTOMER & ORDER REPORTS -->
+
+            <p class="live-report-status" id="liveReportStatus" role="status" aria-live="polite">Loading live order data…</p>
+
+            <div class="stats-grid report-stats live-stats">
+
+                <div class="stat-card">
+                    <div class="stat-icon orders-icon"><i class="fa-solid fa-users"></i></div>
+                    <div>
+                        <p>Customers Ordering</p>
+                        <h3 id="custTotal">—</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon completed-icon"><i class="fa-solid fa-motorcycle"></i></div>
+                    <div>
+                        <p>Delivery Customers</p>
+                        <h3 id="custDelivery">—</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon today-icon"><i class="fa-solid fa-store"></i></div>
+                    <div>
+                        <p>Collection Customers</p>
+                        <h3 id="custCollection">—</h3>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="content-card report-section" style="margin-bottom:24px;">
+
+                <div class="report-section-header">
+                    <div>
+                        <p class="card-label">CUSTOMER TRACKING</p>
+                        <h3 id="custChartTitle">Customers Per Day</h3>
+                    </div>
+                </div>
+
+                <div class="cust-legend">
+                    <span><i class="cust-delivery"></i> Delivery</span>
+                    <span><i class="cust-collection"></i> Collection</span>
+                </div>
+
+                <div class="cust-chart" id="custChart"></div>
+
+                <p class="cust-note">Counts are unique customers. A customer who used both delivery and collection in the same period is counted in each.</p>
+
+            </div>
+
+            <div class="live-grid">
 
                 <!-- ORDER STATUS -->
-
                 <div class="content-card report-section">
-
                     <div class="report-section-header">
-
                         <div>
-
-                            <p class="card-label">
-                                ORDER ANALYSIS
-                            </p>
-
+                            <p class="card-label">ORDER ANALYSIS</p>
                             <h3>Order Status</h3>
-
                         </div>
-
                     </div>
+                    <div id="statusReport"></div>
+                </div>
 
+                <div class="live-stack">
 
-                    <div class="order-report-item">
-
-                        <div class="order-report-label">
-                            <span>Completed</span>
-                            <strong>82%</strong>
-                        </div>
-
-                        <div class="progress-bar">
-                            <div
-                                class="progress-fill completed"
-                                style="width:82%">
+                    <div class="content-card report-section">
+                        <div class="report-section-header">
+                            <div>
+                                <p class="card-label">ORDER TYPE</p>
+                                <h3>Delivery vs Collection</h3>
                             </div>
                         </div>
 
-                    </div>
-
-
-                    <div class="order-report-item">
-
-                        <div class="order-report-label">
-                            <span>Pending</span>
-                            <strong>10%</strong>
+                        <div class="order-report-item">
+                            <div class="order-report-label"><span>Delivery orders</span><strong id="typeDeliveryLabel">—</strong></div>
+                            <div class="progress-bar"><div class="live-fill cust-delivery" id="typeDeliveryBar" style="width:0%"></div></div>
                         </div>
 
-                        <div class="progress-bar">
-                            <div
-                                class="progress-fill pending"
-                                style="width:10%">
+                        <div class="order-report-item">
+                            <div class="order-report-label"><span>Collection orders</span><strong id="typeCollectionLabel">—</strong></div>
+                            <div class="progress-bar"><div class="live-fill cust-collection" id="typeCollectionBar" style="width:0%"></div></div>
+                        </div>
+                    </div>
+
+                    <div class="content-card report-section">
+                        <div class="report-section-header">
+                            <div>
+                                <p class="card-label">CUSTOMER LOYALTY</p>
+                                <h3>New vs Returning</h3>
                             </div>
                         </div>
 
-                    </div>
-
-
-                    <div class="order-report-item">
-
-                        <div class="order-report-label">
-                            <span>Cancelled</span>
-                            <strong>8%</strong>
+                        <div class="order-report-item">
+                            <div class="order-report-label"><span>New customers</span><strong id="custNewLabel">—</strong></div>
+                            <div class="progress-bar"><div class="live-fill" id="custNewBar" style="width:0%;background:#10b981"></div></div>
                         </div>
 
-                        <div class="progress-bar">
-                            <div
-                                class="progress-fill cancelled"
-                                style="width:8%">
-                            </div>
+                        <div class="order-report-item">
+                            <div class="order-report-label"><span>Returning customers</span><strong id="custReturningLabel">—</strong></div>
+                            <div class="progress-bar"><div class="live-fill" id="custReturningBar" style="width:0%;background:#8b5cf6"></div></div>
                         </div>
-
                     </div>
 
                 </div>
@@ -564,6 +557,289 @@
 
 
     <script src="../js/dashboard.js"></script>
+
+
+    <script>
+        /* ===== Live order, status and customer reports =====
+           Uses the same API as the Orders page (/staff/orders) via apiGet from admin-live.js.
+           No sample data: everything below is calculated from real orders. */
+        (function () {
+            const $ = (id) => document.getElementById(id);
+            const STATUS_GROUPS = [
+                { key: "awaiting",  label: "Awaiting Confirmation", color: "#f59e0b", raw: ["submitted", "awaiting", "awaiting_confirmation", "pending"] },
+                { key: "accepted",  label: "Accepted",              color: "#3b82f6", raw: ["accepted", "confirmed", "paid"] },
+                { key: "preparing", label: "Preparing",             color: "#8b5cf6", raw: ["preparing"] },
+                { key: "ready",     label: "Ready",                 color: "#06b6d4", raw: ["ready"] },
+                { key: "completed", label: "Completed",             color: "#2ea866", raw: ["completed"] },
+                { key: "declined",  label: "Declined / Cancelled",  color: "#ef4444", raw: ["declined", "cancelled", "canceled"] }
+            ];
+            const DECLINED = new Set(["declined", "cancelled", "canceled"]);
+            const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+            const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            let allOrders = null;
+            let loading = false;
+
+            const statusOf = (o) => String(o.status || "").toLowerCase();
+            const parseDate = (v) => {
+                if (!v) return null;
+                const d = new Date(String(v).replace(" ", "T"));
+                return Number.isNaN(d.getTime()) ? null : d;
+            };
+            const orderDate = (o) => parseDate(o.created_at) || parseDate(o.placed_at_local);
+            const orderTotal = (o) => Number(o.total ?? Math.max(0,
+                Number(o.subtotal || 0) + Number(o.delivery_fee || 0) - Number(o.locked_discount || 0)
+                - Number(o.loyalty_points_redeemed || 0) + Number(o.loyalty_points_refunded || 0)));
+            const money = (n) => "R" + Number(n || 0).toFixed(2);
+            const isDelivery = (o) => String(o.fulfilment_type || "").toLowerCase() === "delivery";
+            const customerKey = (o) => {
+                const id = o.customer_id ?? o.user_id ?? o.customer_email;
+                if (id != null && id !== "") return "id:" + id;
+                const name = String(o.customer_name || "").trim().toLowerCase();
+                return name ? "name:" + name : "order:" + o.id;
+            };
+            const setText = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+            const setWidth = (id, v) => { const el = $(id); if (el) el.style.width = v + "%"; };
+            const setStatusLine = (msg, isError) => {
+                const el = $("liveReportStatus");
+                if (!el) return;
+                el.textContent = msg;
+                el.hidden = !msg;
+                el.classList.toggle("is-error", !!isError);
+            };
+
+            function getRange(period, now) {
+                const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+                if (period === "today") return [new Date(y, m, d), new Date(y, m, d + 1)];
+                if (period === "month") return [new Date(y, m, 1), new Date(y, m + 1, 1)];
+                if (period === "year")  return [new Date(y, 0, 1), new Date(y + 1, 0, 1)];
+                const dow = (now.getDay() + 6) % 7;                     // week starts Monday
+                return [new Date(y, m, d - dow), new Date(y, m, d - dow + 7)];
+            }
+
+            function bucketInfo(period) {
+                if (period === "today") return {
+                    title: "Customers Today", labels: ["Morning", "Afternoon", "Evening"],
+                    index: (d) => (d.getHours() < 12 ? 0 : d.getHours() < 17 ? 1 : 2)
+                };
+                if (period === "month") return {
+                    title: "Customers Per Week", labels: ["Days 1–7", "Days 8–14", "Days 15–21", "Day 22+"],
+                    index: (d) => Math.min(3, Math.floor((d.getDate() - 1) / 7))
+                };
+                if (period === "year") return {
+                    title: "Customers Per Month", labels: MONTH_LABELS, index: (d) => d.getMonth()
+                };
+                return { title: "Customers Per Day", labels: DAY_LABELS, index: (d) => (d.getDay() + 6) % 7 };
+            }
+
+            async function fetchAllOrders() {
+                const all = [];
+                let offset = 0, total = Infinity, pages = 0;
+                while (offset < total && pages < 200) {
+                    const query = new URLSearchParams({ view: "all", limit: "50", offset: String(offset) });
+                    const result = await apiGet("/staff/orders?" + query.toString());
+                    if (!result || !result.success) throw new Error((result && result.error) || "Orders could not be loaded.");
+                    const page = Array.isArray(result.data) ? { orders: result.data, total: result.data.length } : (result.data || {});
+                    const records = Array.isArray(page.orders) ? page.orders : [];
+                    total = Number(page.total ?? records.length);
+                    all.push(...records);
+                    offset += records.length;
+                    pages++;
+                    if (!records.length) break;
+                }
+                return all;
+            }
+
+            function renderStatus(inRange) {
+                const host = $("statusReport");
+                if (!host) return;
+                const openKeys = new Set([...host.querySelectorAll('.sf-head[aria-expanded="true"]')].map((b) => b.dataset.key));
+                const groups = STATUS_GROUPS.map((g) => ({ ...g, orders: [] }));
+                const other = new Map();
+                inRange.forEach((o) => {
+                    const s = statusOf(o);
+                    const g = groups.find((x) => x.raw.includes(s));
+                    if (g) { g.orders.push(o); return; }
+                    if (!other.has(s)) other.set(s, { key: "other-" + s, label: (s || "unknown").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()), color: "#9ca3af", orders: [] });
+                    other.get(s).orders.push(o);
+                });
+                const rows = groups.concat([...other.values()]);
+                const total = inRange.length;
+                host.replaceChildren();
+                if (!total) {
+                    const p = document.createElement("p"); p.className = "sf-empty"; p.textContent = "No orders in this period.";
+                    host.appendChild(p);
+                    return;
+                }
+                rows.forEach((g) => {
+                    const pct = Math.round((g.orders.length / total) * 100);
+                    const item = document.createElement("div"); item.className = "order-report-item";
+
+                    const head = document.createElement("button");
+                    head.type = "button"; head.className = "sf-head"; head.dataset.key = g.key;
+                    const panelId = "sf-panel-" + g.key;
+                    head.setAttribute("aria-controls", panelId);
+                    const isOpen = openKeys.has(g.key);
+                    head.setAttribute("aria-expanded", String(isOpen));
+
+                    const label = document.createElement("div"); label.className = "order-report-label";
+                    const name = document.createElement("span");
+                    const chev = document.createElement("i"); chev.className = "fa-solid fa-chevron-right sf-chev"; chev.setAttribute("aria-hidden", "true");
+                    name.append(chev, document.createTextNode(g.label));
+                    const count = document.createElement("strong"); count.textContent = g.orders.length + " · " + pct + "%";
+                    label.append(name, count);
+
+                    const bar = document.createElement("div"); bar.className = "progress-bar";
+                    const fill = document.createElement("div"); fill.className = "live-fill"; fill.style.width = pct + "%"; fill.style.background = g.color;
+                    bar.appendChild(fill);
+                    head.append(label, bar);
+
+                    const panel = document.createElement("div");
+                    panel.className = "sf-panel"; panel.id = panelId; panel.style.setProperty("--sf-color", g.color); panel.hidden = !isOpen;
+                    if (!g.orders.length) {
+                        const p = document.createElement("p"); p.className = "sf-empty"; p.textContent = "No orders with this status in this period.";
+                        panel.appendChild(p);
+                    } else {
+                        g.orders.slice().sort((a, b) => (orderDate(b) || 0) - (orderDate(a) || 0)).forEach((o) => {
+                            const row = document.createElement("div"); row.className = "sf-order";
+                            const who = document.createElement("strong"); who.textContent = "#" + o.id + " · " + (o.customer_name || "Customer");
+                            const tot = document.createElement("span"); tot.className = "sf-total"; tot.textContent = money(orderTotal(o));
+                            const d = orderDate(o);
+                            const meta = document.createElement("span");
+                            meta.textContent = (isDelivery(o) ? "Delivery" : "Collection") + (d ? " · " + d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "");
+                            row.append(who, tot, meta);
+                            panel.appendChild(row);
+                        });
+                    }
+                    item.append(head, panel);
+                    host.appendChild(item);
+                });
+            }
+
+            function render() {
+                if (!allOrders) return;
+                const period = ($("reportPeriod") || {}).value || "week";
+                const [start, end] = getRange(period, new Date());
+                const inRange = allOrders.filter((o) => { const d = orderDate(o); return d && d >= start && d < end; });
+
+                renderStatus(inRange);
+
+                // Customer tracking ignores declined / cancelled orders
+                const active = inRange.filter((o) => !DECLINED.has(statusOf(o)));
+                const info = bucketInfo(period);
+                const buckets = info.labels.map(() => ({ delivery: new Set(), collection: new Set() }));
+                const allCust = new Set(), delCust = new Set(), colCust = new Set();
+                let delOrders = 0, colOrders = 0;
+                active.forEach((o) => {
+                    const key = customerKey(o);
+                    const b = buckets[info.index(orderDate(o))];
+                    allCust.add(key);
+                    if (isDelivery(o)) { b.delivery.add(key); delCust.add(key); delOrders++; }
+                    else { b.collection.add(key); colCust.add(key); colOrders++; }
+                });
+
+                setText("custTotal", allCust.size);
+                setText("custDelivery", delCust.size);
+                setText("custCollection", colCust.size);
+                setText("custChartTitle", info.title);
+
+                const orderCount = delOrders + colOrders;
+                const pct = (n) => (orderCount ? Math.round((n / orderCount) * 100) : 0);
+                setText("typeDeliveryLabel", delOrders + " · " + pct(delOrders) + "%");
+                setText("typeCollectionLabel", colOrders + " · " + pct(colOrders) + "%");
+                setWidth("typeDeliveryBar", pct(delOrders));
+                setWidth("typeCollectionBar", pct(colOrders));
+
+                // New = customer's very first order falls inside this period
+                const firstSeen = new Map();
+                allOrders.forEach((o) => {
+                    if (DECLINED.has(statusOf(o))) return;
+                    const d = orderDate(o); if (!d) return;
+                    const k = customerKey(o);
+                    if (!firstSeen.has(k) || d < firstSeen.get(k)) firstSeen.set(k, d);
+                });
+                let newCount = 0;
+                allCust.forEach((k) => { const f = firstSeen.get(k); if (f && f >= start) newCount++; });
+                const retCount = allCust.size - newCount;
+                const cpct = (n) => (allCust.size ? Math.round((n / allCust.size) * 100) : 0);
+                setText("custNewLabel", newCount + " · " + cpct(newCount) + "%");
+                setText("custReturningLabel", retCount + " · " + cpct(retCount) + "%");
+                setWidth("custNewBar", cpct(newCount));
+                setWidth("custReturningBar", cpct(retCount));
+
+                const max = Math.max(1, ...buckets.map((b) => Math.max(b.delivery.size, b.collection.size)));
+                const chart = $("custChart");
+                if (chart) {
+                    chart.replaceChildren();
+                    buckets.forEach((b, i) => {
+                        const col = document.createElement("div"); col.className = "cust-col";
+                        const pair = document.createElement("div"); pair.className = "cust-pair";
+                        [["delivery", "cust-delivery"], ["collection", "cust-collection"]].forEach(([k, cls]) => {
+                            const wrap = document.createElement("div"); wrap.className = "cust-bar-wrap";
+                            const small = document.createElement("small"); small.textContent = String(b[k].size);
+                            const bar = document.createElement("div"); bar.className = "cust-bar " + cls; bar.style.height = (b[k].size / max) * 80 + "%";
+                            wrap.append(small, bar); pair.appendChild(wrap);
+                        });
+                        const lab = document.createElement("span"); lab.className = "cust-label"; lab.textContent = info.labels[i];
+                        col.append(pair, lab); chart.appendChild(col);
+                    });
+                }
+                setStatusLine(inRange.length ? "" : "No orders were placed in this period.", false);
+            }
+
+            async function refresh() {
+                if (loading) return;
+                loading = true;
+                setStatusLine("Loading live order data…", false);
+                try {
+                    allOrders = await fetchAllOrders();
+                    render();
+                } catch (err) {
+                    console.error(err);
+                    const msg = (err && err.message) || "";
+                    setStatusLine(/authenticat/i.test(msg)
+                        ? "Your session is not active for this request. Log in again, and open the admin pages through your local server or website rather than as a file from disk."
+                        : (msg || "Live order data could not be loaded. Press Update Report to try again."), true);
+                } finally {
+                    loading = false;
+                }
+            }
+
+            // Expand / collapse the order lists under each status
+            document.addEventListener("click", (event) => {
+                const head = event.target.closest(".sf-head");
+                if (!head) return;
+                const open = head.getAttribute("aria-expanded") !== "true";
+                head.setAttribute("aria-expanded", String(open));
+                const panel = document.getElementById(head.getAttribute("aria-controls"));
+                if (panel) panel.hidden = !open;
+            });
+
+            // Period change re-filters instantly; Update Report re-fetches fresh orders
+            $("reportPeriod")?.addEventListener("change", render);
+            document.addEventListener("click", (event) => {
+                if (event.target.closest("#updateReportBtn")) refresh();
+            }, true);
+
+            // Wait until admin-live.js has finished signing in and has removed its loading screen.
+            // (apiGet exists before the login check finishes, so calling it any earlier can fail with "Authentication required".)
+            let waited = 0;
+            const timer = setInterval(() => {
+                const screen = document.getElementById("adminLoadingState");
+                waited += 250;
+                if (!screen && typeof apiGet === "function") {
+                    clearInterval(timer);
+                    refresh();
+                } else if (screen && screen.classList.contains("is-error")) {
+                    clearInterval(timer);
+                    setStatusLine("The admin session could not be loaded, so live order data was not requested.", true);
+                } else if (waited > 30000) {
+                    clearInterval(timer);
+                    setStatusLine("Timed out waiting for the admin session. Reload the page and try again.", true);
+                }
+            }, 250);
+        })();
+    </script>
 
 </body>
 

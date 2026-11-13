@@ -3,6 +3,20 @@
     const fulfilment = document.getElementById("fulfilmentType");
     const addressField = document.getElementById("addressField");
     const addressSelect = document.getElementById("addressId");
+
+    const showNewAddressButton = document.getElementById("showNewAddressButton");
+    const newAddressSection = document.getElementById("newAddressSection");
+    const newAddressMessage = document.getElementById("newAddressMessage");
+    const saveNewAddressButton = document.getElementById("saveNewAddressButton");
+    const closeNewAddressButton = document.getElementById("closeNewAddressButton");
+
+    const newDeliveryStreet = document.getElementById("newDeliveryStreet");
+    const newDeliveryCity = document.getElementById("newDeliveryCity");
+    const newDeliveryProvince = document.getElementById("newDeliveryProvince");
+    const newDeliveryPostalCode = document.getElementById("newDeliveryPostalCode");
+    const newDeliveryAddressDefault = document.getElementById("newDeliveryAddressDefault");
+
+    const deliveryMessage = document.getElementById("deliveryMessage");
     const dateInput = document.getElementById("slotDate");
     const slotSelect = document.getElementById("slotSelect");
     const promotionInput = document.getElementById("promotionCode");
@@ -12,7 +26,9 @@
     const submitButton = document.getElementById("submitButton");
     const loyaltyPointsInput = document.getElementById("loyaltyPointsToRedeem");
     const loyaltyBalanceMessage = document.getElementById("loyaltyBalanceMessage");
+
     const selectedPromotionKey = "foodbykSelectedPromotion";
+
     let previewReady = false;
     let addressesLoaded = false;
 
@@ -23,16 +39,22 @@
 
     const loadLoyaltyBalance = async () => {
         if (!loyaltyPointsInput || !loyaltyBalanceMessage) return;
+
         const result = await apiGet("/loyalty/balance");
+
         if (!result?.success || !result.data) {
             loyaltyBalanceMessage.textContent = "Sign in to view and use your loyalty points.";
             loyaltyPointsInput.disabled = true;
             return;
         }
+
         const balance = Number(result.data.points || 0);
+
         loyaltyPointsInput.max = balance.toFixed(2);
         loyaltyPointsInput.disabled = balance <= 0;
-        loyaltyBalanceMessage.textContent = `You have ${formatPoints(balance)} points worth R${Number(result.data.estimated_value || 0).toFixed(2)}.`;
+
+        loyaltyBalanceMessage.textContent =
+            `You have ${formatPoints(balance)} points worth R${Number(result.data.estimated_value || 0).toFixed(2)}.`;
     };
 
     try {
@@ -41,6 +63,11 @@
     } catch (error) {
         console.warn("Unable to restore the selected promotion code.", error);
     }
+
+    const showDeliveryMessage = (text) => {
+        deliveryMessage.textContent = text;
+        deliveryMessage.hidden = !text;
+    };
 
     const showMessage = (text, isError = false) => {
         message.hidden = false;
@@ -54,99 +81,221 @@
         summary.hidden = true;
         submitButton.hidden = true;
         message.hidden = true;
+        showDeliveryMessage("");
     };
+
+    // Show the new address form
+    showNewAddressButton.addEventListener("click", () => {
+        newAddressSection.hidden = false;
+        showNewAddressButton.hidden = true;
+
+        newAddressMessage.hidden = true;
+        newAddressMessage.textContent = "";
+        newAddressMessage.classList.remove("is-error");
+
+        clearPreview();
+    });
+    // Close the new address form
+    closeNewAddressButton.addEventListener("click", () => {
+        newAddressSection.hidden = true;
+        showNewAddressButton.hidden = false;
+
+        newAddressMessage.hidden = true;
+        newAddressMessage.textContent = "";
+        newAddressMessage.classList.remove("is-error");
+
+        newDeliveryStreet.value = "";
+        newDeliveryCity.value = "";
+        newDeliveryProvince.value = "";
+        newDeliveryPostalCode.value = "";
+        newDeliveryAddressDefault.checked = false;
+
+        clearPreview();
+    });
+
+    // Save the new delivery address
+    saveNewAddressButton.addEventListener("click", async () => {
+        newAddressMessage.hidden = true;
+        newAddressMessage.textContent = "";
+        newAddressMessage.classList.remove("is-error");
+
+        const street = newDeliveryStreet.value.trim();
+        const city = newDeliveryCity.value.trim();
+        const province = newDeliveryProvince.value.trim();
+
+        if (!street || !city || !province) {
+            newAddressMessage.textContent =
+                "Please enter your street address, city, and province.";
+
+            newAddressMessage.classList.add("is-error");
+            newAddressMessage.hidden = false;
+            return;
+        }
+
+        const payload = {
+            street: street,
+            city: city,
+            province: province,
+            postal_code: newDeliveryPostalCode.value.trim(),
+            is_default: newDeliveryAddressDefault.checked
+        };
+
+        saveNewAddressButton.disabled = true;
+        saveNewAddressButton.textContent = "Saving...";
+
+        const result = await apiPost("/addresses", payload);
+
+        saveNewAddressButton.disabled = false;
+        saveNewAddressButton.textContent = "Save address";
+
+        if (!result.success || !result.data?.id) {
+            newAddressMessage.textContent =
+                result.error || "Unable to save this address.";
+
+            newAddressMessage.classList.add("is-error");
+            newAddressMessage.hidden = false;
+            return;
+        }
+
+        const savedAddress = result.data;
+
+        const option = document.createElement("option");
+        option.value = savedAddress.id;
+        option.textContent = savedAddress.raw_address ||
+            [savedAddress.street, savedAddress.city, savedAddress.postal_code]
+                .filter(Boolean)
+                .join(", ");
+
+        addressSelect.appendChild(option);
+        addressSelect.value = String(savedAddress.id);
+
+        newAddressSection.hidden = true;
+        showNewAddressButton.hidden = false;
+
+        newDeliveryStreet.value = "";
+        newDeliveryCity.value = "";
+        newDeliveryProvince.value = "";
+        newDeliveryPostalCode.value = "";
+        newDeliveryAddressDefault.checked = false;
+
+        clearPreview();
+
+        if (savedAddress.has_coordinates === false) {
+            showMessage(
+                "Address saved, but it couldn't be located for delivery. Please check the address details.",
+                true
+            );
+        } else {
+            showMessage("Delivery address saved successfully.");
+        }
+    });
 
     const getLocalDate = () => {
         const now = new Date();
+
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     };
 
-   const loadAddresses = async () => {
-       if (addressesLoaded) {
-           return addressSelect.options.length > 0;
-       }
+    const loadAddresses = async () => {
+        if (addressesLoaded) {
+            return addressSelect.options.length > 0;
+        }
 
-       addressSelect.setAttribute("aria-busy", "true");
-       addressSelect.replaceChildren(
-           new Option("Loading saved addresses…", "")
-       );
+        addressSelect.setAttribute("aria-busy", "true");
+        addressSelect.replaceChildren(
+            new Option("Loading saved addresses…", "")
+        );
 
-       const result = await apiGet("/addresses");
+        const result = await apiGet("/addresses");
 
-       if (!result.success) {
-           addressSelect.replaceChildren(
-               new Option("Unable to load addresses", "")
-           );
-           addressSelect.setAttribute("aria-busy", "false");
+        if (!result.success) {
+            addressSelect.replaceChildren(
+                new Option("Unable to load addresses", "")
+            );
 
-           showMessage(
-               result.error || "Log in to continue to checkout.",
-               true
-           );
+            addressSelect.setAttribute("aria-busy", "false");
 
-           return false;
-       }
+            showMessage(
+                result.error || "Log in to continue to checkout.",
+                true
+            );
 
-       addressesLoaded = true;
-       addressSelect.replaceChildren();
+            return false;
+        }
 
-       result.data.forEach((address) => {
-           const option = document.createElement("option");
+        addressesLoaded = true;
+        addressSelect.replaceChildren();
 
-           option.value = address.id;
-           option.textContent = address.raw_address ||
-               [address.street, address.city, address.postal_code]
-                   .filter(Boolean)
-                   .join(", ");
+        result.data.forEach((address) => {
+            const option = document.createElement("option");
 
-           option.selected = Boolean(address.is_default);
-           addressSelect.appendChild(option);
-       });
+            option.value = address.id;
+            option.textContent = address.raw_address ||
+                [address.street, address.city, address.postal_code]
+                    .filter(Boolean)
+                    .join(", ");
 
-       addressSelect.setAttribute("aria-busy", "false");
+            option.selected = Boolean(address.is_default);
+            addressSelect.appendChild(option);
+        });
 
-       if (addressSelect.options.length === 0) {
-           addressSelect.appendChild(
-               new Option("No saved addresses available", "")
-           );
+        addressSelect.setAttribute("aria-busy", "false");
 
-           showMessage(
-               "Add a delivery address to your account before choosing delivery.",
-               true
-           );
+        if (addressSelect.options.length === 0) {
+            addressSelect.appendChild(
+                new Option("No saved addresses available", "")
+            );
 
-           return false;
-       }
+            showMessage(
+                "Add a delivery address to your account before choosing delivery.",
+                true
+            );
 
-       return true;
-   };
+            return false;
+        }
+
+        return true;
+    };
+
     const loadSlots = async () => {
         const date = dateInput.value;
+
         slotSelect.replaceChildren();
+
         const placeholder = document.createElement("option");
         placeholder.value = "";
         placeholder.textContent = "Loading available times…";
+
         slotSelect.appendChild(placeholder);
         slotSelect.setAttribute("aria-busy", "true");
 
-        const result = await apiGet(`/checkout/slots?date=${encodeURIComponent(date)}`);
+        const result = await apiGet(
+            `/checkout/slots?date=${encodeURIComponent(date)}`
+        );
+
         slotSelect.replaceChildren();
         slotSelect.setAttribute("aria-busy", "false");
+
         if (!result.success) {
             const failed = document.createElement("option");
             failed.value = "";
             failed.textContent = "Unable to load times";
+
             slotSelect.appendChild(failed);
+
             showMessage(result.error || "Unable to load available times.", true);
             return;
         }
 
         const slots = result.data.filter((slot) => slot.available);
+
         if (slots.length === 0) {
             const none = document.createElement("option");
             none.value = "";
             none.textContent = "No available times for this date";
+
             slotSelect.appendChild(none);
+
             showMessage("No time slots are available for this date. Choose another date.");
             return;
         }
@@ -154,11 +303,20 @@
         const choose = document.createElement("option");
         choose.value = "";
         choose.textContent = "Choose a time";
+
         slotSelect.appendChild(choose);
+
         slots.forEach((slot) => {
             const option = document.createElement("option");
-            option.value = JSON.stringify({ start: slot.start, end: slot.end });
-            option.textContent = `${new Date(slot.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} – ${new Date(slot.end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+
+            option.value = JSON.stringify({
+                start: slot.start,
+                end: slot.end
+            });
+
+            option.textContent =
+                `${new Date(slot.start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} – ${new Date(slot.end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+
             slotSelect.appendChild(option);
         });
     };
@@ -166,6 +324,7 @@
     const requestPreview = async () => {
         message.hidden = true;
         clearPreview();
+
         if (!fulfilment.value) {
             showMessage(
                 "Choose collection or delivery before reviewing your order.",
@@ -173,173 +332,250 @@
             );
             return;
         }
+
         if (!slotSelect.value) {
             showMessage("Choose an available fulfilment time.", true);
             return;
         }
+
         if (fulfilment.value === "delivery" && !addressSelect.value) {
             showMessage("Choose a delivery address or add one to your account.", true);
             return;
         }
+
+        if (fulfilment.value === "delivery" && !newAddressSection.hidden) {
+            showMessage("Please save your new delivery address before reviewing your order.", true);
+            return;
+        }
+
         const payload = {
             fulfilment_type: fulfilment.value,
             address_id: fulfilment.value === "delivery" ? Number(addressSelect.value) : null,
             promotion_code: promotionInput.value.trim() || null,
             loyalty_points_to_redeem: Number(loyaltyPointsInput?.value || 0)
         };
+
         previewButton.disabled = true;
         previewButton.textContent = "Reviewing your total…";
+
         summary.setAttribute("aria-busy", "true");
+
         summary.replaceChildren(...Array.from({ length: 4 }, () => {
             const row = document.createElement("div");
             row.className = "skeleton skeleton-line";
             row.setAttribute("aria-hidden", "true");
             return row;
         }));
+
         summary.hidden = false;
+
         const result = await apiPost("/checkout/preview", payload);
+
         previewButton.disabled = false;
-        previewButton.innerHTML = 'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
+        previewButton.innerHTML =
+            'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
+
         if (!result.success) {
             summary.hidden = true;
             summary.setAttribute("aria-busy", "false");
-            showMessage(result.error || "Unable to review this order.", true);
+
+            const deliveryErrors = [
+                "Delivery is currently unavailable.",
+                "A geocoded delivery address is required.",
+                "Outside the delivery area - collection is available instead.",
+                "This address is outside our service area.",
+                "Delivery address not found."
+            ];
+
+            const errorMessage = result.error || "Unable to review this order.";
+
+            if (
+                fulfilment.value === "delivery" &&
+                deliveryErrors.includes(errorMessage)
+            ) {
+                showDeliveryMessage(errorMessage);
+            } else {
+                showMessage(errorMessage, true);
+            }
+
             return;
         }
 
         const data = result.data;
+
         summary.replaceChildren();
         summary.setAttribute("aria-busy", "false");
+
         const summaryHeading = document.createElement("div");
         summaryHeading.className = "checkout-summary-heading";
+
         const summaryKicker = document.createElement("p");
         summaryKicker.textContent = "Price breakdown";
+
         const summaryTitle = document.createElement("h2");
         summaryTitle.textContent = "Review your total";
+
         summaryHeading.append(summaryKicker, summaryTitle);
         summary.appendChild(summaryHeading);
-        [
-            ["Subtotal", data.subtotal],
-            [data.discount_reason || "Promotion discount", -Number(data.discount || 0)],
-            ["Delivery fee", data.delivery_fee]
-        ].forEach(([label, amount]) => {
-            const row = document.createElement("p");
-            row.className = "checkout-summary-row";
-            const title = document.createElement("span");
-            const value = document.createElement("strong");
-            title.textContent = label;
-            value.textContent = Number(amount || 0) < 0
-                ? `-R${Math.abs(Number(amount)).toFixed(2)}`
-                : `R${Number(amount || 0).toFixed(2)}`;
-            row.append(title, value);
-            summary.appendChild(row);
-        });
+
+       // Build the main price breakdown
+       const priceRows = [
+           ["Subtotal", Number(data.subtotal || 0)]
+       ];
+
+       // Only display a promotion discount when one was actually applied
+       if (Number(data.discount || 0) > 0) {
+           priceRows.push([
+               data.discount_reason || "Promotion discount",
+               -Number(data.discount)
+           ]);
+       }
+
+       // Display the appropriate fulfilment fee
+       priceRows.push([
+           data.fulfillment_type === "delivery"
+               ? "Delivery fee"
+               : "Delivery fee (not applicable)",
+           Number(data.delivery_fee || 0)
+       ]);
+
+       priceRows.forEach(([label, amount]) => {
+           const row = document.createElement("p");
+           row.className = "checkout-summary-row";
+
+           const title = document.createElement("span");
+           const value = document.createElement("strong");
+
+           title.textContent = label;
+
+           value.textContent = amount < 0
+               ? `-R${Math.abs(amount).toFixed(2)}`
+               : `R${amount.toFixed(2)}`;
+
+           row.append(title, value);
+           summary.appendChild(row);
+       });
+
         if (Number(data.loyalty_points_redeemed || 0) > 0) {
             const rewardsRow = document.createElement("p");
             rewardsRow.className = "checkout-summary-row";
+
             const rewardsLabel = document.createElement("span");
             const rewardsValue = document.createElement("strong");
-            rewardsLabel.textContent = `Loyalty rewards (${formatPoints(data.loyalty_points_redeemed)} points)`;
-            rewardsValue.textContent = `-R${Number(data.loyalty_discount || 0).toFixed(2)}`;
+
+            rewardsLabel.textContent =
+                `Loyalty rewards (${formatPoints(data.loyalty_points_redeemed)} points)`;
+
+            rewardsValue.textContent =
+                `-R${Number(data.loyalty_discount || 0).toFixed(2)}`;
+
             rewardsRow.append(rewardsLabel, rewardsValue);
             summary.appendChild(rewardsRow);
         }
+
         const total = document.createElement("p");
         total.className = "checkout-summary-row checkout-summary-total";
+
         const totalLabel = document.createElement("strong");
         const totalValue = document.createElement("strong");
+
         totalLabel.textContent = "Total";
         totalValue.textContent = `R${Number(data.total).toFixed(2)}`;
+
         total.append(totalLabel, totalValue);
         summary.appendChild(total);
+
         if (data.promotion && Number(data.discount || 0) === 0) {
             const promoNote = document.createElement("p");
             promoNote.className = "checkout-summary-note";
+
             if (data.promotion.discount_type === "free_delivery" && data.fulfillment_type !== "delivery") {
                 promoNote.textContent = "Free-delivery offers apply to delivery orders only.";
             } else if (data.promotion.discount_type === "buy_one_get_one") {
                 promoNote.textContent = "Buy-one-get-one offers need two of the same eligible menu item.";
             } else if (data.promotion.target_product_names?.length) {
-                promoNote.textContent = `This offer applies to ${data.promotion.target_product_names.join(", ")}. Check that your basket meets the offer conditions.`;
+                promoNote.textContent =
+                    `This offer applies to ${data.promotion.target_product_names.join(", ")}. Check that your basket meets the offer conditions.`;
             } else {
                 promoNote.textContent = "This offer does not reduce this order total.";
             }
+
             summary.appendChild(promoNote);
         }
+
         const summaryNote = document.createElement("p");
         summaryNote.className = "checkout-summary-note";
-        summaryNote.textContent = "Your card is set up securely in the next step and is not charged while the team reviews your order.";
+        summaryNote.textContent =
+            "Your card is set up securely in the next step and is not charged while the team reviews your order.";
+
         summary.appendChild(summaryNote);
+
         summary.hidden = false;
         submitButton.hidden = false;
         previewReady = true;
+
         showMessage("Total reviewed. Check the breakdown below before continuing.");
     };
-const refreshPreviewIfReady = () => {
-    if (!fulfilment.value) return;
-    if (!slotSelect.value) return;
 
-    if (fulfilment.value === "delivery" && !addressSelect.value) {
-        return;
-    }
+    fulfilment.addEventListener("change", async () => {
+        addressField.hidden = fulfilment.value !== "delivery";
+        addressSelect.required = fulfilment.value === "delivery";
 
-    return requestPreview();
-};
-  fulfilment.addEventListener("change", async () => {
-      addressField.hidden = fulfilment.value !== "delivery";
-      addressSelect.required = fulfilment.value === "delivery";
+        clearPreview();
 
-      clearPreview();
+        if (fulfilment.value === "delivery" && !addressesLoaded) {
+            await loadAddresses();
+        }
+    });
 
-      if (fulfilment.value === "delivery" && !addressesLoaded) {
-          const loaded = await loadAddresses();
+    dateInput.addEventListener("change", async () => {
+        clearPreview();
+        await loadSlots();
+    });
 
-          if (!loaded) return;
-      }
+    [addressSelect, slotSelect, promotionInput, loyaltyPointsInput]
+        .filter(Boolean)
+        .forEach((input) => {
+            input.addEventListener("change", clearPreview);
+            input.addEventListener("input", clearPreview);
+        });
 
-      await refreshPreviewIfReady();
-  });
-
-   dateInput.addEventListener("change", async () => {
-       clearPreview();
-       await loadSlots();
-   });
-
-   [addressSelect, slotSelect, promotionInput, loyaltyPointsInput]
-       .filter(Boolean)
-       .forEach((input) => {
-           input.addEventListener("change", async () => {
-               clearPreview();
-               await refreshPreviewIfReady();
-           });
-
-           input.addEventListener("input", clearPreview);
-       });
     promotionInput.addEventListener("input", () => {
         try {
             const savedPromotion = sessionStorage.getItem(selectedPromotionKey);
-            if (savedPromotion && promotionInput.value.trim().toUpperCase() !== savedPromotion.toUpperCase()) {
+
+            if (
+                savedPromotion &&
+                promotionInput.value.trim().toUpperCase() !== savedPromotion.toUpperCase()
+            ) {
                 sessionStorage.removeItem(selectedPromotionKey);
             }
         } catch (error) {
             console.warn("Unable to update the selected promotion code.", error);
         }
+
         clearPreview();
     });
+
     previewButton.addEventListener("click", requestPreview);
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
+
         if (!previewReady) {
             showMessage("Review the order total before continuing.", true);
             return;
         }
+
         if (!slotSelect.value) {
             showMessage("Choose an available fulfilment time.", true);
             return;
         }
+
         const selectedSlot = JSON.parse(slotSelect.value);
+
         submitButton.disabled = true;
+
         const result = await apiPost("/checkout/submit", {
             fulfilment_type: fulfilment.value,
             address_id: fulfilment.value === "delivery" ? Number(addressSelect.value) : null,
@@ -350,9 +586,15 @@ const refreshPreviewIfReady = () => {
         });
 
         const setup = result.data?.payment_setup;
+
         if (!result.success || !setup?.redirect_url || !setup?.fields) {
             submitButton.disabled = false;
-            showMessage(result.error || "Unable to start secure card setup. Please contact the restaurant before retrying.", true);
+
+            showMessage(
+                result.error || "Unable to start secure card setup. Please contact the restaurant before retrying.",
+                true
+            );
+
             return;
         }
 
@@ -365,23 +607,27 @@ const refreshPreviewIfReady = () => {
         const paymentForm = document.createElement("form");
         paymentForm.method = "POST";
         paymentForm.action = setup.redirect_url;
+
         Object.entries(setup.fields).forEach(([name, value]) => {
             const input = document.createElement("input");
+
             input.type = "hidden";
             input.name = name;
             input.value = String(value);
+
             paymentForm.appendChild(input);
         });
+
         document.body.appendChild(paymentForm);
         paymentForm.submit();
     });
 
-   addressField.hidden = true;
-   addressSelect.required = false;
+    addressField.hidden = true;
+    addressSelect.required = false;
 
-   dateInput.min = getLocalDate();
-   dateInput.value = getLocalDate();
+    dateInput.min = getLocalDate();
+    dateInput.value = getLocalDate();
 
-   await loadSlots();
-   await loadLoyaltyBalance();
+    await loadSlots();
+    await loadLoyaltyBalance();
 });

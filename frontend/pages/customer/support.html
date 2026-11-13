@@ -5,10 +5,234 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111111">
   <title>Customer support | Food by K</title>
+  <!-- support-visibility v2 -->
   <link rel="stylesheet" href="../../public%20assets/css/style.css">
   <link rel="stylesheet" href="../../public%20assets/css/home.css">
   <link rel="stylesheet" href="../../public%20assets/css/mobile-navigation.css">
-  <link rel="stylesheet" href="../../public%20assets/css/support.css">
+
+  <!-- Support page styles (replaces the missing support.css) -->
+  <style>
+    body.support-page {
+      --k-ink: #111111;
+      --k-text: #2f2b27;
+      --k-red: #d91e24;
+      --k-orange: #b85300;
+      --k-panel: #1b1917;
+      --k-panel-text: #f7f2ea;
+      --k-panel-muted: #d6cfc4;
+      --k-border: #8a8176;
+    }
+
+    /* keep the hidden attribute working even where display is set below */
+    body.support-page [hidden] { display: none !important; }
+
+    /* ---------- Layout ---------- */
+    body.support-page .support-main {
+      width: 100% !important;
+      max-width: 1100px !important;
+      margin: 0 auto !important;
+      padding: 56px 24px 80px !important;
+      box-sizing: border-box !important;
+    }
+
+    body.support-page .support-layout {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+      gap: 24px !important;
+      align-items: start !important;
+      margin-top: 24px !important;
+    }
+
+    /* ---------- Intro ---------- */
+    body.support-page .support-intro { margin-bottom: 32px; }
+
+    body.support-page .support-intro .section-tag {
+      color: var(--k-red) !important;
+      font-weight: 800 !important;
+      letter-spacing: 0.14em !important;
+      opacity: 1 !important;
+      margin: 0 0 12px !important;
+    }
+
+    body.support-page .support-intro h1 {
+      color: var(--k-ink) !important;
+      opacity: 1 !important;
+      font-size: clamp(2.6rem, 7vw, 5rem) !important;
+      line-height: 1.05 !important;
+      margin: 0 0 16px !important;
+    }
+
+    body.support-page .support-intro h1 span {
+      color: var(--k-orange) !important;
+      opacity: 1 !important;
+    }
+
+    body.support-page .support-intro p:not(.section-tag) {
+      color: var(--k-text) !important;
+      opacity: 1 !important;
+      font-size: 1.15rem !important;
+      line-height: 1.6 !important;
+      max-width: 60ch !important;
+      margin: 0 !important;
+    }
+
+    /* ---------- Panels ---------- */
+    body.support-page .support-panel {
+      background: var(--k-panel) !important;
+      color: var(--k-panel-text) !important;
+      border: 2px solid #000 !important;
+      border-radius: 24px !important;
+      padding: 32px !important;
+      box-shadow: 0 10px 30px rgba(17, 17, 17, 0.18) !important;
+      box-sizing: border-box !important;
+    }
+
+    body.support-page .support-panel h2 {
+      color: #ffffff !important;
+      margin: 0 0 20px !important;
+    }
+
+    body.support-page .support-panel p,
+    body.support-page .support-access-notice {
+      color: var(--k-panel-text) !important;
+      font-size: 1.1rem !important;
+      line-height: 1.6 !important;
+      opacity: 1 !important;
+    }
+
+    body.support-page .support-empty,
+    body.support-page .support-panel small { color: var(--k-panel-muted); }
+
+    /* ---------- Sign-in notice buttons ---------- */
+    body.support-page .support-access-notice {
+      display: flex !important;
+      flex-wrap: wrap !important;
+      align-items: center !important;
+      gap: 16px !important;
+    }
+
+    body.support-page .support-access-notice > p,
+    body.support-page .support-access-notice > span {
+      flex: 1 1 100% !important;
+      margin: 0 !important;
+    }
+
+    body.support-page .support-access-notice a,
+    body.support-page .support-access-notice button {
+      display: inline-block !important;
+      padding: 14px 28px !important;
+      border-radius: 10px !important;
+      font-weight: 800 !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase !important;
+      text-decoration: none !important;
+      cursor: pointer !important;
+      border: 2px solid var(--k-red) !important;
+      background: var(--k-red) !important;
+      color: #ffffff !important;
+    }
+
+    body.support-page .support-access-notice a:nth-of-type(2),
+    body.support-page .support-access-notice button:nth-of-type(2) {
+      background: transparent !important;
+      border-color: #ffffff !important;
+    }
+
+    body.support-page .support-access-notice a:hover,
+    body.support-page .support-access-notice button:hover {
+      background: #ffffff !important;
+      border-color: #ffffff !important;
+      color: var(--k-ink) !important;
+    }
+
+    /* ---------- Form ---------- */
+    body.support-page .support-panel label {
+      display: block !important;
+      color: var(--k-panel-text) !important;
+      font-weight: 700 !important;
+      margin-bottom: 18px !important;
+    }
+
+    body.support-page .support-panel input,
+    body.support-page .support-panel select,
+    body.support-page .support-panel textarea {
+      display: block !important;
+      width: 100% !important;
+      margin-top: 8px !important;
+      padding: 14px 16px !important;
+      box-sizing: border-box !important;
+      background: #ffffff !important;
+      color: var(--k-ink) !important;
+      border: 2px solid var(--k-border) !important;
+      border-radius: 10px !important;
+      font: inherit !important;
+      font-weight: 400 !important;
+    }
+
+    body.support-page .support-panel textarea { resize: vertical; }
+
+    body.support-page .support-panel ::placeholder { color: #6b645b; opacity: 1; }
+
+    body.support-page .support-panel input:focus,
+    body.support-page .support-panel select:focus,
+    body.support-page .support-panel textarea:focus,
+    body.support-page .support-access-notice a:focus-visible,
+    body.support-page .support-access-notice button:focus-visible {
+      outline: 3px solid #ffb347 !important;
+      outline-offset: 2px !important;
+      border-color: #ffb347 !important;
+    }
+
+    body.support-page .support-panel .btn.btn-primary {
+      background: var(--k-red) !important;
+      color: #ffffff !important;
+      border: 2px solid var(--k-red) !important;
+      padding: 14px 32px !important;
+      border-radius: 10px !important;
+      font-weight: 800 !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase !important;
+      cursor: pointer !important;
+    }
+
+    body.support-page .support-panel .btn.btn-primary:hover {
+      background: #ffffff !important;
+      color: var(--k-ink) !important;
+      border-color: #ffffff !important;
+    }
+
+    /* ---------- Feedback + tickets ---------- */
+    body.support-page .support-feedback {
+      background: #ffffff !important;
+      color: var(--k-ink) !important;
+      border-left: 6px solid var(--k-red) !important;
+      border-radius: 8px !important;
+      padding: 12px 16px !important;
+      margin-bottom: 20px !important;
+      font-weight: 600 !important;
+    }
+
+    body.support-page .support-ticket-list > * {
+      background: #272320 !important;
+      color: var(--k-panel-text) !important;
+      border: 1px solid #5a5249 !important;
+      border-radius: 14px !important;
+      padding: 16px 20px !important;
+      margin-bottom: 12px !important;
+    }
+
+    /* ---------- Mobile ---------- */
+    @media (max-width: 600px) {
+      body.support-page .support-main { padding: 36px 16px 64px; }
+      body.support-page .support-layout { grid-template-columns: 1fr; }
+      body.support-page .support-panel { padding: 22px; border-radius: 18px; }
+      body.support-page .support-access-notice a,
+      body.support-page .support-access-notice button {
+        flex: 1 1 100% !important;
+        text-align: center !important;
+      }
+    }
+  </style>
 </head>
 <body class="home-page support-page">
   <header class="navbar">
