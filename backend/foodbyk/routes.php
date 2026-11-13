@@ -48,8 +48,10 @@ function registerRoutes(Router $router): void {
     $router->delete('/cart', [CartController::class, 'clear'], $customerProtected);
 
     $router->post('/checkout/preview', [CheckoutController::class, 'preview'], $customerProtected);
+    $router->get('/checkout/payment-method', [CheckoutController::class, 'paymentMethodStatus'], $customerReadProtected);
     $router->get('/checkout/slots', [CheckoutController::class, 'slots'], $customerReadProtected);
     $router->post('/checkout/submit', [CheckoutController::class, 'submit'], $customerProtected);
+    $router->post('/payments/customer-token-setup', [PaymentController::class, 'beginCustomerTokenSetup'], $customerProtected);
 
     $router->get('/addresses', [AddressController::class, 'index'], $customerReadProtected);
     $router->post('/addresses', [AddressController::class, 'create'], $customerProtected);

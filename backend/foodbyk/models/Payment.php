@@ -99,7 +99,7 @@ public function jsonSerialize(): array {
     ];
 }
 
-private static function encryptGatewayToken(?string $token): ?string {
+public static function encryptGatewayToken(?string $token): ?string {
     if ($token === null || $token === '') return null;
     if (PAYMENT_TOKEN_ENCRYPTION_KEY === '') throw new RuntimeException('Payment token encryption key is not configured.');
     $key = base64_decode(PAYMENT_TOKEN_ENCRYPTION_KEY, true);
@@ -113,7 +113,7 @@ private static function encryptGatewayToken(?string $token): ?string {
     return 'enc:v1:' . base64_encode($nonce . $tag . $ciphertext);
 }
 
-private static function decryptGatewayToken(?string $stored): ?string {
+public static function decryptGatewayToken(?string $stored): ?string {
     if ($stored === null || $stored === '' || !str_starts_with($stored, 'enc:v1:')) return $stored;
     $key = base64_decode(PAYMENT_TOKEN_ENCRYPTION_KEY, true);
     if ($key === false || strlen($key) !== 32) {

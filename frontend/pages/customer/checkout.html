@@ -27,7 +27,7 @@
   <header class="checkout-heading">
     <p class="section-tag">Fresh food, nearly yours</p>
     <h1>Checkout<span>.</span></h1>
-    <p>Choose collection or delivery, pick a time, and review your total before secure card setup.</p>
+    <p>Choose collection or delivery, pick a time, and review your total. A saved payment method is required to place an order.</p>
   </header>
 
   <p class="support-context-link">Something not working at checkout? <a href="support.html?category=checkout&amp;context=checkout">Report a checkout issue</a>.</p>
@@ -143,9 +143,10 @@
             aria-live="assertive"
             hidden
     ></div>
+    <button id="savePaymentMethodButton" class="btn btn-secondary" type="button" hidden>Save payment method securely with PayFast</button>
     <button id="previewButton" class="btn btn-secondary checkout-review-button" type="button">Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
     <section id="checkoutSummary" class="checkout-summary" hidden aria-live="polite"></section>
-    <button id="submitButton" class="btn btn-primary checkout-submit-button" type="submit" hidden>Continue to secure card setup <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
+    <button id="submitButton" class="btn btn-primary checkout-submit-button" type="submit" hidden>Place order <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
   </form>
 </main>
 

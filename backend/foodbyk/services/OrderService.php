@@ -232,7 +232,8 @@ class OrderService {
              JOIN users u ON u.id = o.customer_id
              JOIN payments p ON p.order_id = o.id
              WHERE o.status = '" . Order::STATUS_SUBMITTED . "'
-               AND p.gateway_token IS NOT NULL
+               AND p.gateway_token IS NOT NULL AND p.gateway_token <> ''
+               AND p.status = '" . Payment::STATUS_TOKENIZED . "'
              ORDER BY o.created_at ASC"
         )->fetchAll();
         return ['success' => true, 'data' => $rows, 'error' => null];
@@ -254,7 +255,7 @@ class OrderService {
             // Requested and confirmed windows are stored as local wall-clock DATETIME values.
             $windowStart = $today->format('Y-m-d H:i:s');
             $windowEnd = $tomorrow->format('Y-m-d H:i:s');
-            $where = ' WHERE p.gateway_token IS NOT NULL
+            $where = ' WHERE p.gateway_token IS NOT NULL AND p.gateway_token <> :usable_token AND p.status = :payment_status
                        AND o.created_at >= :created_start AND o.created_at < :created_end
                        AND COALESCE(o.confirmed_window_start, o.requested_window_start) >= :window_start
                        AND COALESCE(o.confirmed_window_start, o.requested_window_start) < :window_end';
@@ -264,9 +265,20 @@ class OrderService {
                 ':window_start' => $windowStart,
                 ':window_end' => $windowEnd,
             ];
+            $bindings = [
+                ':usable_token' => '',
+                ':payment_status' => Payment::STATUS_TOKENIZED,
+                ...$bindings,
+            ];
         }
 
-        if ($where === '') $where = ' WHERE p.gateway_token IS NOT NULL';
+        if ($where === '') {
+            $where = ' WHERE p.gateway_token IS NOT NULL AND p.gateway_token <> :usable_token AND p.status = :payment_status';
+            $bindings = [
+                ':usable_token' => '',
+                ':payment_status' => Payment::STATUS_TOKENIZED,
+            ];
+        }
         $count = $db->prepare('SELECT COUNT(*) FROM orders o JOIN payments p ON p.order_id = o.id' . $where);
         foreach ($bindings as $name => $value) $count->bindValue($name, $value);
         $count->execute();
@@ -344,6 +356,16 @@ class OrderService {
             $customer = Customer::findCustomerById($customerId);
             if (!$customer) {
                 throw new \Exception('Customer not found.');
+            }
+            $db = Database::getConnection();
+            $savedTokenStmt = $db->prepare('SELECT gateway_token FROM customer_payment_tokens WHERE user_id = ? FOR UPDATE');
+            $savedTokenStmt->execute([$customerId]);
+            $savedTokenCiphertext = $savedTokenStmt->fetchColumn();
+            $savedToken = is_string($savedTokenCiphertext) && $savedTokenCiphertext !== ''
+                ? Payment::decryptGatewayToken($savedTokenCiphertext)
+                : null;
+            if ($savedToken === null) {
+                throw new \Exception('Save a payment method before placing an order.');
             }
 
             $order = new Order(
@@ -427,7 +449,11 @@ class OrderService {
             if (!$order->save()) {
                 throw new \Exception('Unable to create order.');
             }
-            $payment = new Payment(order_id: $order->id, amount: $order->total());
+            $payment = new Payment(
+                order_id: $order->id,
+                amount: $order->total()
+            );
+            $payment->gateway_token = $savedToken;
             if (!$payment->save()) {
                 throw new \Exception('Unable to create payment record.');
             }
@@ -446,19 +472,13 @@ class OrderService {
                 }
             }
 
-            $paymentService = new PaymentService();
-            $setupResult = $paymentService->beginTokenSetup($order, $customer);
-            if (!$setupResult['success']) {
-                throw new \Exception('Unable to initiate payment.');
-            }
-
             $clearResult = (new CartService())->clear($customerId);
             if (!$clearResult['success']) throw new \Exception($clearResult['error']);
 
             // The initial history entry has no previous order status.
             $this->logTransition($order->id, '', Order::STATUS_SUBMITTED, $customerId);
 
-            return ['order' => $order, 'payment_setup' => $setupResult['data']];
+            return ['order' => $order];
         });
 
         return $result;
@@ -684,7 +704,8 @@ public function getOrderForStaff(int $orderId): array {
         }
 $payment = $order->getPayment();
         if ($order->status === Order::STATUS_SUBMITTED
-            && (!$payment || $payment->gateway_token === null)) {
+            && (!$payment || $payment->status !== Payment::STATUS_TOKENIZED
+                || $payment->gateway_token === null || $payment->gateway_token === '')) {
             return $this->failure('Order is not available for staff review until card setup is complete.');
         }
 

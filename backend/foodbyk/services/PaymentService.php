@@ -6,26 +6,42 @@ class PaymentService {
     const TOKENIZE_URL_LIVE    = 'https://www.payfast.co.za/eng/process';
     const API_BASE             = 'https://api.payfast.co.za';
 
-    // Start card tokenization; PayFast sends the token later in an ITN.
-    public function beginTokenSetup(Order $order, Customer $customer): array {
+    /** Start a customer-level card setup before an order is created. */
+    public function beginCustomerTokenSetup(Customer $customer): array {
+        if (FRONTEND_URL === '' || PAYFAST_NOTIFY_URL === '' || PAYFAST_MERCHANT_ID === '' || PAYFAST_MERCHANT_KEY === '') {
+            return ['success' => false, 'error' => 'Secure payment method setup is not configured.'];
+        }
+        $reference = 'ct-' . bin2hex(random_bytes(24));
+        $db = Database::getConnection();
+        $db->beginTransaction();
+        try {
+            $db->prepare('DELETE FROM customer_payment_token_setups WHERE expires_at <= NOW()')->execute();
+            $db->prepare('INSERT INTO customer_payment_token_setups (reference, user_id, token_hash, expires_at) VALUES (?, ?, NULL, DATE_ADD(NOW(), INTERVAL 15 MINUTE))')
+                ->execute([$reference, $customer->id]);
+            $db->commit();
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('Payment method setup could not be prepared: ' . get_class($error));
+            return ['success' => false, 'error' => 'Unable to start payment method setup.'];
+        }
         $fields = [
             'merchant_id'       => PAYFAST_MERCHANT_ID,
             'merchant_key'      => PAYFAST_MERCHANT_KEY,
-            'return_url'        => PAYFAST_RETURN_URL . '?order_id=' . $order->id,
-            'cancel_url'        => PAYFAST_CANCEL_URL . '?order_id=' . $order->id,
+            'return_url'        => rtrim(FRONTEND_URL, '/') . '/pages/customer/checkout.html?payment_method=saved',
+            'cancel_url'        => rtrim(FRONTEND_URL, '/') . '/pages/customer/checkout.html?payment_method=cancelled',
             'notify_url'        => rtrim(PAYFAST_NOTIFY_URL, '/') . '/payments/token-webhook',
             'name_first'        => explode(' ', $customer->full_name)[0],
             'email_address'     => $customer->email,
-            'm_payment_id'      => (string) $order->id,
+            'm_payment_id'      => $reference,
             'amount'            => '0.00',
-            'item_name'         => 'Food by K - card setup for order #' . $order->id,
+            'item_name'         => 'Food by K - save payment method',
             'subscription_type' => 2,
         ];
         $fields['signature'] = $this->generateFormSignature($fields);
 
         return ['success' => true, 'data' => [
             'redirect_url' => $this->sandboxEnabled() ? self::TOKENIZE_URL_SANDBOX : self::TOKENIZE_URL_LIVE,
-            'fields'       => $fields,
+            'fields' => $fields,
         ]];
     }
 
@@ -35,63 +51,82 @@ class PaymentService {
             return ['success' => false, 'error' => 'Invalid ITN signature/source.'];
         }
 
-        $orderId = (int) ($itn['m_payment_id'] ?? 0);
+        $paymentReference = (string) ($itn['m_payment_id'] ?? '');
         $token   = $itn['token'] ?? null;
-        $order   = Order::findById($orderId);
-
-        if (!$order || !is_string($token) || $token === '' || ($itn['payment_status'] ?? '') !== 'COMPLETE'
+        if (!is_string($token) || $token === '' || ($itn['payment_status'] ?? '') !== 'COMPLETE'
             || (string) ($itn['merchant_id'] ?? '') !== (string) PAYFAST_MERCHANT_ID) {
-            error_log('PayFast token ITN rejected: order, token, completion status, or merchant ID is missing or invalid.');
-            return ['success' => false, 'error' => 'Order or token missing from ITN.'];
+            error_log('PayFast token ITN rejected: reference, token, completion status, or merchant ID is missing or invalid.');
+            return ['success' => false, 'error' => 'Payment token setup data is missing or invalid.'];
         }
 
-        (new OrderService())->expireAbandonedPaymentSetups();
-        $order = Order::findById($orderId);
-        $payment = $order?->getPayment();
-        if ($order && $order->status === Order::STATUS_CANCELLED && $payment
-            && $payment->status === Payment::STATUS_VOIDED) {
-            $this->releaseTokenValue($token);
-            return ['success' => true];
+        if (preg_match('/^ct-[a-f0-9]{48}$/', $paymentReference) === 1) {
+            $customerResult = $this->saveCustomerToken($paymentReference, $token);
+            if (!$customerResult['success']) $this->releaseTokenValue($token);
+            return $customerResult;
         }
 
-        $db = Database::getConnection();
+        return ['success' => false, 'error' => 'Payment token setup reference is invalid.'];
+    }
+
+    private function saveCustomerToken(string $reference, string $token): array {
         try {
+            $db = Database::getConnection();
             $db->beginTransaction();
-            $order = Order::lockById($orderId);
-            if (!$order || $order->status !== Order::STATUS_SUBMITTED) {
-                throw new RuntimeException('Order is not awaiting token setup.');
+            $setup = $db->prepare('SELECT user_id, token_hash FROM customer_payment_token_setups WHERE reference = ? AND expires_at > NOW() FOR UPDATE');
+            $setup->execute([$reference]);
+            $setupRow = $setup->fetch(PDO::FETCH_ASSOC);
+            if (!$setupRow) {
+                $db->rollBack();
+                return ['success' => false, 'error' => 'Payment method setup reference is invalid or expired.'];
             }
-            $payment = $order->getPayment();
-            if (!$payment) {
-                throw new RuntimeException('Payment setup was not recorded for this order.');
+            if ($setupRow['token_hash'] !== null) {
+                $db->rollBack();
+                return hash_equals((string) $setupRow['token_hash'], hash('sha256', $token))
+                    ? ['success' => true]
+                    : ['success' => false, 'error' => 'A different token was already saved for this setup.'];
             }
-            if ($payment->gateway_token !== null) {
-                // Do not replace the saved token when PayFast retries an ITN.
-                $db->commit();
-                return ['success' => true];
+            $customerId = (int) $setupRow['user_id'];
+            $customer = Customer::findCustomerById((int) $customerId);
+            if (!$customer) {
+                $db->rollBack();
+                return ['success' => false, 'error' => 'Customer account not found.'];
             }
-            $payment->gateway_token = $token;
-            if (!$payment->save()) {
-                throw new RuntimeException('Unable to save payment token.');
-            }
+            $stmt = $db->prepare(
+                'INSERT INTO customer_payment_tokens (user_id, gateway, gateway_token) VALUES (?, ?, ?) '
+                . 'ON DUPLICATE KEY UPDATE gateway = VALUES(gateway), gateway_token = VALUES(gateway_token)'
+            );
+            $stmt->execute([(int) $customerId, 'payfast', Payment::encryptGatewayToken($token)]);
+            $db->prepare('UPDATE customer_payment_token_setups SET token_hash = ? WHERE reference = ?')
+                ->execute([hash('sha256', $token), $reference]);
             $db->commit();
-        } catch (Throwable $e) {
-            if ($db->inTransaction()) $db->rollBack();
-            error_log('PayFast token ITN could not be saved: ' . $e->getMessage());
-            return ['success' => false, 'error' => $e->getMessage()];
+            return ['success' => true];
+        } catch (Throwable $error) {
+            if (isset($db) && $db->inTransaction()) $db->rollBack();
+            error_log('PayFast customer token could not be saved: ' . get_class($error));
+            return ['success' => false, 'error' => 'Unable to save payment method.'];
         }
+    }
 
-        $readyOrder = Order::findById($orderId);
-        if ($readyOrder && $readyOrder->status === Order::STATUS_SUBMITTED) {
-            (new NotificationService())->notifyOrderEvent($readyOrder, 'submitted', 'staff');
-        }
+    public function getSavedCustomerToken(int $customerId): ?string {
+        $stmt = Database::getConnection()->prepare('SELECT gateway_token FROM customer_payment_tokens WHERE user_id = ? LIMIT 1');
+        $stmt->execute([$customerId]);
+        $token = $stmt->fetchColumn();
+        return is_string($token) && $token !== '' ? Payment::decryptGatewayToken($token) : null;
+    }
 
-        return ['success' => true];
+    public function hasSavedCustomerToken(int $customerId): bool {
+        $stmt = Database::getConnection()->prepare('SELECT 1 FROM customer_payment_tokens WHERE user_id = ? LIMIT 1');
+        $stmt->execute([$customerId]);
+        return $stmt->fetchColumn() !== false;
     }
 
     // Both token setup and charge results use the same notify URL.
     public function handleWebhook(array $itn, ?string $sourceIp = null): array {
-        $order = Order::findById((int) ($itn['m_payment_id'] ?? 0));
+        $paymentReference = (string) ($itn['m_payment_id'] ?? '');
+        if (preg_match('/^ct-[a-f0-9]{48}$/', $paymentReference) === 1) {
+            return $this->handleTokenSetupWebhook($itn, $sourceIp);
+        }
+        $order = Order::findById(ctype_digit($paymentReference) ? (int) $paymentReference : 0);
         if ($order && $order->status === Order::STATUS_CHARGE_PENDING) {
             return $this->handleChargeWebhook($itn, $sourceIp);
         }
@@ -235,6 +270,11 @@ class PaymentService {
     public function releaseToken(Order $order): void {
         $payment = $order->getPayment();
         if (!$payment || !$payment->gateway_token) return;
+
+        $storedToken = $this->getSavedCustomerToken($order->customer_id);
+        if ($storedToken !== null && hash_equals($storedToken, $payment->gateway_token)) {
+            return;
+        }
 
         $this->releaseTokenValue($payment->gateway_token);
     }

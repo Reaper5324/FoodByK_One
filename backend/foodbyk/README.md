@@ -93,11 +93,7 @@ Admin-only `PUT /admin/staff/{id}`, `PUT /admin/products/{id}`, and `PUT /admin/
 
 Order status changes use `Order::ALLOWED_TRANSITIONS` as the single state-machine source of truth. Every status mutation must occur inside a database transaction after `Order::lockById()` has locked the row, and must insert an `OrderStatusHistory` entry in the same transaction.
 
-Payment is a two-stage PayFast tokenization workflow:
-
-1. Submission obtains a PayFast token; no money is charged.
-2. After staff acceptance, `PaymentService` charges the token.
-3. The asynchronous PayFast notification determines final payment success/failure.
+Customers first save a PayFast payment method; an order cannot be created until the API has a confirmed token for that customer. Order submission attaches the encrypted saved token to its payment record without sending the customer back through tokenization. Staff accept or adjust the order to trigger a charge against that token. The asynchronous PayFast notification determines final payment success/failure. Existing databases must run `database/customer_payment_tokens.sql` before deploying this workflow.
 
 `Payment` does not change orders directly. The service coordinates payment, locked order status, and history atomically. This avoids concurrent staff-review and duplicate-webhook races.
 
