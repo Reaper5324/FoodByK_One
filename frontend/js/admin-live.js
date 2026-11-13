@@ -1,4 +1,4 @@
-const ADMIN_ONLY_PAGES = new Set([
+﻿const ADMIN_ONLY_PAGES = new Set([
     "categories.html",
     "promotions.html",
     "customers.html",
@@ -279,10 +279,19 @@ const initializeAdminLive = async () => {
             if (isInitialPageLoad) {
                 initialDataLoadError = true;
             } else {
-                alert(result?.error || "The request could not be completed.");
+                const reportStatus = document.getElementById("liveReportStatus");
+                if (reportStatus) {
+                    reportStatus.textContent = result?.error || "The report could not be loaded. Try again.";
+                    reportStatus.hidden = false;
+                    reportStatus.classList.add("is-error");
+                } else {
+                    alert(result?.error || "The request could not be completed.");
+                }
             }
             return false;
         }
+        const reportStatus = document.getElementById("liveReportStatus");
+        if (reportStatus) reportStatus.classList.remove("is-error");
         return true;
     };
     const setRefundFeedback = (message = "", state = "info") => {
@@ -294,7 +303,7 @@ const initializeAdminLive = async () => {
     };
     const makeCell = (row, value) => {
         const cell = document.createElement("td");
-        cell.textContent = value == null || value === "" ? "—" : String(value);
+        cell.textContent = value == null || value === "" ? "â€”" : String(value);
         row.appendChild(cell);
         return cell;
     };
@@ -349,7 +358,7 @@ const initializeAdminLive = async () => {
         body.replaceChildren();
         records.slice(0, 5).forEach((order) => {
             const row = document.createElement("tr");
-            const time = String(order.requested_window_start || "").match(/\d{2}:\d{2}/)?.[0] || "—";
+            const time = String(order.requested_window_start || "").match(/\d{2}:\d{2}/)?.[0] || "â€”";
             const total = Math.max(0, Number(order.subtotal || 0) + Number(order.delivery_fee || 0)
                 - Number(order.locked_discount || 0) - Number(order.loyalty_points_redeemed || 0)
                 + Number(order.loyalty_points_refunded || 0));
@@ -370,45 +379,61 @@ const initializeAdminLive = async () => {
         const period = document.getElementById("reportPeriod")?.value || "week";
         const result = await apiGet("/admin/analytics?period=" + encodeURIComponent(period));
         if (!showResult(result)) return;
-        document.getElementById("reportSales")?.replaceChildren(document.createTextNode("R" + Number(result.data.sales).toFixed(2)));
-        document.getElementById("reportOrders")?.replaceChildren(document.createTextNode(String(result.data.orders)));
-        document.getElementById("reportAverage")?.replaceChildren(document.createTextNode("R" + Number(result.data.average_paid_order).toFixed(2)));
-        const columns = document.querySelectorAll(".chart-bars .chart-column");
-        const sales = result.data.daily_sales || [];
-        const max = Math.max(1, ...sales.map((item) => Number(item.sales)));
-        columns.forEach((column, index) => {
-            const visibleSales = sales.slice(-columns.length);
-            const item = visibleSales[index];
-            const bar = column.querySelector(".chart-bar");
-            const label = column.querySelector("span");
-            if (!item) {
-                if (bar) bar.style.height = "0%";
-                if (label) label.textContent = "—";
-                return;
-            }
-            if (bar) bar.style.height = Math.max(2, Number(item.sales) / max * 100) + "%";
-            if (label) label.textContent = item.date.slice(5);
-        });
-        const topContainer = document.querySelector(".report-two-column");
-        if (topContainer) {
-            topContainer.replaceChildren();
-            const card = document.createElement("div");
-            card.className = "content-card report-section";
-            const heading = document.createElement("h3");
-            heading.textContent = "Top Selling Items";
-            card.appendChild(heading);
-            (result.data.top_products || []).forEach((product, index) => {
-                const item = document.createElement("p");
-                item.textContent = `${index + 1}. ${product.name} — ${product.units} sold (R${Number(product.sales).toFixed(2)})`;
-                card.appendChild(item);
+        const data = result.data || {};
+        const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+        setText("reportSales", "R" + Number(data.sales || 0).toFixed(2));
+        setText("reportOrders", String(Number(data.orders || 0)));
+        setText("reportAverage", "R" + Number(data.average_paid_order || 0).toFixed(2));
+
+        const sales = data.sales_buckets || data.daily_sales || [];
+        const chart = document.getElementById("salesChartBars");
+        const axis = document.getElementById("salesAxis");
+        if (chart) {
+            const peak = Math.max(0, ...sales.map((item) => Number(item.sales || 0)));
+            const scale = peak > 0 ? Math.ceil(peak / 4 / 100) * 100 : 1;
+            chart.replaceChildren();
+            sales.forEach((item) => {
+                const bucket = String(item.bucket || item.date || "");
+                const amount = Number(item.sales || 0);
+                const column = document.createElement("div");
+                column.className = "chart-column";
+                column.title = `${bucket}: R${amount.toFixed(2)} sales, ${Number(item.paid_orders || 0)} paid orders`;
+                const bar = document.createElement("div");
+                bar.className = "chart-bar";
+                bar.style.height = `${peak > 0 ? Math.max(amount > 0 ? 2 : 0, amount / (scale * 4) * 100) : 0}%`;
+                const label = document.createElement("span");
+                if (data.period === "today") label.textContent = bucket.slice(11, 13);
+                else if (data.period === "year") label.textContent = new Date(`${bucket}-01T00:00:00`).toLocaleString([], { month: "short" });
+                else label.textContent = new Date(`${bucket}T00:00:00`).toLocaleDateString([], { day: "numeric", month: "short" });
+                column.append(bar, label);
+                chart.appendChild(column);
             });
-            if (!result.data.top_products?.length) {
-                const empty = document.createElement("p");
-                empty.textContent = "No paid orders in this period.";
-                card.appendChild(empty);
+            if (!sales.length) {
+                const empty = document.createElement("p"); empty.className = "sf-empty"; empty.textContent = "No sales data for this period."; chart.appendChild(empty);
             }
-            topContainer.appendChild(card);
+            if (axis) {
+                axis.replaceChildren();
+                for (let step = 4; step >= 0; step--) {
+                    const label = document.createElement("span");
+                    label.textContent = step === 0 ? "R0" : `R${(scale * step).toLocaleString()}`;
+                    axis.appendChild(label);
+                }
+            }
         }
+
+        const productList = document.getElementById("topProductsList");
+        if (productList) {
+            productList.replaceChildren();
+            (data.top_products || []).forEach((product, index) => {
+                const item = document.createElement("p");
+                item.textContent = `${index + 1}. ${product.name} - ${product.units} sold (R${Number(product.sales || 0).toFixed(2)})`;
+                productList.appendChild(item);
+            });
+            if (!(data.top_products || []).length) {
+                const empty = document.createElement("p"); empty.className = "sf-empty"; empty.textContent = "No paid orders in this period."; productList.appendChild(empty);
+            }
+        }
+        if (typeof window.renderAdditionalReports === "function") window.renderAdditionalReports(data);
     };
 
     const loadCategories = async () => {
@@ -528,7 +553,7 @@ const initializeAdminLive = async () => {
             const products = Array.isArray(productsResult.data) ? productsResult.data : [];
             promotionProducts.replaceChildren(...products
                 .filter((product) => product.status === "active")
-                .map((product) => new Option(`${product.name} · ${money(product.price)}`, String(product.id))));
+                .map((product) => new Option(`${product.name} Â· ${money(product.price)}`, String(product.id))));
         }
         const body = document.getElementById("promotionTableBody");
         if (!body) return;
@@ -574,7 +599,7 @@ const initializeAdminLive = async () => {
             makeCell(row, staff.full_name);
             makeCell(row, staff.email);
             makeCell(row, staff.role);
-            makeCell(row, "—");
+            makeCell(row, "â€”");
             makeCell(row, staff.is_active ? "Active" : "Inactive");
             const actions = document.createElement("td");
             if (staff.role === "staff") {
@@ -648,10 +673,10 @@ const initializeAdminLive = async () => {
         const ticket = result.data;
         const panel = document.getElementById("supportTicketDetail");
         panel.replaceChildren();
-        const title = document.createElement("h3"); title.textContent = `#${ticket.id} · ${ticket.subject}`;
-        const customer = document.createElement("p"); customer.textContent = `${ticket.full_name} (${ticket.email}) · ${ticket.category}`;
-        if (ticket.related_order_id) customer.append(document.createTextNode(` · Order #${ticket.related_order_id}`));
-        if (ticket.related_product_id) customer.append(document.createTextNode(` · Menu item #${ticket.related_product_id}`));
+        const title = document.createElement("h3"); title.textContent = `#${ticket.id} Â· ${ticket.subject}`;
+        const customer = document.createElement("p"); customer.textContent = `${ticket.full_name} (${ticket.email}) Â· ${ticket.category}`;
+        if (ticket.related_order_id) customer.append(document.createTextNode(` Â· Order #${ticket.related_order_id}`));
+        if (ticket.related_product_id) customer.append(document.createTextNode(` Â· Menu item #${ticket.related_product_id}`));
         const message = document.createElement("p"); message.className = "support-admin-message"; message.textContent = ticket.message;
         const statusForm = document.createElement("form"); statusForm.id = "supportTicketStatusForm"; statusForm.dataset.ticketId = ticket.id;
         const statusLabel = document.createElement("label"); statusLabel.textContent = "Status ";
@@ -661,7 +686,7 @@ const initializeAdminLive = async () => {
         const saveStatus = document.createElement("button"); saveStatus.type = "submit"; saveStatus.className = "save-menu-btn"; saveStatus.textContent = "Update status";
         statusForm.append(statusLabel, saveStatus);
         const replies = document.createElement("div"); replies.className = "support-admin-replies";
-        (ticket.replies || []).forEach((reply) => { const item = document.createElement("article"); const by = document.createElement("strong"); by.textContent = `${reply.responder_name} · ${reply.created_at}`; const text = document.createElement("p"); text.textContent = reply.reply_message; item.append(by, text); replies.appendChild(item); });
+        (ticket.replies || []).forEach((reply) => { const item = document.createElement("article"); const by = document.createElement("strong"); by.textContent = `${reply.responder_name} Â· ${reply.created_at}`; const text = document.createElement("p"); text.textContent = reply.reply_message; item.append(by, text); replies.appendChild(item); });
         const replyForm = document.createElement("form"); replyForm.id = "supportTicketReplyForm"; replyForm.dataset.ticketId = ticket.id;
         const replyLabel = document.createElement("label"); replyLabel.textContent = "Reply to customer";
         const replyInput = document.createElement("textarea"); replyInput.name = "message"; replyInput.required = true; replyInput.maxLength = 5000; replyInput.rows = 4;
@@ -678,9 +703,9 @@ const initializeAdminLive = async () => {
     const displayOrderDate = (value) => {
         const datePart = String(value || "").slice(0, 10);
         const parts = datePart.split("-").map(Number);
-        if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return "—";
+        if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return "â€”";
         const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-        return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString([], {
+        return Number.isNaN(date.getTime()) ? "â€”" : date.toLocaleDateString([], {
             day: "numeric", month: "short", year: "numeric", timeZone: "UTC"
         });
     };
@@ -723,7 +748,7 @@ const initializeAdminLive = async () => {
         const start = records.length ? orderOffset + 1 : 0;
         const end = orderOffset + records.length;
         const pageSummary = document.getElementById("ordersPageSummary");
-        if (pageSummary) pageSummary.textContent = total ? `Showing ${start}–${end} of ${total} orders` : "No orders to show";
+        if (pageSummary) pageSummary.textContent = total ? `Showing ${start}â€“${end} of ${total} orders` : "No orders to show";
         const previousPage = document.getElementById("ordersPreviousPage");
         const nextPage = document.getElementById("ordersNextPage");
         if (previousPage) previousPage.disabled = orderOffset <= 0;
@@ -743,7 +768,7 @@ const initializeAdminLive = async () => {
             makeCell(row, `#${order.id}`); makeCell(row, order.customer_name || "Customer");
             makeCell(row, String(order.fulfilment_type || "").replaceAll("_", " "));
             makeCell(row, displayOrderDate(order.placed_at_local || order.created_at));
-            makeCell(row, requested ? new Date(requested).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—");
+            makeCell(row, requested ? new Date(requested).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "â€”");
             const total = order.total ?? Math.max(0, Number(order.subtotal || 0) + Number(order.delivery_fee || 0)
                 - Number(order.locked_discount || 0) - Number(order.loyalty_points_redeemed || 0)
                 + Number(order.loyalty_points_refunded || 0));
@@ -762,13 +787,13 @@ const initializeAdminLive = async () => {
     let orderEditProducts = [];
     const money = (value) => "R" + Number(value || 0).toFixed(2);
     const displayDateTime = (value) => {
-        if (!value) return "—";
+        if (!value) return "â€”";
         const date = new Date(String(value).replace(" ", "T"));
         return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
     };
     const setText = (id, value) => {
         const element = document.getElementById(id);
-        if (element) element.textContent = value == null || value === "" ? "—" : String(value);
+        if (element) element.textContent = value == null || value === "" ? "â€”" : String(value);
     };
 
     document.getElementById("refundAmount")?.addEventListener("input", () => {
@@ -807,7 +832,7 @@ const initializeAdminLive = async () => {
         if (!dateInput || !select) return;
         select.replaceChildren();
         const placeholder = document.createElement("option");
-        placeholder.value = ""; placeholder.textContent = "Loading available times…"; select.appendChild(placeholder);
+        placeholder.value = ""; placeholder.textContent = "Loading available timesâ€¦"; select.appendChild(placeholder);
         if (button) button.disabled = true;
         if (help) help.textContent = "";
         select.setAttribute("aria-busy", "true");
@@ -831,7 +856,7 @@ const initializeAdminLive = async () => {
             const option = document.createElement("option");
             // Preserve the exact local ISO format returned by the staff slot endpoint.
             option.value = JSON.stringify({ start: slot.start, end: slot.end });
-            option.textContent = `${String(slot.start).slice(11, 16)} – ${String(slot.end).slice(11, 16)}`;
+            option.textContent = `${String(slot.start).slice(11, 16)} â€“ ${String(slot.end).slice(11, 16)}`;
             select.appendChild(option);
         });
         if (help && !slots.length) help.textContent = "Choose another date to see available slots.";
@@ -851,7 +876,7 @@ const initializeAdminLive = async () => {
             row.dataset.productId = String(item.product_id || "");
             const name = document.createElement("div"); name.className = "order-item-name";
             const title = document.createElement("strong"); title.textContent = item.product_name || item.name || `Menu item #${item.product_id || "?"}`; name.appendChild(title);
-            const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} × ${money(item.unit_price ?? item.price)}`; name.appendChild(detail);
+            const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} Ã— ${money(item.unit_price ?? item.price)}`; name.appendChild(detail);
             if (canEditItems) {
                 const controls = document.createElement("div"); controls.className = "order-item-edit-controls";
                 const quantity = document.createElement("input");
@@ -868,7 +893,7 @@ const initializeAdminLive = async () => {
     const loadOrderEditProducts = async () => {
         const select = document.getElementById("addOrderItemSelect");
         if (!select) return;
-        select.replaceChildren(new Option("Loading menu items…", ""));
+        select.replaceChildren(new Option("Loading menu itemsâ€¦", ""));
         const result = await apiGet("/products");
         if (!result.success) {
             select.replaceChildren(new Option("Menu items unavailable", ""));
@@ -879,14 +904,14 @@ const initializeAdminLive = async () => {
         );
         select.replaceChildren(new Option(orderEditProducts.length ? "Choose a menu item" : "No available menu items", ""));
         orderEditProducts.forEach((product) => {
-            select.add(new Option(`${product.name} · ${money(product.price)}`, String(product.id)));
+            select.add(new Option(`${product.name} Â· ${money(product.price)}`, String(product.id)));
         });
     };
     const openOrderReview = async (id) => {
         currentReviewOrderId = id;
         currentReviewData = null;
         setText("modalOrderId", `Order #${id}`);
-        setText("modalItems", "Loading order items…");
+        setText("modalItems", "Loading order itemsâ€¦");
         openModal("#orderModal");
         const result = await apiGet(`/staff/orders/${id}`);
         if (!showResult(result)) return;
@@ -901,9 +926,9 @@ const initializeAdminLive = async () => {
         const address = data.address || {};
         setText("modalOrderId", `Order #${order.id || id}`);
         setText("modalCustomer", customer.full_name || customer.name || order.customer_name || "Customer");
-        setText("modalContact", [customer.email, customer.phone].filter(Boolean).join(" · ") || "—");
+        setText("modalContact", [customer.email, customer.phone].filter(Boolean).join(" Â· ") || "â€”");
         setText("modalPlaced", displayDateTime(order.created_at));
-        setText("modalType", String(order.fulfilment_type || "—").replaceAll("_", " "));
+        setText("modalType", String(order.fulfilment_type || "â€”").replaceAll("_", " "));
         setText("modalTime", `${displayDateTime(order.confirmed_window_start || order.requested_window_start)}${order.confirmed_window_start ? " (confirmed)" : " (requested)"}`);
         const addressText = [address.address_line1, address.address_line2, address.suburb, address.city, address.postal_code].filter(Boolean).join(", ") || address.address || address.formatted_address || "No address supplied";
         const addressRow = document.getElementById("modalAddressRow");
@@ -966,7 +991,7 @@ const initializeAdminLive = async () => {
             (data.refunds || []).forEach((refund) => {
                 const entry = document.createElement("p");
                 entry.className = `refund-history-entry refund-status-${String(refund.status || "pending").toLowerCase()}`;
-                entry.textContent = `${money(refund.amount)} · ${refund.status} · ${refund.reason}`;
+                entry.textContent = `${money(refund.amount)} Â· ${refund.status} Â· ${refund.reason}`;
                 refundHistory.appendChild(entry);
             });
         }
@@ -1227,7 +1252,7 @@ const initializeAdminLive = async () => {
             document.getElementById("detailName").textContent = record.full_name;
             document.getElementById("detailCustomerId").textContent = `Customer #${record.id}`;
             document.getElementById("detailEmail").textContent = record.email;
-            document.getElementById("detailPhone").textContent = record.phone || "—";
+            document.getElementById("detailPhone").textContent = record.phone || "â€”";
             document.getElementById("detailOrders").textContent = record.order_count;
             document.getElementById("detailSpent").textContent = "R" + Number(record.total_spent).toFixed(2);
             openModal("#customerModal");
@@ -1269,7 +1294,7 @@ const initializeAdminLive = async () => {
             const amount = Number(document.getElementById("refundAmount")?.value);
             if (!Number.isFinite(amount) || amount <= 0) return setRefundFeedback("Enter a positive refund amount first.", "error");
             target.disabled = true;
-            setRefundFeedback("Checking the available refund method with PayFast…", "info");
+            setRefundFeedback("Checking the available refund method with PayFastâ€¦", "info");
             const result = await apiPost(`/staff/orders/${currentReviewOrderId}/refund-eligibility`, { amount });
             target.disabled = false;
             if (!result?.success || !result.data) return setRefundFeedback(result?.error || "PayFast could not check the refund options.", "error");
@@ -1291,7 +1316,7 @@ const initializeAdminLive = async () => {
                     });
                 }
                 if (methodInfo) {
-                    methodInfo.textContent = banks.length ? "PayFast requires a bank payout for this amount. Enter the customer’s payout details below." : "PayFast requires a bank payout, but did not return an eligible bank list. Refresh the options or handle the payout in PayFast.";
+                    methodInfo.textContent = banks.length ? "PayFast requires a bank payout for this amount. Enter the customerâ€™s payout details below." : "PayFast requires a bank payout, but did not return an eligible bank list. Refresh the options or handle the payout in PayFast.";
                     methodInfo.hidden = false;
                 }
                 if (bankDetails) bankDetails.hidden = banks.length === 0;
@@ -1336,7 +1361,7 @@ const initializeAdminLive = async () => {
             }
             if (!confirm(`Submit a PayFast refund of ${money(amount)} for order #${currentReviewOrderId}?`)) return;
             target.disabled = true;
-            setRefundFeedback("Sending the refund request to PayFast…", "info");
+            setRefundFeedback("Sending the refund request to PayFastâ€¦", "info");
             const result = await apiPost(`/staff/orders/${currentReviewOrderId}/refund`, { amount, reason, bank_details: bankDetails });
             target.disabled = false;
             if (result?.success) {
@@ -1346,7 +1371,7 @@ const initializeAdminLive = async () => {
             } else setRefundFeedback(result?.error || "PayFast could not confirm the refund request.", "error");
         } else if (target.matches(".check-refund-status-btn") && currentReviewOrderId) {
             target.disabled = true;
-            setRefundFeedback("Checking refund history with PayFast…", "info");
+            setRefundFeedback("Checking refund history with PayFastâ€¦", "info");
             const result = await apiGet(`/staff/orders/${currentReviewOrderId}/refund-status`);
             target.disabled = false;
             if (result?.success) {
@@ -1570,3 +1595,4 @@ if (document.readyState === "loading") {
 } else {
     initializeAdminLive();
 }
+

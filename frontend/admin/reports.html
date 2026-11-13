@@ -277,7 +277,7 @@
                     </div>
 
                     <div>
-                        <p>Total Orders</p>
+                        <p>Orders Placed</p>
                         <h3 id="reportOrders">—</h3>
                     </div>
 
@@ -291,7 +291,7 @@
                     </div>
 
                     <div>
-                        <p>Average Order</p>
+                        <p>Average Paid Order</p>
                         <h3 id="reportAverage">—</h3>
                     </div>
 
@@ -321,12 +321,12 @@
 
                 <div class="sales-chart">
 
-                    <div class="chart-y-axis">
+                    <div class="chart-y-axis" id="salesAxis">
 
-                        <span>R4k</span>
-                        <span>R3k</span>
-                        <span>R2k</span>
-                        <span>R1k</span>
+                        <span>R0</span>
+                        <span>R0</span>
+                        <span>R0</span>
+                        <span>R0</span>
                         <span>R0</span>
 
                     </div>
@@ -334,7 +334,7 @@
 
                     <div class="chart-area">
 
-                        <div class="chart-bars">
+                        <div class="chart-bars" id="salesChartBars">
 
                             <div class="chart-column">
                                 <div class="chart-bar" style="height:55%"></div>
@@ -393,7 +393,7 @@
                         </div>
                     </div>
 
-                    <p>Loading…</p>
+                    <div id="topProductsList"><p>Loading...</p></div>
 
                 </div>
 
@@ -448,7 +448,7 @@
 
                 <div class="cust-chart" id="custChart"></div>
 
-                <p class="cust-note">Counts are unique customers. A customer who used both delivery and collection in the same period is counted in each.</p>
+                <p class="cust-note">Counts are unique customers with paid orders. A customer who used both delivery and collection in a period is counted in each.</p>
 
             </div>
 
@@ -554,292 +554,111 @@
         </section>
 
     </main>
-
-
-    <script src="../js/dashboard.js"></script>
-
-
     <script>
-        /* ===== Live order, status and customer reports =====
-           Uses the same API as the Orders page (/staff/orders) via apiGet from admin-live.js.
-           No sample data: everything below is calculated from real orders. */
-        (function () {
-            const $ = (id) => document.getElementById(id);
-            const STATUS_GROUPS = [
-                { key: "awaiting",  label: "Awaiting Confirmation", color: "#f59e0b", raw: ["submitted", "awaiting", "awaiting_confirmation", "pending"] },
-                { key: "accepted",  label: "Accepted",              color: "#3b82f6", raw: ["accepted", "confirmed", "paid"] },
-                { key: "preparing", label: "Preparing",             color: "#8b5cf6", raw: ["preparing"] },
-                { key: "ready",     label: "Ready",                 color: "#06b6d4", raw: ["ready"] },
-                { key: "completed", label: "Completed",             color: "#2ea866", raw: ["completed"] },
-                { key: "declined",  label: "Declined / Cancelled",  color: "#ef4444", raw: ["declined", "cancelled", "canceled"] }
-            ];
-            const DECLINED = new Set(["declined", "cancelled", "canceled"]);
-            const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-            const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-            let allOrders = null;
-            let loading = false;
-
-            const statusOf = (o) => String(o.status || "").toLowerCase();
-            const parseDate = (v) => {
-                if (!v) return null;
-                const d = new Date(String(v).replace(" ", "T"));
-                return Number.isNaN(d.getTime()) ? null : d;
-            };
-            const orderDate = (o) => parseDate(o.created_at) || parseDate(o.placed_at_local);
-            const orderTotal = (o) => Number(o.total ?? Math.max(0,
-                Number(o.subtotal || 0) + Number(o.delivery_fee || 0) - Number(o.locked_discount || 0)
-                - Number(o.loyalty_points_redeemed || 0) + Number(o.loyalty_points_refunded || 0)));
-            const money = (n) => "R" + Number(n || 0).toFixed(2);
-            const isDelivery = (o) => String(o.fulfilment_type || "").toLowerCase() === "delivery";
-            const customerKey = (o) => {
-                const id = o.customer_id ?? o.user_id ?? o.customer_email;
-                if (id != null && id !== "") return "id:" + id;
-                const name = String(o.customer_name || "").trim().toLowerCase();
-                return name ? "name:" + name : "order:" + o.id;
-            };
-            const setText = (id, v) => { const el = $(id); if (el) el.textContent = v; };
-            const setWidth = (id, v) => { const el = $(id); if (el) el.style.width = v + "%"; };
-            const setStatusLine = (msg, isError) => {
-                const el = $("liveReportStatus");
-                if (!el) return;
-                el.textContent = msg;
-                el.hidden = !msg;
-                el.classList.toggle("is-error", !!isError);
-            };
-
-            function getRange(period, now) {
-                const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
-                if (period === "today") return [new Date(y, m, d), new Date(y, m, d + 1)];
-                if (period === "month") return [new Date(y, m, 1), new Date(y, m + 1, 1)];
-                if (period === "year")  return [new Date(y, 0, 1), new Date(y + 1, 0, 1)];
-                const dow = (now.getDay() + 6) % 7;                     // week starts Monday
-                return [new Date(y, m, d - dow), new Date(y, m, d - dow + 7)];
-            }
-
-            function bucketInfo(period) {
-                if (period === "today") return {
-                    title: "Customers Today", labels: ["Morning", "Afternoon", "Evening"],
-                    index: (d) => (d.getHours() < 12 ? 0 : d.getHours() < 17 ? 1 : 2)
-                };
-                if (period === "month") return {
-                    title: "Customers Per Week", labels: ["Days 1–7", "Days 8–14", "Days 15–21", "Day 22+"],
-                    index: (d) => Math.min(3, Math.floor((d.getDate() - 1) / 7))
-                };
-                if (period === "year") return {
-                    title: "Customers Per Month", labels: MONTH_LABELS, index: (d) => d.getMonth()
-                };
-                return { title: "Customers Per Day", labels: DAY_LABELS, index: (d) => (d.getDay() + 6) % 7 };
-            }
-
-            async function fetchAllOrders() {
-                const all = [];
-                let offset = 0, total = Infinity, pages = 0;
-                while (offset < total && pages < 200) {
-                    const query = new URLSearchParams({ view: "all", limit: "50", offset: String(offset) });
-                    const result = await apiGet("/staff/orders?" + query.toString());
-                    if (!result || !result.success) throw new Error((result && result.error) || "Orders could not be loaded.");
-                    const page = Array.isArray(result.data) ? { orders: result.data, total: result.data.length } : (result.data || {});
-                    const records = Array.isArray(page.orders) ? page.orders : [];
-                    total = Number(page.total ?? records.length);
-                    all.push(...records);
-                    offset += records.length;
-                    pages++;
-                    if (!records.length) break;
-                }
-                return all;
-            }
-
-            function renderStatus(inRange) {
-                const host = $("statusReport");
-                if (!host) return;
-                const openKeys = new Set([...host.querySelectorAll('.sf-head[aria-expanded="true"]')].map((b) => b.dataset.key));
-                const groups = STATUS_GROUPS.map((g) => ({ ...g, orders: [] }));
-                const other = new Map();
-                inRange.forEach((o) => {
-                    const s = statusOf(o);
-                    const g = groups.find((x) => x.raw.includes(s));
-                    if (g) { g.orders.push(o); return; }
-                    if (!other.has(s)) other.set(s, { key: "other-" + s, label: (s || "unknown").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()), color: "#9ca3af", orders: [] });
-                    other.get(s).orders.push(o);
-                });
-                const rows = groups.concat([...other.values()]);
-                const total = inRange.length;
-                host.replaceChildren();
-                if (!total) {
-                    const p = document.createElement("p"); p.className = "sf-empty"; p.textContent = "No orders in this period.";
-                    host.appendChild(p);
-                    return;
-                }
-                rows.forEach((g) => {
-                    const pct = Math.round((g.orders.length / total) * 100);
-                    const item = document.createElement("div"); item.className = "order-report-item";
-
-                    const head = document.createElement("button");
-                    head.type = "button"; head.className = "sf-head"; head.dataset.key = g.key;
-                    const panelId = "sf-panel-" + g.key;
-                    head.setAttribute("aria-controls", panelId);
-                    const isOpen = openKeys.has(g.key);
-                    head.setAttribute("aria-expanded", String(isOpen));
-
-                    const label = document.createElement("div"); label.className = "order-report-label";
-                    const name = document.createElement("span");
-                    const chev = document.createElement("i"); chev.className = "fa-solid fa-chevron-right sf-chev"; chev.setAttribute("aria-hidden", "true");
-                    name.append(chev, document.createTextNode(g.label));
-                    const count = document.createElement("strong"); count.textContent = g.orders.length + " · " + pct + "%";
-                    label.append(name, count);
-
-                    const bar = document.createElement("div"); bar.className = "progress-bar";
-                    const fill = document.createElement("div"); fill.className = "live-fill"; fill.style.width = pct + "%"; fill.style.background = g.color;
-                    bar.appendChild(fill);
-                    head.append(label, bar);
-
-                    const panel = document.createElement("div");
-                    panel.className = "sf-panel"; panel.id = panelId; panel.style.setProperty("--sf-color", g.color); panel.hidden = !isOpen;
-                    if (!g.orders.length) {
-                        const p = document.createElement("p"); p.className = "sf-empty"; p.textContent = "No orders with this status in this period.";
-                        panel.appendChild(p);
-                    } else {
-                        g.orders.slice().sort((a, b) => (orderDate(b) || 0) - (orderDate(a) || 0)).forEach((o) => {
-                            const row = document.createElement("div"); row.className = "sf-order";
-                            const who = document.createElement("strong"); who.textContent = "#" + o.id + " · " + (o.customer_name || "Customer");
-                            const tot = document.createElement("span"); tot.className = "sf-total"; tot.textContent = money(orderTotal(o));
-                            const d = orderDate(o);
-                            const meta = document.createElement("span");
-                            meta.textContent = (isDelivery(o) ? "Delivery" : "Collection") + (d ? " · " + d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "");
-                            row.append(who, tot, meta);
-                            panel.appendChild(row);
-                        });
-                    }
-                    item.append(head, panel);
-                    host.appendChild(item);
-                });
-            }
-
-            function render() {
-                if (!allOrders) return;
-                const period = ($("reportPeriod") || {}).value || "week";
-                const [start, end] = getRange(period, new Date());
-                const inRange = allOrders.filter((o) => { const d = orderDate(o); return d && d >= start && d < end; });
-
-                renderStatus(inRange);
-
-                // Customer tracking ignores declined / cancelled orders
-                const active = inRange.filter((o) => !DECLINED.has(statusOf(o)));
-                const info = bucketInfo(period);
-                const buckets = info.labels.map(() => ({ delivery: new Set(), collection: new Set() }));
-                const allCust = new Set(), delCust = new Set(), colCust = new Set();
-                let delOrders = 0, colOrders = 0;
-                active.forEach((o) => {
-                    const key = customerKey(o);
-                    const b = buckets[info.index(orderDate(o))];
-                    allCust.add(key);
-                    if (isDelivery(o)) { b.delivery.add(key); delCust.add(key); delOrders++; }
-                    else { b.collection.add(key); colCust.add(key); colOrders++; }
-                });
-
-                setText("custTotal", allCust.size);
-                setText("custDelivery", delCust.size);
-                setText("custCollection", colCust.size);
-                setText("custChartTitle", info.title);
-
-                const orderCount = delOrders + colOrders;
-                const pct = (n) => (orderCount ? Math.round((n / orderCount) * 100) : 0);
-                setText("typeDeliveryLabel", delOrders + " · " + pct(delOrders) + "%");
-                setText("typeCollectionLabel", colOrders + " · " + pct(colOrders) + "%");
-                setWidth("typeDeliveryBar", pct(delOrders));
-                setWidth("typeCollectionBar", pct(colOrders));
-
-                // New = customer's very first order falls inside this period
-                const firstSeen = new Map();
-                allOrders.forEach((o) => {
-                    if (DECLINED.has(statusOf(o))) return;
-                    const d = orderDate(o); if (!d) return;
-                    const k = customerKey(o);
-                    if (!firstSeen.has(k) || d < firstSeen.get(k)) firstSeen.set(k, d);
-                });
-                let newCount = 0;
-                allCust.forEach((k) => { const f = firstSeen.get(k); if (f && f >= start) newCount++; });
-                const retCount = allCust.size - newCount;
-                const cpct = (n) => (allCust.size ? Math.round((n / allCust.size) * 100) : 0);
-                setText("custNewLabel", newCount + " · " + cpct(newCount) + "%");
-                setText("custReturningLabel", retCount + " · " + cpct(retCount) + "%");
-                setWidth("custNewBar", cpct(newCount));
-                setWidth("custReturningBar", cpct(retCount));
-
-                const max = Math.max(1, ...buckets.map((b) => Math.max(b.delivery.size, b.collection.size)));
-                const chart = $("custChart");
-                if (chart) {
-                    chart.replaceChildren();
-                    buckets.forEach((b, i) => {
-                        const col = document.createElement("div"); col.className = "cust-col";
-                        const pair = document.createElement("div"); pair.className = "cust-pair";
-                        [["delivery", "cust-delivery"], ["collection", "cust-collection"]].forEach(([k, cls]) => {
-                            const wrap = document.createElement("div"); wrap.className = "cust-bar-wrap";
-                            const small = document.createElement("small"); small.textContent = String(b[k].size);
-                            const bar = document.createElement("div"); bar.className = "cust-bar " + cls; bar.style.height = (b[k].size / max) * 80 + "%";
-                            wrap.append(small, bar); pair.appendChild(wrap);
-                        });
-                        const lab = document.createElement("span"); lab.className = "cust-label"; lab.textContent = info.labels[i];
-                        col.append(pair, lab); chart.appendChild(col);
+        window.renderAdditionalReports = function (data) {
+            const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+            const money = (value) => `R${Number(value || 0).toFixed(2)}`;
+            const make = (tag, className, text) => { const el = document.createElement(tag); if (className) el.className = className; if (text !== undefined) el.textContent = text; return el; };
+            const period = data.period || 'week';
+            const bucketRows = (data.customer_buckets || []).map((row) => ({
+                bucket: row.bucket,
+                delivery: Number(row.delivery || 0),
+                collection: Number(row.collection || 0)
+            }));
+            const chartHost = document.getElementById('custChart');
+            if (chartHost) {
+                const groups = bucketRows.map((row) => ({
+                    label: period === 'year'
+                        ? new Date(`${row.bucket}-01T00:00:00`).toLocaleString([], { month: 'short' })
+                        : ['Morning', 'Afternoon', 'Evening'].includes(row.bucket)
+                            ? row.bucket
+                            : row.bucket.startsWith('Week ')
+                                ? row.bucket
+                                : new Date(`${row.bucket}T00:00:00`).toLocaleDateString([], { day: 'numeric', month: 'short' }),
+                    delivery: row.delivery,
+                    collection: row.collection
+                }));
+                const max = Math.max(1, ...groups.map((group) => Math.max(group.delivery, group.collection)));
+                chartHost.replaceChildren();
+                groups.forEach((group) => {
+                    const col = make('div', 'cust-col');
+                    const pair = make('div', 'cust-pair');
+                    [['delivery', 'cust-delivery'], ['collection', 'cust-collection']].forEach(([key, css]) => {
+                        const wrap = make('div', 'cust-bar-wrap');
+                        const label = make('small', '', String(group[key]));
+                        const bar = make('div', `cust-bar ${css}`);
+                        bar.style.height = `${group[key] / max * 80}%`;
+                        wrap.append(label, bar); pair.appendChild(wrap);
                     });
-                }
-                setStatusLine(inRange.length ? "" : "No orders were placed in this period.", false);
+                    col.append(pair, make('span', 'cust-label', group.label)); chartHost.appendChild(col);
+                });
+            }
+            const insights = data.customer_insights || {};
+            const totalCustomers = Number(insights.customers || 0);
+            const newCustomers = Number(insights.new_customers || 0);
+            const returningCustomers = Number(insights.returning_customers || 0);
+            const newPct = totalCustomers ? Math.round(newCustomers / totalCustomers * 100) : 0;
+            const returningPct = totalCustomers ? Math.round(returningCustomers / totalCustomers * 100) : 0;
+            setText('custTotal', totalCustomers);
+            setText('custDelivery', (data.fulfilment || []).find((item) => item.type === 'delivery')?.paid_orders || 0);
+            setText('custCollection', (data.fulfilment || []).find((item) => item.type === 'collection')?.paid_orders || 0);
+            setText('custChartTitle', period === 'today' ? 'Customers Today' : period === 'month' ? 'Customers Per Week' : period === 'year' ? 'Customers Per Month' : 'Customers Per Day');
+            setText('custNewLabel', `${newCustomers} · ${newPct}%`);
+            setText('custReturningLabel', `${returningCustomers} · ${returningPct}%`);
+            const newBar = document.getElementById('custNewBar'); if (newBar) newBar.style.width = `${newPct}%`;
+            const returningBar = document.getElementById('custReturningBar'); if (returningBar) returningBar.style.width = `${returningPct}%`;
+
+            const statusHost = document.getElementById('statusReport');
+            if (statusHost) {
+                const totalOrders = Number(data.orders || 0);
+                statusHost.replaceChildren();
+                (data.statuses || []).forEach((row) => {
+                    const count = Number(row.orders || 0); const pct = totalOrders ? Math.round(count / totalOrders * 100) : 0;
+                    const item = make('div', 'order-report-item');
+                    const label = make('div', 'order-report-label');
+                    const statusName = String(row.status).replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
+                    label.append(make('span', '', statusName), make('strong', '', `${count} · ${pct}%`));
+                    const track = make('div', 'progress-bar'); const fill = make('div', 'live-fill'); fill.style.width = `${pct}%`; fill.style.background = ({ submitted: '#f59e0b', accepted: '#3b82f6', preparing: '#8b5cf6', ready: '#06b6d4', completed: '#2ea866', declined: '#ef4444', cancelled: '#ef4444', paid: '#2ea866', payment_failed: '#ef4444' })[row.status] || '#9ca3af';
+                    track.appendChild(fill); item.append(label, track); statusHost.appendChild(item);
+                });
+                if (!totalOrders) statusHost.appendChild(make('p', 'sf-empty', 'No orders in this period.'));
             }
 
-            async function refresh() {
-                if (loading) return;
-                loading = true;
-                setStatusLine("Loading live order data…", false);
-                try {
-                    allOrders = await fetchAllOrders();
-                    render();
-                } catch (err) {
-                    console.error(err);
-                    const msg = (err && err.message) || "";
-                    setStatusLine(/authenticat/i.test(msg)
-                        ? "Your session is not active for this request. Log in again, and open the admin pages through your local server or website rather than as a file from disk."
-                        : (msg || "Live order data could not be loaded. Press Update Report to try again."), true);
-                } finally {
-                    loading = false;
-                }
+            const fulfilmentHost = document.getElementById('fulfilmentAnalytics');
+            if (fulfilmentHost) {
+                fulfilmentHost.replaceChildren();
+                const maxOrders = Math.max(1, ...(data.fulfilment || []).map((row) => Number(row.orders)));
+                (data.fulfilment || []).forEach((row) => {
+                    const item = make('div', 'order-report-item'); const label = make('div', 'order-report-label');
+                    label.append(make('span', '', row.type === 'delivery' ? 'Delivery' : 'Collection'), make('strong', '', `${row.orders} orders · ${money(row.sales)}`));
+                    const track = make('div', 'progress-bar'); const fill = make('div', 'live-fill'); fill.style.width = `${Number(row.orders) / maxOrders * 100}%`; fill.style.background = row.type === 'delivery' ? '#f59e0b' : '#3b82f6'; track.appendChild(fill); item.append(label, track); fulfilmentHost.appendChild(item);
+                });
+                if (!(data.fulfilment || []).length) fulfilmentHost.appendChild(make('p', 'sf-empty', 'No orders in this period.'));
             }
 
-            // Expand / collapse the order lists under each status
-            document.addEventListener("click", (event) => {
-                const head = event.target.closest(".sf-head");
-                if (!head) return;
-                const open = head.getAttribute("aria-expanded") !== "true";
-                head.setAttribute("aria-expanded", String(open));
-                const panel = document.getElementById(head.getAttribute("aria-controls"));
-                if (panel) panel.hidden = !open;
-            });
+            const busyHost = document.getElementById('busiestTimesAnalytics');
+            if (busyHost) {
+                busyHost.replaceChildren();
+                const busy = data.busy_times || []; const maxOrders = Math.max(1, ...busy.map((row) => Number(row.orders)));
+                busy.forEach((row) => {
+                    const hour = Number(row.hour); const labelText = `${String(hour).padStart(2, '0')}:00–${String((hour + 1) % 24).padStart(2, '0')}:00`;
+                    const item = make('div', 'order-report-item'); const label = make('div', 'order-report-label'); label.append(make('span', '', labelText), make('strong', '', `${row.orders} orders`));
+                    const track = make('div', 'progress-bar'); const fill = make('div', 'live-fill'); fill.style.width = `${Number(row.orders) / maxOrders * 100}%`; fill.style.background = '#8b5cf6'; track.appendChild(fill); item.append(label, track); busyHost.appendChild(item);
+                });
+                if (!busy.length) busyHost.appendChild(make('p', 'sf-empty', 'No orders in this period.'));
+            }
 
-            // Period change re-filters instantly; Update Report re-fetches fresh orders
-            $("reportPeriod")?.addEventListener("change", render);
-            document.addEventListener("click", (event) => {
-                if (event.target.closest("#updateReportBtn")) refresh();
-            }, true);
-
-            // Wait until admin-live.js has finished signing in and has removed its loading screen.
-            // (apiGet exists before the login check finishes, so calling it any earlier can fail with "Authentication required".)
-            let waited = 0;
-            const timer = setInterval(() => {
-                const screen = document.getElementById("adminLoadingState");
-                waited += 250;
-                if (!screen && typeof apiGet === "function") {
-                    clearInterval(timer);
-                    refresh();
-                } else if (screen && screen.classList.contains("is-error")) {
-                    clearInterval(timer);
-                    setStatusLine("The admin session could not be loaded, so live order data was not requested.", true);
-                } else if (waited > 30000) {
-                    clearInterval(timer);
-                    setStatusLine("Timed out waiting for the admin session. Reload the page and try again.", true);
-                }
-            }, 250);
-        })();
+            const customerHost = document.getElementById('customerAnalytics');
+            if (customerHost) {
+                customerHost.replaceChildren();
+                customerHost.append(make('p', '', `${totalCustomers} unique customers made successfully paid orders during this period.`));
+                customerHost.append(make('p', '', `${newCustomers} new · ${returningCustomers} returning`));
+            }
+            const statusLine = document.getElementById('liveReportStatus');
+            if (statusLine) { statusLine.textContent = `Orders placed ${data.from} through ${data.to}. Sales count successfully charged orders.`; statusLine.hidden = false; statusLine.classList.remove('is-error'); }
+        };
     </script>
+    <script src="../js/dashboard.js"></script>
 
 </body>
 
