@@ -18,6 +18,9 @@ define('PAYFAST_MERCHANT_KEY', getenv('PAYFAST_MERCHANT_KEY') ?: '');
 define('PAYFAST_RETURN_URL', getenv('PAYFAST_RETURN_URL') ?: '');
 define('PAYFAST_CANCEL_URL', getenv('PAYFAST_CANCEL_URL') ?: '');
 define('PAYFAST_NOTIFY_URL', getenv('PAYFAST_NOTIFY_URL') ?: '');
+// Public API origin used to build PayFast callbacks. The legacy individual
+// callback variables can retain an outdated Railway hostname after a domain change.
+define('API_BASE_URL', rtrim(getenv('API_BASE_URL') ?: 'https://api.foodbyk.co.za', '/'));
 define('PAYFAST_SANDBOX', getenv('PAYFAST_SANDBOX') ?: '');
 define('WEB_PUSH_VAPID_PUBLIC_KEY', getenv('WEB_PUSH_VAPID_PUBLIC_KEY') ?: '');
 define('WEB_PUSH_VAPID_PRIVATE_KEY', getenv('WEB_PUSH_VAPID_PRIVATE_KEY') ?: '');

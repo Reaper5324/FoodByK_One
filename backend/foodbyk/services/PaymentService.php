@@ -8,16 +8,16 @@ class PaymentService {
 
     /** Start order tokenization after the order and payment row have been committed. */
     public function beginTokenSetup(Order $order, Customer $customer): array {
-        if (PAYFAST_RETURN_URL === '' || PAYFAST_CANCEL_URL === '' || PAYFAST_NOTIFY_URL === ''
-            || PAYFAST_MERCHANT_ID === '' || PAYFAST_MERCHANT_KEY === '') {
+        if (API_BASE_URL === '' || PAYFAST_MERCHANT_ID === '' || PAYFAST_MERCHANT_KEY === '') {
             return ['success' => false, 'error' => 'Secure payment setup is not configured.'];
         }
+        $callbackBase = rtrim(API_BASE_URL, '/');
         $fields = [
             'merchant_id' => PAYFAST_MERCHANT_ID,
             'merchant_key' => PAYFAST_MERCHANT_KEY,
-            'return_url' => rtrim(PAYFAST_RETURN_URL, '/') . '?order_id=' . $order->id,
-            'cancel_url' => rtrim(PAYFAST_CANCEL_URL, '/') . '?order_id=' . $order->id,
-            'notify_url' => rtrim(PAYFAST_NOTIFY_URL, '/') . '/payments/token-webhook',
+            'return_url' => $callbackBase . '/payments/return?order_id=' . $order->id,
+            'cancel_url' => $callbackBase . '/payments/cancel?order_id=' . $order->id,
+            'notify_url' => $callbackBase . '/payments/token-webhook',
             'name_first' => explode(' ', $customer->full_name)[0],
             'email_address' => $customer->email,
             'm_payment_id' => (string) $order->id,
