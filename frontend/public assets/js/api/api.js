@@ -332,6 +332,12 @@ async function apiRequest(endpoint, options = {}) {
    3. HTTP HELPER FUNCTIONS
    ========================================= */
 
+// Queue global feedback emitted before pwa.js has finished loading.
+window.foodByKNoticeQueue = window.foodByKNoticeQueue || [];
+window.foodByKNotify = window.foodByKNotify || ((message, type = "info", duration = 6500) => {
+    window.foodByKNoticeQueue.push({ message, type, duration });
+});
+
 async function apiGet(endpoint) {
 
     return apiRequest(endpoint, {

@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         message.hidden = !text;
         message.textContent = text;
         message.classList.toggle("is-error", isError);
+        if (text) window.foodByKNotify?.(text, isError ? "error" : "success");
     };
 
     const formatDate = (value) => {
@@ -33,7 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    const createCard = (promotion) => {
+    const createCard = (promotion, productsById) => {
         const article = document.createElement("article");
         article.className = "promotion-card";
 
@@ -43,6 +44,45 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const title = document.createElement("h2");
         title.textContent = discountLabel(promotion);
+
+        const targetIds = Array.isArray(promotion.target_product_ids)
+            ? promotion.target_product_ids.map(Number)
+            : [];
+        const targetNames = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
+        const targetProducts = targetIds.map((id, index) => {
+            const product = productsById.get(id);
+            return product || (targetNames[index] ? { id, name: targetNames[index] } : null);
+        }).filter(Boolean);
+        let productGallery = null;
+        if (targetProducts.length) {
+            productGallery = document.createElement("div");
+            productGallery.className = "promotion-products";
+            productGallery.setAttribute("aria-label", "Menu items included in this offer");
+            targetProducts.forEach((product) => {
+                const itemLink = document.createElement("a");
+                itemLink.className = "promotion-product";
+                itemLink.href = `menu-item.html?id=${encodeURIComponent(product.id)}`;
+                itemLink.setAttribute("aria-label", `View ${product.name} on the menu`);
+                if (product.image_url) {
+                    const image = document.createElement("img");
+                    image.src = product.image_url;
+                    image.alt = product.name || "Promotional menu item";
+                    image.loading = "lazy";
+                    image.addEventListener("error", () => image.remove(), { once: true });
+                    itemLink.appendChild(image);
+                } else {
+                    const placeholder = document.createElement("span");
+                    placeholder.className = "promotion-product-placeholder";
+                    placeholder.setAttribute("aria-hidden", "true");
+                    placeholder.textContent = "Food by K";
+                    itemLink.appendChild(placeholder);
+                }
+                const name = document.createElement("span");
+                name.textContent = product.name || "Menu item";
+                itemLink.appendChild(name);
+                productGallery.appendChild(itemLink);
+            });
+        }
 
         const eligibility = document.createElement("p");
         eligibility.className = "promotion-eligibility";
@@ -88,7 +128,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
-        article.append(kicker, title, eligibility, code, validity, apply);
+        article.append(kicker, title);
+        if (productGallery) article.appendChild(productGallery);
+        article.append(eligibility, code, validity, apply);
         return article;
     };
 
@@ -97,13 +139,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!result?.success || !Array.isArray(result.data)) {
             throw new Error(result?.error || "We couldn’t load the current offers.");
         }
+        const productsResult = await apiGet("/products").catch(() => null);
+        const productsById = new Map(
+            productsResult?.success && Array.isArray(productsResult.data)
+                ? productsResult.data.map((product) => [Number(product.id), product])
+                : []
+        );
         list.replaceChildren();
         list.setAttribute("aria-busy", "false");
         if (result.data.length === 0) {
             setMessage("There are no active promotions right now. Check back soon or browse the menu.");
             return;
         }
-        result.data.forEach((promotion) => list.appendChild(createCard(promotion)));
+        result.data.forEach((promotion) => list.appendChild(createCard(promotion, productsById)));
         setMessage("");
     } catch (error) {
         list.setAttribute("aria-busy", "false");

@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
         node.textContent = message;
         node.hidden = false;
         node.classList.toggle("is-error", isError);
+        window.foodByKNotify?.(message, isError ? "error" : "success");
     };
 
     const setProfile = (user) => {

@@ -55,7 +55,8 @@
 .order-item:first-child { border-top: 1px solid #eee7de; }
 .order-item-description { display: flex; min-width: 0; align-items: center; gap: 13px; }
 .order-item-image { width: 62px; height: 54px; flex: 0 0 62px; object-fit: cover; background: #eee7de; }
-.order-item-name { color: var(--home-ink); font-size: 13px; font-weight: 800; }
+.order-item-name { display: grid; gap: 3px; color: var(--home-ink); font-size: 13px; font-weight: 800; }
+.order-item-customizations { display: block; color: #746b61; font-size: 11px; font-weight: 500; line-height: 1.45; }
 .order-item strong { color: var(--food-red); font-size: 13px; font-weight: 950; white-space: nowrap; }
 .order-summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; color: #6b645c; font-size: 13px; }
 .order-summary-row strong { color: var(--home-ink); }

@@ -1,4 +1,4 @@
-const ADMIN_ONLY_PAGES = new Set([
+﻿const ADMIN_ONLY_PAGES = new Set([
     "categories.html",
     "promotions.html",
     "customers.html",
@@ -37,8 +37,51 @@ const uploadProductImage = async (file) => {
     }
 };
 
+const createProductOptionRow = (option = {}) => {
+    const row = document.createElement("div");
+    row.className = "optional-extra-row";
+
+    const name = document.createElement("input");
+    name.type = "text";
+    name.className = "item-option-name";
+    name.maxLength = 100;
+    name.placeholder = "e.g. Extra cheese";
+    name.setAttribute("aria-label", "Extra name");
+    name.value = option.name || "";
+
+    const price = document.createElement("input");
+    price.type = "number";
+    price.className = "item-option-price";
+    price.min = "0";
+    price.step = "0.01";
+    price.placeholder = "0.00";
+    price.setAttribute("aria-label", "Extra price in rand");
+    price.value = option.price_delta === undefined || option.price_delta === null
+        ? ""
+        : Number(option.price_delta || 0).toFixed(2);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "optional-extra-remove-btn";
+    remove.dataset.removeItemOption = "true";
+    remove.setAttribute("aria-label", `Remove ${option.name || "this optional extra"}`);
+    remove.title = "Remove extra";
+    remove.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
+
+    row.append(name, price, remove);
+    return row;
+};
+
+const setProductOptionRows = (options = []) => {
+    const list = document.getElementById("itemOptions");
+    if (!list) return;
+    const validOptions = Array.isArray(options) ? options : [];
+    list.replaceChildren(...(validOptions.length ? validOptions.map(createProductOptionRow) : [createProductOptionRow()]));
+};
+
 const initializeAdminLive = async () => {
     const page = location.pathname.split("/").pop();
+    setProductOptionRows();
     const loadingState = document.getElementById("adminLoadingState");
     const showLoadingError = (message) => {
         if (!loadingState) return;
@@ -133,8 +176,12 @@ const initializeAdminLive = async () => {
         notificationPanel.className = "topbar-popover notification-panel";
         notificationPanel.innerHTML = `
             <h3>Notifications</h3>
-            <p>No new notifications.</p>
-            <small>Notifications are not yet connected to the backend.</small>
+            <p>New orders are checked while this dashboard is open. Allow browser notifications to receive alerts when it is in the background.</p>
+            <div class="notification-settings-actions">
+                <button type="button" id="enableStaffPushBtn">Enable pop-up alerts</button>
+                <button type="button" id="enableStaffSoundBtn">Enable sound alerts</button>
+            </div>
+            <small id="staffNotificationHelp">Sound plays while the dashboard is open. Your device controls the sound for browser notifications.</small>
         `;
         topbarRight.appendChild(notificationPanel);
     }
@@ -276,14 +323,98 @@ const initializeAdminLive = async () => {
 
     const showResult = (result) => {
         if (!result?.success) {
+            const errorMessage = result?.error || "The request could not be completed.";
+            window.foodByKNotify?.(errorMessage, "error", 0);
             if (isInitialPageLoad) {
                 initialDataLoadError = true;
             } else {
-                alert(result?.error || "The request could not be completed.");
+                const reportStatus = document.getElementById("liveReportStatus");
+                if (reportStatus) {
+                    reportStatus.textContent = errorMessage;
+                    reportStatus.hidden = false;
+                    reportStatus.classList.add("is-error");
+                } else {
+                    if (!window.foodByKNotify) alert(errorMessage);
+                }
             }
             return false;
         }
+        const reportStatus = document.getElementById("liveReportStatus");
+        if (reportStatus) reportStatus.classList.remove("is-error");
         return true;
+    };
+
+    const installStaffPush = async () => {
+        if (!navigator.serviceWorker || !window.PushManager || !window.isSecureContext) return false;
+        try {
+            const response = await apiGet("/push/public-key");
+            if (!response?.success || !response.data?.enabled || !response.data.public_key) {
+                window.foodByKNotify?.("Browser alerts are not configured on the service yet.", "error");
+                return false;
+            }
+            const registration = await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+            if (Notification.permission !== "granted") return false;
+            const existing = await registration.pushManager.getSubscription();
+            const subscription = existing || await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: decodeVapidKey(response.data.public_key)
+            });
+            const saved = await apiPost("/push/subscribe", { subscription: subscription.toJSON() });
+            if (!saved?.success) {
+                console.warn("Unable to save staff notification subscription.", saved?.error);
+                if (requestPermission) window.foodByKNotify?.(saved?.error || "Unable to enable browser alerts.", "error");
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.warn("Staff push notifications could not be enabled.", error);
+            if (requestPermission) window.foodByKNotify?.("Unable to enable browser alerts. Try again from this dashboard.", "error");
+            return false;
+        }
+    };
+    document.getElementById("enableStaffPushBtn")?.addEventListener("click", async (event) => {
+        event.currentTarget.disabled = true;
+        if (!("Notification" in window)) {
+            window.foodByKNotify?.("This browser does not support pop-up notifications.", "error");
+            event.currentTarget.disabled = false;
+            return;
+        }
+        let permission = Notification.permission;
+        try {
+            if (permission !== "granted" && permission !== "denied") {
+                permission = await Notification.requestPermission();
+            }
+        } catch (_) {
+            permission = "denied";
+        }
+        if (permission !== "granted") {
+            window.foodByKNotify?.("Allow browser notifications to receive new order pop-ups.", "info");
+            event.currentTarget.disabled = false;
+            return;
+        }
+        const enabled = await installStaffPush();
+        if (enabled) {
+            event.currentTarget.textContent = "Pop-up alerts enabled";
+            window.foodByKNotify?.("New order pop-up alerts are enabled on this device.", "success");
+        }
+        event.currentTarget.disabled = false;
+    });
+    document.getElementById("enableStaffSoundBtn")?.addEventListener("click", async (event) => {
+        try {
+            staffAudioContext ||= new AudioContext();
+            await staffAudioContext.resume();
+            staffSoundEnabled = true;
+            localStorage.setItem("foodbyk-staff-sound", "on");
+            playStaffOrderSound();
+            event.currentTarget.textContent = "Sound alerts enabled";
+        } catch (error) {
+            window.foodByKNotify?.("Sound alerts are not available in this browser.", "error");
+        }
+    });
+    const decodeVapidKey = (value) => {
+        const padding = "=".repeat((4 - value.length % 4) % 4);
+        const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+        return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
     };
     const setRefundFeedback = (message = "", state = "info") => {
         const feedback = document.getElementById("refundFeedback");
@@ -291,10 +422,11 @@ const initializeAdminLive = async () => {
         feedback.textContent = message;
         feedback.hidden = !message;
         feedback.dataset.state = state;
+        if (message && state === "error") window.foodByKNotify?.(message, "error", 0);
     };
     const makeCell = (row, value) => {
         const cell = document.createElement("td");
-        cell.textContent = value == null || value === "" ? "—" : String(value);
+        cell.textContent = value == null || value === "" ? "â€”" : String(value);
         row.appendChild(cell);
         return cell;
     };
@@ -337,19 +469,14 @@ const initializeAdminLive = async () => {
             setMessageRow(body, orders.error || "Unable to load incoming orders.", 7);
             return;
         }
-        const today = new Date();
-        const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-        const records = (orders.data || []).filter((order) => {
-            const requestedDate = String(order.requested_window_start || "").slice(0, 10);
-            return order.status === "submitted" && requestedDate === todayKey;
-        });
+        const records = (orders.data || []).filter((order) => order.status === "submitted");
         const pending = document.getElementById("dashboardPendingCount");
         if (pending) pending.textContent = String(records.length);
-        if (!records.length) return setMessageRow(body, "There are no orders due for review today.", 7);
+        if (!records.length) return setMessageRow(body, "There are no orders awaiting review.", 7);
         body.replaceChildren();
         records.slice(0, 5).forEach((order) => {
             const row = document.createElement("tr");
-            const time = String(order.requested_window_start || "").match(/\d{2}:\d{2}/)?.[0] || "—";
+            const time = String(order.requested_window_start || "").match(/\d{2}:\d{2}/)?.[0] || "â€”";
             const total = Math.max(0, Number(order.subtotal || 0) + Number(order.delivery_fee || 0)
                 - Number(order.locked_discount || 0) - Number(order.loyalty_points_redeemed || 0)
                 + Number(order.loyalty_points_refunded || 0));
@@ -370,45 +497,78 @@ const initializeAdminLive = async () => {
         const period = document.getElementById("reportPeriod")?.value || "week";
         const result = await apiGet("/admin/analytics?period=" + encodeURIComponent(period));
         if (!showResult(result)) return;
-        document.getElementById("reportSales")?.replaceChildren(document.createTextNode("R" + Number(result.data.sales).toFixed(2)));
-        document.getElementById("reportOrders")?.replaceChildren(document.createTextNode(String(result.data.orders)));
-        document.getElementById("reportAverage")?.replaceChildren(document.createTextNode("R" + Number(result.data.average_paid_order).toFixed(2)));
-        const columns = document.querySelectorAll(".chart-bars .chart-column");
-        const sales = result.data.daily_sales || [];
-        const max = Math.max(1, ...sales.map((item) => Number(item.sales)));
-        columns.forEach((column, index) => {
-            const visibleSales = sales.slice(-columns.length);
-            const item = visibleSales[index];
-            const bar = column.querySelector(".chart-bar");
-            const label = column.querySelector("span");
-            if (!item) {
-                if (bar) bar.style.height = "0%";
-                if (label) label.textContent = "—";
-                return;
-            }
-            if (bar) bar.style.height = Math.max(2, Number(item.sales) / max * 100) + "%";
-            if (label) label.textContent = item.date.slice(5);
-        });
-        const topContainer = document.querySelector(".report-two-column");
-        if (topContainer) {
-            topContainer.replaceChildren();
-            const card = document.createElement("div");
-            card.className = "content-card report-section";
-            const heading = document.createElement("h3");
-            heading.textContent = "Top Selling Items";
-            card.appendChild(heading);
-            (result.data.top_products || []).forEach((product, index) => {
-                const item = document.createElement("p");
-                item.textContent = `${index + 1}. ${product.name} — ${product.units} sold (R${Number(product.sales).toFixed(2)})`;
-                card.appendChild(item);
+        const data = result.data || {};
+        const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+        setText("reportSales", "R" + Number(data.sales || 0).toFixed(2));
+        setText("reportOrders", String(Number(data.orders || 0)));
+        setText("reportAverage", "R" + Number(data.average_paid_order || 0).toFixed(2));
+
+        const sales = data.sales_buckets || data.daily_sales || [];
+        const chart = document.getElementById("salesChartBars");
+        const axis = document.getElementById("salesAxis");
+        if (chart) {
+            const peak = Math.max(0, ...sales.map((item) => Number(item.sales || 0)));
+            const scale = peak > 0 ? Math.ceil(peak / 4 / 100) * 100 : 1;
+            chart.replaceChildren();
+            sales.forEach((item) => {
+                const bucket = String(item.bucket || item.date || "");
+                const amount = Number(item.sales || 0);
+                const column = document.createElement("div");
+                column.className = "chart-column";
+                column.title = `${bucket}: R${amount.toFixed(2)} sales, ${Number(item.paid_orders || 0)} paid orders`;
+                const bar = document.createElement("div");
+                bar.className = "chart-bar";
+                bar.style.height = `${peak > 0 ? Math.max(amount > 0 ? 2 : 0, amount / (scale * 4) * 100) : 0}%`;
+                const label = document.createElement("span");
+                if (data.period === "today") label.textContent = bucket.slice(11, 13);
+                else if (data.period === "year") label.textContent = new Date(`${bucket}-01T00:00:00`).toLocaleString([], { month: "short" });
+                else label.textContent = new Date(`${bucket}T00:00:00`).toLocaleDateString([], { day: "numeric", month: "short" });
+                column.append(bar, label);
+                chart.appendChild(column);
             });
-            if (!result.data.top_products?.length) {
-                const empty = document.createElement("p");
-                empty.textContent = "No paid orders in this period.";
-                card.appendChild(empty);
+            if (!sales.length) {
+                const empty = document.createElement("p"); empty.className = "sf-empty"; empty.textContent = "No sales data for this period."; chart.appendChild(empty);
             }
-            topContainer.appendChild(card);
+            if (axis) {
+                axis.replaceChildren();
+                for (let step = 4; step >= 0; step--) {
+                    const label = document.createElement("span");
+                    label.textContent = step === 0 ? "R0" : `R${(scale * step).toLocaleString()}`;
+                    axis.appendChild(label);
+                }
+            }
         }
+
+        const productList = document.getElementById("topProductsList");
+        if (productList) {
+            productList.replaceChildren();
+            (data.top_products || []).forEach((product, index) => {
+                const item = document.createElement("p");
+                item.textContent = `${index + 1}. ${product.name} - ${product.units} sold (R${Number(product.sales || 0).toFixed(2)})`;
+                productList.appendChild(item);
+            });
+            if (!(data.top_products || []).length) {
+                const empty = document.createElement("p"); empty.className = "sf-empty"; empty.textContent = "No paid orders in this period."; productList.appendChild(empty);
+            }
+        }
+        const promotionList = document.getElementById("topPromotionsList");
+        if (promotionList) {
+            promotionList.replaceChildren();
+            (data.top_promotions || []).forEach((promotion, index) => {
+                const item = document.createElement("p");
+                const uses = Number(promotion.uses || 0);
+                const saved = Number(promotion.discounts_given || 0);
+                item.textContent = `${index + 1}. ${promotion.code} - ${uses} paid uses · R${saved.toFixed(2)} discounts · R${Number(promotion.sales || 0).toFixed(2)} sales`;
+                promotionList.appendChild(item);
+            });
+            if (!(data.top_promotions || []).length) {
+                const empty = document.createElement("p");
+                empty.className = "sf-empty";
+                empty.textContent = "No paid promotion uses in this period.";
+                promotionList.appendChild(empty);
+            }
+        }
+        if (typeof window.renderAdditionalReports === "function") window.renderAdditionalReports(data);
     };
 
     const loadCategories = async () => {
@@ -435,6 +595,20 @@ const initializeAdminLive = async () => {
         const active = document.getElementById("activeCategories");
         if (active) active.textContent = String(result.data.length);
         window.adminCategories = result.data;
+    };
+
+    const applyMenuFilters = () => {
+        const query = (document.getElementById("menuSearch")?.value || "").trim().toLowerCase();
+        const category = document.querySelector(".menu-filter-btn.active")?.dataset.category || "all";
+        const availability = document.getElementById("menuAvailabilityFilter")?.value || "all";
+        document.querySelectorAll("#menuGrid .menu-card").forEach((card) => {
+            const matchesText = card.textContent.toLowerCase().includes(query);
+            const matchesCategory = category === "all" || card.dataset.category === category;
+            const unavailable = Boolean(card.querySelector(".availability.unavailable"));
+            const matchesAvailability = availability === "all"
+                || (availability === "unavailable") === unavailable;
+            card.hidden = !(matchesText && matchesCategory && matchesAvailability);
+        });
     };
 
     const loadProducts = async () => {
@@ -511,13 +685,22 @@ const initializeAdminLive = async () => {
             if (role === "admin") actions.append(edit);
             actions.append(availability);
             if (role === "admin") actions.append(remove);
-            content.append(category, title, description, price, actions);
+            content.append(category, title, description);
+            const optionNames = (product.options || []).filter((option) => option.is_available).map((option) => option.name);
+            if (optionNames.length) {
+                const extras = document.createElement("p");
+                extras.className = "menu-description menu-option-summary";
+                extras.textContent = `Extras: ${optionNames.join(", ")}`;
+                content.appendChild(extras);
+            }
+            content.append(price, actions);
             card.append(imageContainer, content);
             grid.appendChild(card);
         });
         const counter = document.getElementById("totalMenuItems");
         if (counter) counter.textContent = String(productResult.data.length);
         window.adminProducts = productResult.data;
+        applyMenuFilters();
     };
 
     const loadPromotions = async () => {
@@ -528,7 +711,7 @@ const initializeAdminLive = async () => {
             const products = Array.isArray(productsResult.data) ? productsResult.data : [];
             promotionProducts.replaceChildren(...products
                 .filter((product) => product.status === "active")
-                .map((product) => new Option(`${product.name} · ${money(product.price)}`, String(product.id))));
+                .map((product) => new Option(`${product.name} Â· ${money(product.price)}`, String(product.id))));
         }
         const body = document.getElementById("promotionTableBody");
         if (!body) return;
@@ -574,7 +757,7 @@ const initializeAdminLive = async () => {
             makeCell(row, staff.full_name);
             makeCell(row, staff.email);
             makeCell(row, staff.role);
-            makeCell(row, "—");
+            makeCell(row, "â€”");
             makeCell(row, staff.is_active ? "Active" : "Inactive");
             const actions = document.createElement("td");
             if (staff.role === "staff") {
@@ -648,10 +831,10 @@ const initializeAdminLive = async () => {
         const ticket = result.data;
         const panel = document.getElementById("supportTicketDetail");
         panel.replaceChildren();
-        const title = document.createElement("h3"); title.textContent = `#${ticket.id} · ${ticket.subject}`;
-        const customer = document.createElement("p"); customer.textContent = `${ticket.full_name} (${ticket.email}) · ${ticket.category}`;
-        if (ticket.related_order_id) customer.append(document.createTextNode(` · Order #${ticket.related_order_id}`));
-        if (ticket.related_product_id) customer.append(document.createTextNode(` · Menu item #${ticket.related_product_id}`));
+        const title = document.createElement("h3"); title.textContent = `#${ticket.id} Â· ${ticket.subject}`;
+        const customer = document.createElement("p"); customer.textContent = `${ticket.full_name} (${ticket.email}) Â· ${ticket.category}`;
+        if (ticket.related_order_id) customer.append(document.createTextNode(` Â· Order #${ticket.related_order_id}`));
+        if (ticket.related_product_id) customer.append(document.createTextNode(` Â· Menu item #${ticket.related_product_id}`));
         const message = document.createElement("p"); message.className = "support-admin-message"; message.textContent = ticket.message;
         const statusForm = document.createElement("form"); statusForm.id = "supportTicketStatusForm"; statusForm.dataset.ticketId = ticket.id;
         const statusLabel = document.createElement("label"); statusLabel.textContent = "Status ";
@@ -661,7 +844,7 @@ const initializeAdminLive = async () => {
         const saveStatus = document.createElement("button"); saveStatus.type = "submit"; saveStatus.className = "save-menu-btn"; saveStatus.textContent = "Update status";
         statusForm.append(statusLabel, saveStatus);
         const replies = document.createElement("div"); replies.className = "support-admin-replies";
-        (ticket.replies || []).forEach((reply) => { const item = document.createElement("article"); const by = document.createElement("strong"); by.textContent = `${reply.responder_name} · ${reply.created_at}`; const text = document.createElement("p"); text.textContent = reply.reply_message; item.append(by, text); replies.appendChild(item); });
+        (ticket.replies || []).forEach((reply) => { const item = document.createElement("article"); const by = document.createElement("strong"); by.textContent = `${reply.responder_name} Â· ${reply.created_at}`; const text = document.createElement("p"); text.textContent = reply.reply_message; item.append(by, text); replies.appendChild(item); });
         const replyForm = document.createElement("form"); replyForm.id = "supportTicketReplyForm"; replyForm.dataset.ticketId = ticket.id;
         const replyLabel = document.createElement("label"); replyLabel.textContent = "Reply to customer";
         const replyInput = document.createElement("textarea"); replyInput.name = "message"; replyInput.required = true; replyInput.maxLength = 5000; replyInput.rows = 4;
@@ -674,19 +857,124 @@ const initializeAdminLive = async () => {
     let ordersView = "all";
     let orderOffset = 0;
     let orderLoadVersion = 0;
+    let ordersLastSuccessfulRefresh = null;
+    let ordersPendingCount = null;
     const orderPageSize = 50;
+    const updateOrdersLiveStatus = (state = "current") => {
+        const toolbar = document.querySelector(".orders-live-toolbar");
+        const status = document.getElementById("ordersLiveStatus");
+        const count = document.getElementById("awaitingOrdersFilterCount");
+        if (!toolbar || !status) return;
+        toolbar.classList.toggle("is-refreshing", state === "refreshing");
+        toolbar.classList.toggle("is-error", state === "error");
+        toolbar.setAttribute("aria-busy", String(state === "refreshing"));
+        if (ordersPendingCount !== null && count) count.textContent = String(ordersPendingCount);
+        if (state === "refreshing") {
+            status.textContent = "Refreshing orders…";
+            return;
+        }
+        if (state === "error") {
+            status.textContent = ordersLastSuccessfulRefresh
+                ? `Could not refresh. Last updated ${ordersLastSuccessfulRefresh}.`
+                : "Could not load orders. Try refreshing.";
+            return;
+        }
+        if (!ordersLastSuccessfulRefresh) {
+            status.textContent = "Live order updates are on.";
+            return;
+        }
+        const pendingText = ordersPendingCount === null
+            ? ""
+            : `${ordersPendingCount} order${ordersPendingCount === 1 ? "" : "s"} need review · `;
+        status.textContent = `${pendingText}updated ${ordersLastSuccessfulRefresh}`;
+    };
     const displayOrderDate = (value) => {
         const datePart = String(value || "").slice(0, 10);
         const parts = datePart.split("-").map(Number);
-        if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return "—";
+        if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return "â€”";
         const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
-        return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString([], {
+        return Number.isNaN(date.getTime()) ? "â€”" : date.toLocaleDateString([], {
             day: "numeric", month: "short", year: "numeric", timeZone: "UTC"
         });
+    };
+    const orderWaitingTime = (createdAt) => {
+        const raw = String(createdAt || "").trim();
+        if (!raw) return "";
+        const normalized = raw.includes("T") ? raw : raw.replace(" ", "T");
+        const timestamp = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(normalized) ? normalized : `${normalized}Z`).getTime();
+        if (!Number.isFinite(timestamp)) return "";
+        const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+        if (minutes < 1) return "Just arrived";
+        if (minutes < 60) return `Waiting ${minutes}m`;
+        const hours = Math.floor(minutes / 60);
+        const remainder = minutes % 60;
+        return `Waiting ${hours}h${remainder ? ` ${remainder}m` : ""}`;
+    };
+
+    let staffOrderPoller = null;
+    let lastStaffOrderIds = new Set();
+    let staffAcknowledgementInFlight = false;
+    let staffAudioContext = null;
+    let staffSoundEnabled = false;
+    try { staffSoundEnabled = localStorage.getItem("foodbyk-staff-sound") === "on"; } catch (_) {}
+    const playStaffOrderSound = () => {
+        if (!staffSoundEnabled || !staffAudioContext || staffAudioContext.state !== "running") return;
+        const startAt = staffAudioContext.currentTime;
+        [880, 1175].forEach((frequency, index) => {
+            const oscillator = staffAudioContext.createOscillator();
+            const gain = staffAudioContext.createGain();
+            oscillator.type = "sine";
+            oscillator.frequency.value = frequency;
+            gain.gain.setValueAtTime(0.0001, startAt + index * 0.16);
+            gain.gain.exponentialRampToValueAtTime(0.16, startAt + index * 0.16 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startAt + index * 0.16 + 0.24);
+            oscillator.connect(gain); gain.connect(staffAudioContext.destination);
+            oscillator.start(startAt + index * 0.16);
+            oscillator.stop(startAt + index * 0.16 + 0.25);
+        });
+    };
+    document.addEventListener("pointerdown", () => {
+        if (!staffSoundEnabled || staffAudioContext) return;
+        try { staffAudioContext = new AudioContext(); staffAudioContext.resume().catch(() => {}); } catch (_) {}
+    }, { passive: true });
+    const checkUnacknowledgedStaffOrders = async () => {
+        if (role === "customer" || staffAcknowledgementInFlight) return;
+        const result = await apiGet("/staff/orders/unacknowledged");
+        if (!result?.success || !Array.isArray(result.data)) return;
+        const pending = result.data;
+        if (pending.length) {
+            const foreground = document.visibilityState === "visible" && document.hasFocus();
+            if (foreground) {
+                if (lastStaffOrderIds.size === 0 || pending.some((order) => !lastStaffOrderIds.has(String(order.id)))) playStaffOrderSound();
+                for (const order of pending) {
+                    if (lastStaffOrderIds.has(String(order.id))) continue;
+                    lastStaffOrderIds.add(String(order.id));
+                    await apiPost(`/staff/orders/${order.id}/acknowledge`, {}).catch(() => null);
+                    const notice = document.createElement("div");
+                    notice.className = "staff-order-alert";
+                    notice.setAttribute("role", "alert");
+                    const text = document.createElement("span");
+                    text.textContent = `New order #${order.id} from ${order.customer_name || "a customer"} needs review.`;
+                    const link = document.createElement("a"); link.href = `orders.html?order=${encodeURIComponent(order.id)}`; link.textContent = "Open order";
+                    notice.append(text, link); document.body.appendChild(notice);
+                    window.setTimeout(() => notice.remove(), 10000);
+                    break;
+                }
+            } else {
+                await navigator.serviceWorker?.ready.then((registration) => registration.showNotification("Food by K: New order", {
+                    body: `${pending.length} order${pending.length === 1 ? "" : "s"} need${pending.length === 1 ? "s" : ""} review. Tap to open staff orders.`,
+                    icon: "/images/logo-mark.png", badge: "/images/logo-mark.png", tag: "foodbyk-pending-orders",
+                    renotify: true, requireInteraction: true, data: { url: "/admin/orders.html" }
+                })).catch(() => {});
+            }
+        }
+        const pendingIds = new Set(pending.map((order) => String(order.id)));
+        lastStaffOrderIds = new Set([...lastStaffOrderIds].filter((id) => pendingIds.has(id)));
     };
 
     const loadOrders = async () => {
         const requestVersion = ++orderLoadVersion;
+        updateOrdersLiveStatus("refreshing");
         const orderQuery = new URLSearchParams({
             view: ordersView,
             limit: String(orderPageSize),
@@ -699,6 +987,7 @@ const initializeAdminLive = async () => {
         if (requestVersion !== orderLoadVersion) return;
         if (analytics.success) {
             const summary = analytics.data || {};
+            ordersPendingCount = Number(summary.pending_orders ?? 0);
             const setMetric = (id, value) => {
                 const element = document.getElementById(id);
                 if (element) element.textContent = String(value);
@@ -711,7 +1000,16 @@ const initializeAdminLive = async () => {
         } else {
             showResult(analytics);
         }
-        if (!showResult(result)) return;
+        if (!showResult(result)) {
+            if (requestVersion === orderLoadVersion) updateOrdersLiveStatus("error");
+            return;
+        }
+        if (requestVersion === orderLoadVersion) {
+            ordersLastSuccessfulRefresh = new Intl.DateTimeFormat("en-ZA", {
+                hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg"
+            }).format(new Date());
+            updateOrdersLiveStatus("current");
+        }
         const body = document.querySelector("#ordersTable tbody");
         if (!body) return;
         body.replaceChildren();
@@ -723,7 +1021,7 @@ const initializeAdminLive = async () => {
         const start = records.length ? orderOffset + 1 : 0;
         const end = orderOffset + records.length;
         const pageSummary = document.getElementById("ordersPageSummary");
-        if (pageSummary) pageSummary.textContent = total ? `Showing ${start}–${end} of ${total} orders` : "No orders to show";
+        if (pageSummary) pageSummary.textContent = total ? `Showing ${start}â€“${end} of ${total} orders` : "No orders to show";
         const previousPage = document.getElementById("ordersPreviousPage");
         const nextPage = document.getElementById("ordersNextPage");
         if (previousPage) previousPage.disabled = orderOffset <= 0;
@@ -743,17 +1041,42 @@ const initializeAdminLive = async () => {
             makeCell(row, `#${order.id}`); makeCell(row, order.customer_name || "Customer");
             makeCell(row, String(order.fulfilment_type || "").replaceAll("_", " "));
             makeCell(row, displayOrderDate(order.placed_at_local || order.created_at));
-            makeCell(row, requested ? new Date(requested).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—");
+            makeCell(row, requested ? new Date(requested).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "â€”");
             const total = order.total ?? Math.max(0, Number(order.subtotal || 0) + Number(order.delivery_fee || 0)
                 - Number(order.locked_discount || 0) - Number(order.loyalty_points_redeemed || 0)
                 + Number(order.loyalty_points_refunded || 0));
             makeCell(row, "R" + Number(total).toFixed(2));
-            makeCell(row, String(order.status || "unknown").replaceAll("_", " "));
+            const statusCell = document.createElement("td");
+            const statusLabel = document.createElement("span");
+            statusLabel.className = `order-status-label${order.status === "submitted" ? " is-awaiting" : ""}`;
+            statusLabel.textContent = String(order.status || "unknown").replaceAll("_", " ");
+            statusCell.appendChild(statusLabel);
+            if (order.status === "submitted") {
+                const waiting = orderWaitingTime(order.created_at);
+                if (waiting) {
+                    const waitingLabel = document.createElement("small");
+                    waitingLabel.className = "order-waiting-time";
+                    waitingLabel.textContent = waiting;
+                    statusCell.appendChild(waitingLabel);
+                }
+            }
+            row.appendChild(statusCell);
             const actions = document.createElement("td");
             addAction(actions, order.status === "submitted" ? "Review" : "View / Manage", "order-review", order.id);
             row.appendChild(actions); body.appendChild(row);
         });
+        const activeStatusFilter = document.querySelector(".filter-btn.active")?.dataset.filter || "all";
+        const searchText = (document.getElementById("orderSearch")?.value || "").trim().toLowerCase();
+        body.querySelectorAll("tr[data-id]").forEach((row) => {
+            row.hidden = (activeStatusFilter !== "all" && row.dataset.status !== activeStatusFilter)
+                || !row.textContent.toLowerCase().includes(searchText);
+        });
         window.adminOrders = records;
+        const requestedOrder = new URLSearchParams(window.location.search).get("order");
+        if (requestedOrder && !window.foodByKOpenedOrder) {
+            const openButton = document.querySelector(`[data-admin-action="order-review"][data-id="${CSS.escape(requestedOrder)}"]`);
+            if (openButton) { window.foodByKOpenedOrder = requestedOrder; openButton.click(); }
+        }
     };
 
     let currentReviewOrderId = null;
@@ -762,13 +1085,13 @@ const initializeAdminLive = async () => {
     let orderEditProducts = [];
     const money = (value) => "R" + Number(value || 0).toFixed(2);
     const displayDateTime = (value) => {
-        if (!value) return "—";
+        if (!value) return "â€”";
         const date = new Date(String(value).replace(" ", "T"));
         return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
     };
     const setText = (id, value) => {
         const element = document.getElementById(id);
-        if (element) element.textContent = value == null || value === "" ? "—" : String(value);
+        if (element) element.textContent = value == null || value === "" ? "â€”" : String(value);
     };
 
     document.getElementById("refundAmount")?.addEventListener("input", () => {
@@ -807,7 +1130,7 @@ const initializeAdminLive = async () => {
         if (!dateInput || !select) return;
         select.replaceChildren();
         const placeholder = document.createElement("option");
-        placeholder.value = ""; placeholder.textContent = "Loading available times…"; select.appendChild(placeholder);
+        placeholder.value = ""; placeholder.textContent = "Loading available timesâ€¦"; select.appendChild(placeholder);
         if (button) button.disabled = true;
         if (help) help.textContent = "";
         select.setAttribute("aria-busy", "true");
@@ -831,7 +1154,7 @@ const initializeAdminLive = async () => {
             const option = document.createElement("option");
             // Preserve the exact local ISO format returned by the staff slot endpoint.
             option.value = JSON.stringify({ start: slot.start, end: slot.end });
-            option.textContent = `${String(slot.start).slice(11, 16)} – ${String(slot.end).slice(11, 16)}`;
+            option.textContent = `${String(slot.start).slice(11, 16)} â€“ ${String(slot.end).slice(11, 16)}`;
             select.appendChild(option);
         });
         if (help && !slots.length) help.textContent = "Choose another date to see available slots.";
@@ -846,12 +1169,49 @@ const initializeAdminLive = async () => {
         }
         const canEditItems = currentReviewData?.order?.status === "submitted"
             && currentReviewData?.payment?.status === "tokenized";
+        const promotion = currentReviewData?.promotion;
+        const promoTargets = Array.isArray(promotion?.target_product_ids)
+            ? promotion.target_product_ids.map(Number)
+            : [];
+        const isProductPromotion = promotion && promotion.discount_type !== "free_delivery";
         items.forEach((item) => {
             const row = document.createElement("div"); row.className = "order-item-line";
             row.dataset.productId = String(item.product_id || "");
+            row.dataset.optionIds = JSON.stringify((item.customizations || []).map((option) => Number(option.id)).filter(Number.isInteger));
+            let image;
+            if (item.image_url) {
+                image = document.createElement("img");
+                image.className = "order-item-image";
+                image.src = item.image_url;
+                image.alt = item.product_name || item.name || "Menu item";
+                image.loading = "lazy";
+                image.addEventListener("error", () => {
+                    const placeholder = document.createElement("div");
+                    placeholder.className = "order-item-image order-item-image-placeholder";
+                    placeholder.textContent = "Image unavailable";
+                    image.replaceWith(placeholder);
+                }, { once: true });
+            } else {
+                image = document.createElement("div");
+                image.className = "order-item-image order-item-image-placeholder";
+                image.textContent = "Image unavailable";
+            }
+            const details = document.createElement("div"); details.className = "order-item-details";
             const name = document.createElement("div"); name.className = "order-item-name";
             const title = document.createElement("strong"); title.textContent = item.product_name || item.name || `Menu item #${item.product_id || "?"}`; name.appendChild(title);
-            const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} × ${money(item.unit_price ?? item.price)}`; name.appendChild(detail);
+            if (Array.isArray(item.customizations) && item.customizations.length) {
+                const extras = document.createElement("span");
+                extras.className = "order-item-customizations";
+                extras.textContent = `Extras: ${item.customizations.map((option) => option.name).join(", ")}`;
+                name.appendChild(extras);
+            }
+            const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} Ã— ${money(item.unit_price ?? item.price)}`; name.appendChild(detail);
+            if (isProductPromotion && (promoTargets.length === 0 || promoTargets.includes(Number(item.product_id)))) {
+                const promoBadge = document.createElement("span");
+                promoBadge.className = "order-promo-eligible";
+                promoBadge.textContent = "Promotion eligible";
+                name.appendChild(promoBadge);
+            }
             if (canEditItems) {
                 const controls = document.createElement("div"); controls.className = "order-item-edit-controls";
                 const quantity = document.createElement("input");
@@ -861,14 +1221,35 @@ const initializeAdminLive = async () => {
                 controls.append(quantity, remove); name.appendChild(controls);
             }
             const total = document.createElement("strong"); total.textContent = money(item.line_total ?? (Number(item.quantity || 0) * Number(item.unit_price ?? item.price ?? 0)));
-            row.append(name, total); container.appendChild(row);
+            details.appendChild(name);
+            row.append(image, details, total); container.appendChild(row);
         });
+    };
+
+    const renderOrderPromotion = (promotion) => {
+        const panel = document.getElementById("modalPromotionPanel");
+        if (!panel) return;
+        panel.hidden = !promotion;
+        if (!promotion) return;
+
+        const value = Number(promotion.discount_value || 0);
+        const label = promotion.discount_type === "percentage" ? `${value}% off`
+            : promotion.discount_type === "fixed_amount" ? `${money(value)} off`
+                : promotion.discount_type === "buy_one_get_one" ? "Buy one, get one free"
+                    : promotion.discount_type === "free_delivery" ? "Free delivery"
+                        : "Promotion";
+        setText("modalPromotionName", `${promotion.code || "Promotion"} - ${label}`);
+        const targetNames = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
+        const targetText = promotion.discount_type === "free_delivery"
+            ? (targetNames.length ? `Free delivery offer for orders containing: ${targetNames.join(", ")}.` : "Free delivery offer for eligible delivery orders.")
+            : (targetNames.length ? `Eligible menu items: ${targetNames.join(", ")}.` : "All menu items in the order are eligible.");
+        setText("modalPromotionTargets", targetText);
     };
 
     const loadOrderEditProducts = async () => {
         const select = document.getElementById("addOrderItemSelect");
         if (!select) return;
-        select.replaceChildren(new Option("Loading menu items…", ""));
+        select.replaceChildren(new Option("Loading menu itemsâ€¦", ""));
         const result = await apiGet("/products");
         if (!result.success) {
             select.replaceChildren(new Option("Menu items unavailable", ""));
@@ -879,14 +1260,15 @@ const initializeAdminLive = async () => {
         );
         select.replaceChildren(new Option(orderEditProducts.length ? "Choose a menu item" : "No available menu items", ""));
         orderEditProducts.forEach((product) => {
-            select.add(new Option(`${product.name} · ${money(product.price)}`, String(product.id)));
+            select.add(new Option(`${product.name} Â· ${money(product.price)}`, String(product.id)));
         });
     };
     const openOrderReview = async (id) => {
         currentReviewOrderId = id;
         currentReviewData = null;
         setText("modalOrderId", `Order #${id}`);
-        setText("modalItems", "Loading order items…");
+        setText("modalItems", "Loading order itemsâ€¦");
+        renderOrderPromotion(null);
         openModal("#orderModal");
         const result = await apiGet(`/staff/orders/${id}`);
         if (!showResult(result)) return;
@@ -901,14 +1283,15 @@ const initializeAdminLive = async () => {
         const address = data.address || {};
         setText("modalOrderId", `Order #${order.id || id}`);
         setText("modalCustomer", customer.full_name || customer.name || order.customer_name || "Customer");
-        setText("modalContact", [customer.email, customer.phone].filter(Boolean).join(" · ") || "—");
+        setText("modalContact", [customer.email, customer.phone].filter(Boolean).join(" Â· ") || "â€”");
         setText("modalPlaced", displayDateTime(order.created_at));
-        setText("modalType", String(order.fulfilment_type || "—").replaceAll("_", " "));
+        setText("modalType", String(order.fulfilment_type || "â€”").replaceAll("_", " "));
         setText("modalTime", `${displayDateTime(order.confirmed_window_start || order.requested_window_start)}${order.confirmed_window_start ? " (confirmed)" : " (requested)"}`);
         const addressText = [address.address_line1, address.address_line2, address.suburb, address.city, address.postal_code].filter(Boolean).join(", ") || address.address || address.formatted_address || "No address supplied";
         const addressRow = document.getElementById("modalAddressRow");
         if (addressRow) addressRow.hidden = order.fulfilment_type !== "delivery";
         setText("modalAddress", addressText);
+        renderOrderPromotion(data.promotion);
         renderOrderItems(data.items || order.items || []);
         setText("modalSubtotal", money(order.subtotal));
         setText("modalDiscount", money(order.locked_discount));
@@ -966,7 +1349,7 @@ const initializeAdminLive = async () => {
             (data.refunds || []).forEach((refund) => {
                 const entry = document.createElement("p");
                 entry.className = `refund-history-entry refund-status-${String(refund.status || "pending").toLowerCase()}`;
-                entry.textContent = `${money(refund.amount)} · ${refund.status} · ${refund.reason}`;
+                entry.textContent = `${money(refund.amount)} Â· ${refund.status} Â· ${refund.reason}`;
                 refundHistory.appendChild(entry);
             });
         }
@@ -1083,10 +1466,10 @@ const initializeAdminLive = async () => {
 
     
     document.addEventListener("click", async (event) => {
-        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn, .check-refund-options-btn");
+        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addItemOptionBtn, [data-remove-item-option], #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn, .check-refund-options-btn");
         if (!target) return;
         const action = target.dataset.adminAction;
-        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn, .check-refund-options-btn")) return;
+        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addItemOptionBtn, [data-remove-item-option], #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn, .check-refund-options-btn")) return;
         event.preventDefault(); event.stopImmediatePropagation();
 
         if (action === "support-ticket-open") return openSupportTicket(target.dataset.id);
@@ -1100,16 +1483,27 @@ const initializeAdminLive = async () => {
             target.closest(".order-item-line")?.remove();
             return;
         }
+        if (target.matches("#addItemOptionBtn")) {
+            document.getElementById("itemOptions")?.appendChild(createProductOptionRow());
+            return;
+        }
+        if (target.matches("[data-remove-item-option]")) {
+            const list = document.getElementById("itemOptions");
+            target.closest(".optional-extra-row")?.remove();
+            if (list && !list.children.length) list.appendChild(createProductOptionRow());
+            return;
+        }
         if (target.matches("#addOrderItemBtn")) {
             const productId = Number(document.getElementById("addOrderItemSelect")?.value);
             const product = orderEditProducts.find((item) => Number(item.id) === productId);
             if (!product || !Array.isArray(currentReviewData?.items)) return alert("Choose an available menu item first.");
-            const existing = currentReviewData.items.find((item) => Number(item.product_id) === productId);
+            const existing = currentReviewData.items.find((item) => Number(item.product_id) === productId
+                && (!Array.isArray(item.customizations) || item.customizations.length === 0));
             if (existing) {
                 if (Number(existing.quantity) >= 99) return alert("An item quantity cannot exceed 99.");
                 existing.quantity = Number(existing.quantity) + 1;
             } else {
-                currentReviewData.items.push({ product_id: productId, product_name: product.name, quantity: 1, unit_price: Number(product.price) });
+                currentReviewData.items.push({ product_id: productId, product_name: product.name, quantity: 1, unit_price: Number(product.price), image_url: product.image_url || null });
             }
             renderOrderItems(currentReviewData.items);
             return;
@@ -1123,7 +1517,9 @@ const initializeAdminLive = async () => {
                 if (!Number.isInteger(productId) || productId < 1 || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
                     return alert("Each item needs a quantity between 1 and 99.");
                 }
-                adjustedItems.push({ product_id: productId, quantity });
+                let optionIds = [];
+                try { optionIds = JSON.parse(row.dataset.optionIds || "[]"); } catch (_) {}
+                adjustedItems.push({ product_id: productId, quantity, option_ids: optionIds });
             }
             if (!adjustedItems.length) return alert("An order must contain at least one menu item.");
             if (!confirm(`Save these item changes and charge the updated total for order #${currentReviewOrderId}?`)) return;
@@ -1148,7 +1544,7 @@ const initializeAdminLive = async () => {
             return alert("Settings form is not available.");
         }
         if (target.matches("#addCategoryBtn")) { editingId = null; document.getElementById("categoryForm")?.reset(); openModal("#categoryModal"); return; }
-        if (target.matches("#addMenuBtn")) { editingId = null; document.getElementById("menuForm")?.reset(); openModal("#menuModal"); return; }
+        if (target.matches("#addMenuBtn")) { editingId = null; document.getElementById("menuForm")?.reset(); setProductOptionRows(); openModal("#menuModal"); return; }
         if (target.matches("#addPromotionBtn")) {
             editingId = null;
             document.getElementById("promotionForm")?.reset();
@@ -1180,6 +1576,7 @@ const initializeAdminLive = async () => {
             document.getElementById("itemPrice").value = record.price;
             document.getElementById("itemImage").value = record.image_key || "";
             document.getElementById("itemDescription").value = record.description || "";
+            setProductOptionRows(record.options || []);
             openModal("#menuModal");
         } else if (action === "category-delete" && confirm("Delete this category? It must have no products assigned.")) {
             const result = await apiDelete(`/admin/categories/${id}`); if (showResult(result)) await loadCategories();
@@ -1227,7 +1624,7 @@ const initializeAdminLive = async () => {
             document.getElementById("detailName").textContent = record.full_name;
             document.getElementById("detailCustomerId").textContent = `Customer #${record.id}`;
             document.getElementById("detailEmail").textContent = record.email;
-            document.getElementById("detailPhone").textContent = record.phone || "—";
+            document.getElementById("detailPhone").textContent = record.phone || "â€”";
             document.getElementById("detailOrders").textContent = record.order_count;
             document.getElementById("detailSpent").textContent = "R" + Number(record.total_spent).toFixed(2);
             openModal("#customerModal");
@@ -1269,10 +1666,14 @@ const initializeAdminLive = async () => {
             const amount = Number(document.getElementById("refundAmount")?.value);
             if (!Number.isFinite(amount) || amount <= 0) return setRefundFeedback("Enter a positive refund amount first.", "error");
             target.disabled = true;
-            setRefundFeedback("Checking the available refund method with PayFast…", "info");
+            setRefundFeedback("Checking the available refund method with PayFastâ€¦", "info");
             const result = await apiPost(`/staff/orders/${currentReviewOrderId}/refund-eligibility`, { amount });
             target.disabled = false;
-            if (!result?.success || !result.data) return setRefundFeedback(result?.error || "PayFast could not check the refund options.", "error");
+            if (!result?.success || !result.data) {
+                const error = result?.error || "PayFast could not check the refund options.";
+                setRefundFeedback(error, "error");
+                return;
+            }
             const options = result.data;
             currentRefundEligibility = { amount: Number(amount.toFixed(2)), ...options };
             const methodInfo = document.getElementById("refundMethodInfo");
@@ -1291,7 +1692,7 @@ const initializeAdminLive = async () => {
                     });
                 }
                 if (methodInfo) {
-                    methodInfo.textContent = banks.length ? "PayFast requires a bank payout for this amount. Enter the customer’s payout details below." : "PayFast requires a bank payout, but did not return an eligible bank list. Refresh the options or handle the payout in PayFast.";
+                    methodInfo.textContent = banks.length ? "PayFast requires a bank payout for this amount. Enter the customerâ€™s payout details below." : "PayFast requires a bank payout, but did not return an eligible bank list. Refresh the options or handle the payout in PayFast.";
                     methodInfo.hidden = false;
                 }
                 if (bankDetails) bankDetails.hidden = banks.length === 0;
@@ -1336,17 +1737,20 @@ const initializeAdminLive = async () => {
             }
             if (!confirm(`Submit a PayFast refund of ${money(amount)} for order #${currentReviewOrderId}?`)) return;
             target.disabled = true;
-            setRefundFeedback("Sending the refund request to PayFast…", "info");
+            setRefundFeedback("Sending the refund request to PayFastâ€¦", "info");
             const result = await apiPost(`/staff/orders/${currentReviewOrderId}/refund`, { amount, reason, bank_details: bankDetails });
             target.disabled = false;
             if (result?.success) {
                 await openOrderReview(currentReviewOrderId);
                 setRefundFeedback("PayFast accepted the refund request. Use Check PayFast status to confirm settlement.", "success");
                 await loadOrders();
-            } else setRefundFeedback(result?.error || "PayFast could not confirm the refund request.", "error");
+            } else {
+                const error = result?.error || "PayFast could not confirm the refund request.";
+                setRefundFeedback(error, "error");
+            }
         } else if (target.matches(".check-refund-status-btn") && currentReviewOrderId) {
             target.disabled = true;
-            setRefundFeedback("Checking refund history with PayFast…", "info");
+            setRefundFeedback("Checking refund history with PayFastâ€¦", "info");
             const result = await apiGet(`/staff/orders/${currentReviewOrderId}/refund-status`);
             target.disabled = false;
             if (result?.success) {
@@ -1405,7 +1809,19 @@ const initializeAdminLive = async () => {
                 if (!showResult(upload)) return;
                 imageUrl = upload.data.key;
             }
-            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: document.getElementById("itemDescription").value.trim(), price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active" };
+            const optionRows = [...(document.getElementById("itemOptions")?.querySelectorAll(".optional-extra-row") || [])];
+            const options = [];
+            for (const row of optionRows) {
+                const name = row.querySelector(".item-option-name")?.value.trim() || "";
+                const priceText = row.querySelector(".item-option-price")?.value.trim() || "";
+                if (!name && !priceText) continue;
+                if (!name || !priceText) return alert("Enter both a name and price for each extra. Use 0.00 for a free extra.");
+                options.push({ name, price_delta: Number(priceText) });
+            }
+            if (options.some((option) => !option.name || !Number.isFinite(option.price_delta) || option.price_delta < 0)) {
+                return alert("Enter a valid name and a non-negative price for each extra.");
+            }
+            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: document.getElementById("itemDescription").value.trim(), price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active", options };
             result = id ? await apiPut(`/admin/products/${id}`, body) : await apiPost("/admin/products", body);
             if (showResult(result)) { closeModal("#menuModal"); await loadProducts(); }
         } else if (form.id === "promotionForm") {
@@ -1437,6 +1853,18 @@ const initializeAdminLive = async () => {
     if (password) password.closest(".form-group")?.replaceChildren(document.createTextNode("A secure account setup link is emailed to the new staff member."));
     try {
         if (pageLoaders[page]) await pageLoaders[page]();
+        if (role === "staff" || role === "admin") {
+            await installStaffPush();
+            await checkUnacknowledgedStaffOrders();
+            staffOrderPoller = window.setInterval(() => {
+                if (document.visibilityState !== "visible") return;
+                checkUnacknowledgedStaffOrders();
+                const focusedOrderControl = document.activeElement?.closest(
+                    "#ordersTable, #orderSearch, .filter-buttons, .order-view-tabs, #ordersPreviousPage, #ordersNextPage, #orderModal"
+                );
+                if (page === "orders.html" && !focusedOrderControl) loadOrders();
+            }, 30000);
+        }
         if (initialDataLoadError) {
             showLoadingError("Live data could not be loaded. Check your connection, then try again.");
         } else {
@@ -1505,6 +1933,12 @@ const initializeAdminLive = async () => {
         });
     };
     document.getElementById("orderSearch")?.addEventListener("input", () => filterRows("#ordersTable tbody", "#orderSearch", null, null));
+    document.getElementById("refreshOrdersBtn")?.addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try { await loadOrders(); }
+        finally { button.disabled = false; }
+    });
     document.querySelectorAll("[data-orders-view]").forEach((tab) => {
         tab.addEventListener("click", () => {
             ordersView = tab.dataset.ordersView === "all" ? "all" : "today";
@@ -1545,11 +1979,7 @@ const initializeAdminLive = async () => {
         document.querySelectorAll(selector).forEach((button) => button.classList.remove("active"));
         filter.classList.add("active");
         if (isMenu) {
-            const query = (document.getElementById("menuSearch")?.value || "").toLowerCase();
-            const category = filter.dataset.category || "all";
-            document.querySelectorAll("#menuGrid .menu-card").forEach((card) => {
-                card.hidden = !card.textContent.toLowerCase().includes(query) || (category !== "all" && card.dataset.category !== category);
-            });
+            applyMenuFilters();
         } else {
             document.querySelectorAll("#ordersTable tbody tr").forEach((row) => {
                 row.hidden = filter.dataset.filter !== "all" && row.dataset.status !== filter.dataset.filter;
@@ -1557,12 +1987,9 @@ const initializeAdminLive = async () => {
         }
     }, true);
     document.getElementById("menuSearch")?.addEventListener("input", () => {
-        const category = document.querySelector(".menu-filter-btn.active")?.dataset.category || "all";
-        const query = document.getElementById("menuSearch").value.toLowerCase();
-        document.querySelectorAll("#menuGrid .menu-card").forEach((card) => {
-            card.hidden = !card.textContent.toLowerCase().includes(query) || (category !== "all" && card.dataset.category !== category);
-        });
+        applyMenuFilters();
     });
+    document.getElementById("menuAvailabilityFilter")?.addEventListener("change", applyMenuFilters);
 };
 
 if (document.readyState === "loading") {
@@ -1570,3 +1997,4 @@ if (document.readyState === "loading") {
 } else {
     initializeAdminLive();
 }
+

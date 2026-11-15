@@ -21,6 +21,7 @@
     <!-- CSS -->
     <link rel="stylesheet" href="../css/dashboard.css">
 
+<link rel="icon" type="image/png" href="/images/logo-mark.png">
 </head>
 
 <body>
@@ -238,6 +239,17 @@
                 </button>
             </div>
 
+            <div class="orders-live-toolbar" role="group" aria-label="Order refresh status and controls" aria-busy="false">
+                <div class="orders-live-copy">
+                    <span class="orders-live-indicator" aria-hidden="true"></span>
+                    <span id="ordersLiveStatus" role="status" aria-live="polite">Loading live order status…</span>
+                </div>
+                <button type="button" class="orders-refresh-button" id="refreshOrdersBtn">
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                    Refresh orders
+                </button>
+            </div>
+
 
             <!-- =========================
                  SEARCH & FILTERS
@@ -269,7 +281,7 @@
 
 
                         <button class="filter-btn" data-filter="awaiting">
-                            Awaiting Confirmation
+                            Needs review <span class="orders-filter-count" id="awaitingOrdersFilterCount">0</span>
                         </button>
 
 
@@ -724,6 +736,11 @@
                         <button type="button" id="saveOrderAdjustmentsBtn">Save item changes &amp; accept order</button>
                         <p class="slot-help">The backend will recalculate the order total and charge the updated amount.</p>
                     </div>
+                </section>
+                <section id="modalPromotionPanel" class="order-promotion-panel" hidden aria-labelledby="modalPromotionHeading">
+                    <h4 id="modalPromotionHeading">Promotion on this order</h4>
+                    <strong id="modalPromotionName">—</strong>
+                    <p id="modalPromotionTargets"></p>
                 </section>
                 <section class="order-totals-section">
                     <div class="order-total-row"><span>Subtotal</span><strong id="modalSubtotal">—</strong></div>

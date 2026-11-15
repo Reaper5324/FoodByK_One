@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="../../public%20assets/css/checkout.css">
   <link rel="stylesheet" href="../../public%20assets/css/skeletons.css">
   <link rel="stylesheet" href="../../public%20assets/css/mobile-navigation.css">
+<link rel="icon" type="image/png" href="/images/logo-mark.png">
 </head>
 <body class="home-page checkout-page-shell">
 <header class="navbar">
@@ -27,7 +28,7 @@
   <header class="checkout-heading">
     <p class="section-tag">Fresh food, nearly yours</p>
     <h1>Checkout<span>.</span></h1>
-    <p>Choose collection or delivery, pick a time, and review your total before secure card setup.</p>
+    <p>Choose collection or delivery, pick a time, and review your total. PayFast securely sets up your card after you place the order; the card is charged only after staff accept it.</p>
   </header>
 
   <p class="support-context-link">Something not working at checkout? <a href="support.html?category=checkout&amp;context=checkout">Report a checkout issue</a>.</p>
@@ -144,8 +145,14 @@
             hidden
     ></div>
     <button id="previewButton" class="btn btn-secondary checkout-review-button" type="button">Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
-    <section id="checkoutSummary" class="checkout-summary" hidden aria-live="polite"></section>
-    <button id="submitButton" class="btn btn-primary checkout-submit-button" type="submit" hidden>Continue to secure card setup <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
+    <section id="checkoutSummary" class="checkout-summary" aria-live="polite">
+      <div class="checkout-summary-heading">
+        <p>Live price breakdown</p>
+        <h2>Your order total</h2>
+      </div>
+      <p class="checkout-summary-note" id="checkoutSummaryMessage">Choose collection or delivery, a time, and any offer or rewards to see your total.</p>
+    </section>
+    <button id="submitButton" class="btn btn-primary checkout-submit-button" type="submit" hidden>Place order <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
   </form>
 </main>
 

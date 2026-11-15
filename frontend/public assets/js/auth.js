@@ -1029,6 +1029,8 @@ function showMessage(
         return;
     }
 
+    window.foodByKNotify?.(message, type === "error" ? "error" : "success");
+
 
     messageContainer.innerHTML = `
         <div class="message ${type}">

@@ -8,10 +8,10 @@ class ProductService {
     private ?object $imageStorageClient = null;
 
     public function listAvailable(): array {
-        return $this->success($this->withImageUrls(array_values(array_filter(
+        return $this->success($this->withOptions($this->withImageUrls(array_values(array_filter(
             Product::findAvailable(),
             fn(Product $product) => $this->isPubliclyAvailable($product)
-        ))));
+        ))), false));
     }
 
     public function listForAdmin(): array {
@@ -22,7 +22,7 @@ class ProductService {
         foreach ($products as $product) {
             $product->image_key = $product->image_url;
         }
-        return $this->success($this->withImageUrls($products));
+        return $this->success($this->withOptions($this->withImageUrls($products), true));
     }
 
     public function listByCategory(int $categoryId): array {
@@ -30,10 +30,10 @@ class ProductService {
             return $this->failure('Invalid category.');
         }
 
-        return $this->success($this->withImageUrls(array_values(array_filter(
+        return $this->success($this->withOptions($this->withImageUrls(array_values(array_filter(
             Product::findByCategory($categoryId),
             fn(Product $product) => $this->isPubliclyAvailable($product)
-        ))));
+        ))), false));
     }
 
     public function findAvailableById(int $productId): array {
@@ -43,7 +43,7 @@ class ProductService {
 
         $product = Product::findById($productId);
         return $product !== null && $this->isPubliclyAvailable($product)
-            ? $this->success($this->withImageUrl($product))
+            ? $this->success($this->withOptions([$this->withImageUrl($product)], false)[0])
             : $this->failure('Product not found.');
     }
 
@@ -53,10 +53,10 @@ class ProductService {
             return $this->failure('Enter a search term between 1 and 100 characters.');
         }
 
-        return $this->success($this->withImageUrls(array_values(array_filter(
+        return $this->success($this->withOptions($this->withImageUrls(array_values(array_filter(
             Product::search($query),
             fn(Product $product) => $this->isPubliclyAvailable($product)
-        ))));
+        ))), false));
     }
 
     public function uploadImage(array $file): array {
@@ -107,8 +107,24 @@ class ProductService {
             return $this->failure('Category not found.');
         }
 
+        $optionList = array_key_exists('options', $input) ? (new ProductOptionService())->validateList($input['options']) : $this->success([]);
+        if (!$optionList['success']) return $optionList;
+
         $product = new Product(...$data);
-        return $product->save() ? $this->success($product) : $this->failure('Unable to create product.');
+        $db = Database::getConnection();
+        $db->beginTransaction();
+        try {
+            if (!$product->save()) throw new RuntimeException('Unable to create product.');
+            $savedOptions = (new ProductOptionService())->replaceForProduct((int) $product->id, $optionList['data']);
+            if (!$savedOptions['success']) throw new RuntimeException($savedOptions['error']);
+            $product->options = $savedOptions['data'];
+            $db->commit();
+            return $this->success($product);
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('Unable to create product and customizations: ' . $error->getMessage());
+            return $this->failure('Unable to create product. Please try again.');
+        }
     }
 
     public function update(int $productId, array $input): array {
@@ -126,11 +142,27 @@ class ProductService {
         if ($data['category_id'] !== $product->category_id && Category::findById($data['category_id']) === null) {
             return $this->failure('Category not found.');
         }
-        foreach ($data as $field => $value) {
-            $product->$field = $value;
+        $optionList = array_key_exists('options', $input) ? (new ProductOptionService())->validateList($input['options']) : null;
+        if ($optionList !== null && !$optionList['success']) return $optionList;
+        $db = Database::getConnection();
+        $db->beginTransaction();
+        try {
+            foreach ($data as $field => $value) $product->$field = $value;
+            if (!$product->save()) throw new RuntimeException('Unable to update product.');
+            if ($optionList !== null) {
+                $savedOptions = (new ProductOptionService())->replaceForProduct($productId, $optionList['data']);
+                if (!$savedOptions['success']) throw new RuntimeException($savedOptions['error']);
+                $product->options = $savedOptions['data'];
+            } else {
+                $product->options = (new ProductOptionService())->listForProducts([$productId], true)[$productId] ?? [];
+            }
+            $db->commit();
+            return $this->success($product);
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('Unable to update product and customizations: ' . $error->getMessage());
+            return $this->failure('Unable to update product. Please try again.');
         }
-
-        return $product->save() ? $this->success($product) : $this->failure('Unable to update product.');
     }
 
     public function setAvailability(int $productId, bool $available): array {
@@ -212,6 +244,18 @@ class ProductService {
             if ($product instanceof Product) {
                 $this->withImageUrl($product);
             }
+        }
+        return $products;
+    }
+
+    private function withOptions(array $products, bool $includeUnavailable): array {
+        $options = (new ProductOptionService())->listForProducts(
+            array_map(static fn(Product $product): int => $product->id,
+                array_values(array_filter($products, static fn($product): bool => $product instanceof Product))),
+            $includeUnavailable
+        );
+        foreach ($products as $product) {
+            if ($product instanceof Product) $product->options = $options[$product->id] ?? [];
         }
         return $products;
     }

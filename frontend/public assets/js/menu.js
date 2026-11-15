@@ -24,6 +24,42 @@ document.addEventListener("DOMContentLoaded", async () => {
     const searchForm = document.getElementById("menuSearchForm");
     const searchInput = document.getElementById("menuSearch");
     let selectedCategory = null;
+    let productLoadVersion = 0;
+    let searchDebounceTimer = null;
+    const activePromotionsPromise = apiGet("/promotions/active")
+        .then((result) => result?.success && Array.isArray(result.data) ? result.data : [])
+        .catch(() => []);
+
+    const promotionTargetsProduct = (promotion, productId) => {
+        const targets = Array.isArray(promotion.target_product_ids)
+            ? promotion.target_product_ids.map(Number)
+            : [];
+        return targets.length === 0 || targets.includes(Number(productId));
+    };
+
+    const productPromotions = (product, promotions) => promotions
+        .filter((promotion) => {
+            const ids = Array.isArray(promotion.target_product_ids) ? promotion.target_product_ids : [];
+            const names = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
+            if (ids.length === 0) return true;
+            return promotionTargetsProduct(promotion, product.id)
+                || names.some((name) => String(name).trim().toLocaleLowerCase() === String(product.name || "").trim().toLocaleLowerCase());
+        })
+        .filter((promotion) => ["percentage", "fixed_amount", "buy_one_get_one", "free_delivery"].includes(promotion.discount_type))
+        .sort((left, right) => {
+            const order = { percentage: 0, buy_one_get_one: 1, fixed_amount: 2, free_delivery: 3 };
+            const typeOrder = order[left.discount_type] - order[right.discount_type];
+            return typeOrder || Number(right.discount_value || 0) - Number(left.discount_value || 0);
+        });
+
+    const promotionLabel = (promotion) => {
+        const value = Number(promotion.discount_value || 0);
+        if (promotion.discount_type === "percentage") return `${value}% off`;
+        if (promotion.discount_type === "fixed_amount") return `R${value.toFixed(2)} off eligible items`;
+        if (promotion.discount_type === "buy_one_get_one") return "Buy one, get one free";
+        if (promotion.discount_type === "free_delivery") return "Free delivery";
+        return "Special offer";
+    };
 
     const skeleton = (className) => {
         const node = document.createElement("div");
@@ -68,6 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         menuMessage.hidden = false;
         menuMessage.textContent = message;
         menuMessage.classList.toggle("is-error", isError);
+        window.foodByKNotify?.(message, isError ? "error" : "success");
     };
 
     const clearMessage = () => {
@@ -104,13 +141,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const selectCategory = async (categoryId, button) => {
+        window.clearTimeout(searchDebounceTimer);
         selectedCategory = categoryId;
         categoryList.querySelectorAll("button").forEach((item) => item.classList.remove("active"));
         button.classList.add("active");
         await loadProducts();
     };
 
-    const loadProducts = async () => {
+    const loadProducts = async (requestVersion = ++productLoadVersion) => {
         clearMessage();
         showProductSkeletons();
         const query = searchInput.value.trim();
@@ -120,25 +158,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const result = await apiGet(endpoint);
+        if (requestVersion !== productLoadVersion) return;
         if (!result.success) {
             menuGrid.replaceChildren();
             menuGrid.setAttribute("aria-busy", "false");
             showMessage(result.error || "Unable to load menu items.", true);
             return;
         }
-        if (result.data.length === 0) {
+        const filteredProducts = selectedCategory === null || query === ""
+            ? result.data
+            : result.data.filter((product) => Number(product.category_id) === Number(selectedCategory));
+        if (filteredProducts.length === 0) {
             menuGrid.replaceChildren();
             menuGrid.setAttribute("aria-busy", "false");
-            showMessage("No menu items match your search.");
+            showMessage(query && selectedCategory !== null
+                ? "No menu items in this category match your search."
+                : "No menu items match your search.");
             return;
         }
 
+        const activePromotions = await activePromotionsPromise;
+        if (requestVersion !== productLoadVersion) return;
         menuGrid.replaceChildren();
-        result.data.forEach((product) => renderProduct(product));
+        filteredProducts.forEach((product) => renderProduct(product, activePromotions));
         menuGrid.setAttribute("aria-busy", "false");
     };
 
-    const renderProduct = (product) => {
+    const renderProduct = (product, promotions = []) => {
         const card = document.createElement("article");
         card.className = "menu-card";
         const detailUrl = `menu-item.html?id=${encodeURIComponent(product.id)}`;
@@ -171,21 +217,71 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const description = document.createElement("p");
         description.textContent = product.description || "A Food by K favourite.";
+        const hasOptions = Array.isArray(product.options) && product.options.length > 0;
+        const eligiblePromotions = productPromotions(product, promotions);
+        const pricePromotion = eligiblePromotions.find((promotion) => promotion.discount_type === "percentage");
+        let promotionList = null;
+        if (eligiblePromotions.length) {
+            promotionList = document.createElement("div");
+            promotionList.className = "menu-promotion-list";
+            eligiblePromotions.forEach((promotion) => {
+                const badge = document.createElement("span");
+                badge.className = "menu-promotion-badge";
+                badge.textContent = promotion.code
+                    ? `${promotionLabel(promotion)} · code ${String(promotion.code).toUpperCase()}`
+                    : promotionLabel(promotion);
+                promotionList.appendChild(badge);
+            });
+        }
         const footer = document.createElement("div");
         footer.className = "menu-card-footer";
+        const priceWrap = document.createElement("div");
+        priceWrap.className = "menu-price-wrap";
+        const basePrice = Number(product.price);
         const price = document.createElement("span");
         price.className = "menu-price";
-        price.textContent = `R${Number(product.price).toFixed(2)}`;
+        if (pricePromotion && Number.isFinite(basePrice)) {
+            const originalPrice = document.createElement("del");
+            originalPrice.className = "menu-price-original";
+            originalPrice.textContent = `R${basePrice.toFixed(2)}`;
+            price.textContent = `R${(Math.round(basePrice * (1 - Number(pricePromotion.discount_value || 0) / 100) * 100) / 100).toFixed(2)}`;
+            const condition = document.createElement("span");
+            condition.className = "menu-price-condition";
+            condition.textContent = `with code ${String(pricePromotion.code || "").toUpperCase()} at checkout`;
+            priceWrap.append(originalPrice, price, condition);
+        } else {
+            price.textContent = `R${basePrice.toFixed(2)}`;
+            priceWrap.appendChild(price);
+        }
         const addButton = document.createElement("button");
         addButton.className = "btn btn-primary add-to-cart";
         addButton.type = "button";
-        addButton.textContent = "Add to cart";
+        addButton.textContent = hasOptions ? "Customize" : "Add to cart";
         addButton.addEventListener("click", async () => {
+            if (hasOptions) {
+                window.location.assign(detailUrl);
+                return;
+            }
             addButton.disabled = true;
             const result = await apiPost("/cart/items", { product_id: product.id, quantity: 1 });
             if (result.success) {
+                let notice = `${product.name} added to your cart`;
+                const offerToSelect = eligiblePromotions[0];
+                if (offerToSelect?.code) {
+                    try {
+                        const selectedCode = sessionStorage.getItem("foodbykSelectedPromotion");
+                        if (!selectedCode) {
+                            sessionStorage.setItem("foodbykSelectedPromotion", String(offerToSelect.code).toUpperCase());
+                            notice += ` · offer code ${String(offerToSelect.code).toUpperCase()} saved for checkout`;
+                        } else if (selectedCode.toUpperCase() !== String(offerToSelect.code).toUpperCase()) {
+                            notice += ` · ${selectedCode.toUpperCase()} remains selected; only one offer code can be used per order`;
+                        }
+                    } catch (error) {
+                        console.warn("Unable to save the promotion for checkout.", error);
+                    }
+                }
                 addButton.textContent = "Added";
-                showCartNotification(`${product.name} added to your cart`);
+                showCartNotification(notice);
                 setTimeout(() => {
                     addButton.textContent = "Add to cart";
                     addButton.disabled = false;
@@ -207,15 +303,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         reportLink.href = `support.html?category=menu_item&product_id=${encodeURIComponent(product.id)}&context=${encodeURIComponent(product.name || `menu item ${product.id}`)}`;
         reportLink.textContent = "Report an issue with this item";
 
-        footer.append(price, addButton);
-        body.append(titleLink, description, footer, reportLink);
+        footer.append(priceWrap, addButton);
+        body.append(titleLink, description);
+        if (hasOptions) {
+            const customizeHint = document.createElement("p");
+            customizeHint.className = "menu-item-customize-hint";
+            customizeHint.textContent = "Customizable with optional extras";
+            body.appendChild(customizeHint);
+        }
+        if (promotionList) body.appendChild(promotionList);
+        body.append(footer, reportLink);
         card.append(imageLink, body);
         menuGrid.appendChild(card);
     };
 
     searchForm.addEventListener("submit", (event) => {
         event.preventDefault();
+        window.clearTimeout(searchDebounceTimer);
         loadProducts();
+    });
+
+    searchInput.addEventListener("input", () => {
+        window.clearTimeout(searchDebounceTimer);
+        const requestVersion = ++productLoadVersion;
+        searchDebounceTimer = window.setTimeout(() => loadProducts(requestVersion), 250);
     });
 
     await loadCategories();

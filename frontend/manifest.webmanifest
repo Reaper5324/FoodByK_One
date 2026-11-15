@@ -1,0 +1,14 @@
+{
+  "id": "/src/index.html",
+  "name": "Food by K",
+  "short_name": "Food by K",
+  "description": "Order from Food by K and follow your order as it is prepared.",
+  "start_url": "/src/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fffaf2",
+  "theme_color": "#111111",
+  "icons": [
+    { "src": "/images/pwa-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

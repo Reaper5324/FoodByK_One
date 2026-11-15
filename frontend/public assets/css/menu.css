@@ -160,8 +160,13 @@
 .menu-card-title-link { color: inherit; text-decoration: none; }
 .menu-card-title-link:hover { color: var(--food-red); }
 .menu-card-body p { margin: 0 0 18px; color: #6b645c; font-size: 13px; line-height: 1.65; }
+.menu-promotion-list { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 14px; }
+.menu-promotion-badge { display: inline-flex; padding: 6px 8px; color: #24190b; background: var(--food-yellow); font-size: 9px; font-weight: 950; line-height: 1.35; letter-spacing: .04em; text-transform: uppercase; }
 .menu-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 14px; border-top: 1px solid #eee8df; }
 .menu-price { color: var(--menu-ink); font-size: 17px; font-weight: 950; white-space: nowrap; }
+.menu-price-wrap { display: grid; min-width: 0; gap: 2px; }
+.menu-price-original { color: #837b72; font-size: 12px; }
+.menu-price-condition { color: #6b645c; font-size: 9px; font-weight: 700; line-height: 1.35; }
 .menu-card-footer .add-to-cart { min-height: 42px; padding: 11px 14px; border-radius: 2px; font-size: 9px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
 .menu-card-footer .add-to-cart:disabled { cursor: wait; opacity: .7; }
 .menu-card-support-link { align-self: flex-start; margin-top: 12px; color: #8a4325; font-size: 11px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
@@ -209,6 +214,9 @@
     .category-list { flex-wrap: nowrap; width: 100%; overflow-x: auto; padding: 2px 1px 8px; scrollbar-width: thin; }
     .category-list button { flex: 0 0 auto; }
     .menu-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); }
+    .menu-card-footer { gap: 8px; }
+    .menu-price-wrap { flex: 1 1 auto; }
+    .menu-card-footer .add-to-cart { width: auto; flex: 0 0 auto; padding: 9px 10px; white-space: nowrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -61,7 +61,21 @@
         message.append(label, body);
         if (sources.length) {
             const sourceList = document.createElement("small");
-            sourceList.textContent = `Based on: ${sources.map((source) => source.source).filter(Boolean).join(", ")}`;
+            sourceList.append(document.createTextNode("Based on: "));
+            sources.filter((source) => source && source.source).forEach((source, index) => {
+                if (index) sourceList.append(document.createTextNode(", "));
+                const url = String(source.url || "");
+                if (url.startsWith("https://")) {
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                    link.textContent = source.source;
+                    sourceList.appendChild(link);
+                } else {
+                    sourceList.append(document.createTextNode(source.source));
+                }
+            });
             message.appendChild(sourceList);
         }
         messages.appendChild(message);
@@ -81,8 +95,24 @@
         sendButton.textContent = "…";
         const pending = addMessage("One moment, I’m checking the menu and FAQs for you…", "assistant is-pending");
 
+        pending.setAttribute("aria-busy", "true");
+        const pendingBody = pending.querySelector("p");
+        const progressStages = [
+            [450, "Searching the menu and Food by K information"],
+            [1600, "Checking the details that match your question"],
+            [3200, "Putting together a helpful answer"],
+            [8500, "Still working on it — this is taking a little longer"]
+        ];
+        const progressTimers = progressStages.map(([delay, text]) => window.setTimeout(() => {
+            if (!pending.isConnected || !pendingBody) return;
+            pendingBody.textContent = text;
+            messages.scrollTop = messages.scrollHeight;
+        }, delay));
+
         try {
             const result = await apiPost("/assistant/ask", { question: cleaned });
+            progressTimers.forEach(window.clearTimeout);
+            pending.removeAttribute("aria-busy");
             pending.remove();
             if (!result?.success || !result?.data?.answer) {
                 addMessage(result?.error || "The assistant is unavailable just now. Please try again shortly.", "assistant is-error");
@@ -90,9 +120,12 @@
             }
             addMessage(result.data.answer, "assistant", Array.isArray(result.data.sources) ? result.data.sources : []);
         } catch (error) {
+            progressTimers.forEach(window.clearTimeout);
+            pending.removeAttribute("aria-busy");
             pending.remove();
             addMessage("The assistant is unavailable just now. Please try again shortly.", "assistant is-error");
         } finally {
+            progressTimers.forEach(window.clearTimeout);
             input.disabled = false;
             sendButton.disabled = false;
             sendButton.textContent = "Ask";

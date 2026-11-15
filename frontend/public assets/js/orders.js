@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let isRefreshing = false;
     let renderedOrderFingerprint = null;
     let observedActiveOrderId = null;
+    let observedOrderStatus = null;
 
     const money = (amount) => `R${Number(amount || 0).toFixed(2)}`;
     const element = (tag, className, value) => {
@@ -24,6 +25,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const setFeedback = (text, visible = true) => {
         feedback.textContent = text;
         feedback.hidden = !visible;
+        if (visible && text && !text.startsWith("Order updates refresh")) {
+            window.foodByKNotify?.(text, /unable|could not|cancelled|problem|error/i.test(text) ? "error" : "info");
+        }
     };
     const showOrderSkeleton = () => {
         list.setAttribute("aria-busy", "true");
@@ -139,6 +143,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const name = element("span", "order-item-name", `${item.quantity} × ${item.product_name || "Food by K item"}`);
             const description = element("div", "order-item-description");
             description.append(image, name);
+            if (Array.isArray(item.customizations) && item.customizations.length) {
+                name.appendChild(element("small", "order-item-customizations", `Extras: ${item.customizations.map((option) => option.name).join(", ")}`));
+            }
             row.append(description, element("strong", "", money(Number(item.quantity) * Number(item.unit_price))));
             itemList.appendChild(row);
         });
@@ -236,6 +243,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const { order, items, address } = detail.data;
+        if (String(observedActiveOrderId) === String(order.id) && observedOrderStatus && observedOrderStatus !== order.status) {
+            const statusMessage = {
+                accepted: `Order #${order.id} was confirmed by our team.`,
+                paid: `Payment for order #${order.id} was received.`,
+                payment_failed: `We could not confirm payment for order #${order.id}. Please contact Food by K.`,
+                preparing: `The kitchen is preparing order #${order.id}.`,
+                ready: order.fulfilment_type === "delivery" ? `Order #${order.id} is out for delivery.` : `Order #${order.id} is ready for collection.`,
+                completed: `Order #${order.id} is complete.`,
+                declined: `Order #${order.id} could not be accepted.`
+            }[order.status];
+            if (statusMessage) window.foodByKNotify?.(statusMessage, ["declined", "payment_failed"].includes(order.status) ? "error" : "success");
+        }
         if (["completed", "declined", "cancelled"].includes(order?.status)) {
             const completedOrderWasBeingTracked = String(observedActiveOrderId) === String(order.id)
                 || String(returnedOrderId) === String(order.id);
@@ -250,6 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         observedActiveOrderId = order?.id ?? newestOrder.id;
+        observedOrderStatus = order?.status ?? newestOrder.status;
 
         const fingerprint = JSON.stringify({
             order: order && {
@@ -265,7 +285,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 confirmed_window_start: order.confirmed_window_start,
                 requested_window_start: order.requested_window_start
             },
-            items: (items || []).map(({ product_name, quantity, unit_price }) => ({ product_name, quantity, unit_price })),
+            items: (items || []).map(({ product_name, quantity, unit_price, customizations }) => ({ product_name, quantity, unit_price, customizations })),
             address: address?.raw_address || null
         });
         if (!forceRender && fingerprint === renderedOrderFingerprint) return;
@@ -277,7 +297,23 @@ document.addEventListener("DOMContentLoaded", () => {
         window.requestAnimationFrame(() => window.scrollTo(0, scrollPosition));
     }
 
-    loadOrders().then(() => {
+    loadOrders().then(async () => {
+        if (paymentState === "pending" && returnedOrderId) {
+            setFeedback("PayFast returned you to Food by K. Waiting for the secure card setup confirmation…");
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+                const confirmation = await apiGet(`/orders/${encodeURIComponent(returnedOrderId)}`);
+                if (confirmation?.success && confirmation.data?.payment?.gateway_token) {
+                    await loadOrders(true);
+                    setFeedback("Your card setup is confirmed. Your order is now with the Food by K team.");
+                    break;
+                }
+                if (confirmation?.success && confirmation.data?.order?.status === "cancelled") {
+                    setFeedback("Card setup was not completed, so this order was cancelled. No order was sent to the staff team.");
+                    break;
+                }
+                await new Promise((resolve) => window.setTimeout(resolve, 2000));
+            }
+        }
         refreshTimer = window.setInterval(loadOrders, 10000);
     });
     window.addEventListener("beforeunload", () => window.clearInterval(refreshTimer), { once: true });

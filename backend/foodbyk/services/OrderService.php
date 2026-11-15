@@ -127,6 +127,7 @@ class OrderService {
 
         if (!$result['success']) return $result;
         (new NotificationService())->notifyOrderEvent($result['data'], 'confirmed', 'customer');
+        (new PushService())->notifyCustomerOfOrderStatus($result['data'], 'confirmed');
         return (new PaymentService())->chargeToken($result['data']);
     }
 
@@ -203,7 +204,7 @@ class OrderService {
     }
 
     public function advanceFulfilment(int $orderId, int $staffId, string $newStatus): array {
-        return $this->transactional(function () use ($orderId, $staffId, $newStatus) {
+        $result = $this->transactional(function () use ($orderId, $staffId, $newStatus) {
             $order = Order::lockById($orderId);
             if (!$order) throw new \Exception("Order {$orderId} not found.");
             if (!$order->canTransitionTo($newStatus)) {
@@ -220,6 +221,10 @@ class OrderService {
 
             return $order;
         });
+        if ($result['success']) {
+            (new PushService())->notifyCustomerOfOrderStatus($result['data'], $newStatus);
+        }
+        return $result;
     }
 
     // Load customer details with the orders in one query.
@@ -232,7 +237,8 @@ class OrderService {
              JOIN users u ON u.id = o.customer_id
              JOIN payments p ON p.order_id = o.id
              WHERE o.status = '" . Order::STATUS_SUBMITTED . "'
-               AND p.gateway_token IS NOT NULL
+               AND p.gateway_token IS NOT NULL AND p.gateway_token <> ''
+               AND p.status = '" . Payment::STATUS_TOKENIZED . "'
              ORDER BY o.created_at ASC"
         )->fetchAll();
         return ['success' => true, 'data' => $rows, 'error' => null];
@@ -254,7 +260,8 @@ class OrderService {
             // Requested and confirmed windows are stored as local wall-clock DATETIME values.
             $windowStart = $today->format('Y-m-d H:i:s');
             $windowEnd = $tomorrow->format('Y-m-d H:i:s');
-            $where = ' WHERE p.gateway_token IS NOT NULL
+            $where = ' WHERE ((p.gateway_token IS NOT NULL AND p.gateway_token <> :usable_token AND p.status = :payment_status)
+                       OR o.status IN (\'paid\', \'preparing\', \'ready\', \'completed\'))
                        AND o.created_at >= :created_start AND o.created_at < :created_end
                        AND COALESCE(o.confirmed_window_start, o.requested_window_start) >= :window_start
                        AND COALESCE(o.confirmed_window_start, o.requested_window_start) < :window_end';
@@ -264,9 +271,21 @@ class OrderService {
                 ':window_start' => $windowStart,
                 ':window_end' => $windowEnd,
             ];
+            $bindings = [
+                ':usable_token' => '',
+                ':payment_status' => Payment::STATUS_TOKENIZED,
+                ...$bindings,
+            ];
         }
 
-        if ($where === '') $where = ' WHERE p.gateway_token IS NOT NULL';
+        if ($where === '') {
+            $where = ' WHERE ((p.gateway_token IS NOT NULL AND p.gateway_token <> :usable_token AND p.status = :payment_status)
+                       OR o.status IN (\'paid\', \'preparing\', \'ready\', \'completed\'))';
+            $bindings = [
+                ':usable_token' => '',
+                ':payment_status' => Payment::STATUS_TOKENIZED,
+            ];
+        }
         $count = $db->prepare('SELECT COUNT(*) FROM orders o JOIN payments p ON p.order_id = o.id' . $where);
         foreach ($bindings as $name => $value) $count->bindValue($name, $value);
         $count->execute();
@@ -336,6 +355,16 @@ class OrderService {
                 throw new \Exception('Cart is empty.');
             }
 
+            $quantitiesByProduct = [];
+            foreach ($cartItems as $cartItem) {
+                $quantitiesByProduct[$cartItem->product_id] = ($quantitiesByProduct[$cartItem->product_id] ?? 0) + $cartItem->quantity;
+            }
+            foreach ($quantitiesByProduct as $quantity) {
+                if ($quantity > CartService::MAX_ITEM_QUANTITY) {
+                    throw new \Exception('A menu item exceeds the limit of 99 across its customizations. Reduce its quantity to continue.');
+                }
+            }
+
             $productsById = Product::findByIds(array_map(
                 fn(CartItem $item) => $item->product_id,
                 $cartItems
@@ -345,7 +374,6 @@ class OrderService {
             if (!$customer) {
                 throw new \Exception('Customer not found.');
             }
-
             $order = new Order(
                 customer_id: $customerId,
                 fulfilment_type: $fulfilmentType,
@@ -357,11 +385,14 @@ class OrderService {
 
             $subtotal = 0.0;
             foreach ($cartItems as $cartItem) {
+                if ($cartItem->quantity > CartService::MAX_ITEM_QUANTITY) {
+                    throw new \Exception('A menu item quantity exceeds the limit of 99. Reduce the quantity in your cart to continue.');
+                }
                 $product = $productsById[$cartItem->product_id] ?? null;
                 if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
                     throw new \Exception("Item {$cartItem->product_id} is no longer available.");
                 }
-                $subtotal += $product->price * $cartItem->quantity;
+                $subtotal += ($product->price + $cartItem->getCustomizationTotal()) * $cartItem->quantity;
             }
             $order->subtotal = round($subtotal, 2);
 
@@ -387,8 +418,9 @@ class OrderService {
                     $subtotal,
                     array_map(fn(CartItem $item) => [
                         'product_id' => $item->product_id,
+                        'product_name' => $productsById[$item->product_id]->name,
                         'quantity' => $item->quantity,
-                    'unit_price' => $productsById[$item->product_id]->price,
+                    'unit_price' => $productsById[$item->product_id]->price + $item->getCustomizationTotal(),
                     ], $cartItems),
                     $order->delivery_fee
                 );
@@ -427,7 +459,10 @@ class OrderService {
             if (!$order->save()) {
                 throw new \Exception('Unable to create order.');
             }
-            $payment = new Payment(order_id: $order->id, amount: $order->total());
+            $payment = new Payment(
+                order_id: $order->id,
+                amount: $order->total()
+            );
             if (!$payment->save()) {
                 throw new \Exception('Unable to create payment record.');
             }
@@ -439,29 +474,33 @@ class OrderService {
                     order_id: $order->id,
                     product_id: $cartItem->product_id,
                     quantity: $cartItem->quantity,
-                    unit_price: $product->price
+                    unit_price: $product->price + $cartItem->getCustomizationTotal(),
+                    customization_json: $cartItem->customization_json
                 );
                 if (!$orderItem->save()) {
                     throw new \Exception('Unable to save order items.');
                 }
             }
 
-            $paymentService = new PaymentService();
-            $setupResult = $paymentService->beginTokenSetup($order, $customer);
-            if (!$setupResult['success']) {
-                throw new \Exception('Unable to initiate payment.');
-            }
-
-            $clearResult = (new CartService())->clear($customerId);
-            if (!$clearResult['success']) throw new \Exception($clearResult['error']);
-
             // The initial history entry has no previous order status.
             $this->logTransition($order->id, '', Order::STATUS_SUBMITTED, $customerId);
 
-            return ['order' => $order, 'payment_setup' => $setupResult['data']];
+            return ['order' => $order, 'customer' => $customer];
         });
 
-        return $result;
+        if (!$result['success']) return $result;
+        $order = $result['data']['order'];
+        $setup = (new PaymentService())->beginTokenSetup($order, $result['data']['customer']);
+        if (!$setup['success']) {
+            $this->cancelOrder($order->id, $customerId, null, 'Payment setup could not be started.');
+            return $this->failure($setup['error'] ?? 'Unable to start secure payment setup.');
+        }
+        $clearResult = (new CartService())->clear($customerId);
+        if (!$clearResult['success']) {
+            $this->cancelOrder($order->id, $customerId, null, 'Checkout could not be completed.');
+            return $this->failure($clearResult['error']);
+        }
+        return $this->success(['order' => $order, 'payment_setup' => $setup['data']]);
     }
 
     /** Loads one order with its related details. */
@@ -541,6 +580,7 @@ class OrderService {
                 return $this->failure('An adjusted order can contain at most 50 menu items.');
             }
             $combinedItems = [];
+            $totalsByProduct = [];
             foreach ($adjustedItems as $item) {
                 if (!is_array($item)) {
                     return $this->failure('Each adjusted item must include a product and quantity.');
@@ -550,15 +590,27 @@ class OrderService {
                 if ($productId === false || $quantity === false) {
                     return $this->failure('Adjusted items need a valid product and a quantity from 1 to 99.');
                 }
-                $combinedItems[$productId] = ($combinedItems[$productId] ?? 0) + $quantity;
-                if ($combinedItems[$productId] > 99) {
+                $totalsByProduct[(int) $productId] = ($totalsByProduct[(int) $productId] ?? 0) + (int) $quantity;
+                if ($totalsByProduct[(int) $productId] > 99) {
+                    return $this->failure('The combined quantity for a menu item cannot exceed 99.');
+                }
+                $optionIds = $item['option_ids'] ?? [];
+                if (!is_array($optionIds)) return $this->failure('Adjusted item customizations are invalid.');
+                $selection = (new ProductOptionService())->resolveSelection((int) $productId, $optionIds);
+                if (!$selection['success']) return $selection;
+                $signature = implode(',', array_column($selection['data'], 'id'));
+                $key = (int) $productId . ':' . $signature;
+                $combinedItems[$key] ??= [
+                    'product_id' => (int) $productId,
+                    'quantity' => 0,
+                    'customizations' => $selection['data'],
+                ];
+                $combinedItems[$key]['quantity'] += $quantity;
+                if ($combinedItems[$key]['quantity'] > 99) {
                     return $this->failure('The quantity for a menu item cannot exceed 99.');
                 }
             }
-            $adjustedItems = [];
-            foreach ($combinedItems as $productId => $quantity) {
-                $adjustedItems[] = ['product_id' => (int) $productId, 'quantity' => $quantity];
-            }
+            $adjustedItems = array_values($combinedItems);
         }
         if (($newWindowStart === null) !== ($newWindowEnd === null)) {
             return $this->failure('Both confirmed window start and end are required.');
@@ -616,17 +668,20 @@ class OrderService {
                         throw new \Exception('Adjusted item quantity must be at least one.');
                     }
                     $quantity = (int) $adj['quantity'];
+                    $customizations = $adj['customizations'] ?? [];
+                    $customizationTotal = array_sum(array_map(static fn(array $option): float => (float) $option['price_delta'], $customizations));
                     $orderItem = new OrderItem(
                         order_id: $order->id,
                         product_id: $product->id,
                         quantity: $quantity,
-                        unit_price: $product->price,
-                        product_name: $product->name
+                        unit_price: $product->price + $customizationTotal,
+                        product_name: $product->name,
+                        customization_json: json_encode($customizations, JSON_UNESCAPED_UNICODE)
                     );
                     if (!$orderItem->save()) {
                         throw new \Exception('Unable to save adjusted items.');
                     }
-                    $newSubtotal += $quantity * $product->price;
+                    $newSubtotal += $quantity * ($product->price + $customizationTotal);
                 }
                 $order->subtotal = round($newSubtotal, 2);
 
@@ -684,16 +739,20 @@ public function getOrderForStaff(int $orderId): array {
         }
 $payment = $order->getPayment();
         if ($order->status === Order::STATUS_SUBMITTED
-            && (!$payment || $payment->gateway_token === null)) {
+            && (!$payment || $payment->status !== Payment::STATUS_TOKENIZED
+                || $payment->gateway_token === null || $payment->gateway_token === '')) {
             return $this->failure('Order is not available for staff review until card setup is complete.');
         }
 
         $items = $order->getItems();
         $this->attachCurrentProductImages($items);
+        $promotion = $order->promotion_id ? Promotion::findById($order->promotion_id) : null;
+        if ($promotion) Promotion::attachTargets([$promotion]);
 
         return $this->success([
             'order'    => $order,
             'items'    => $items,
+            'promotion' => $promotion,
             'payment'  => $payment,
             'refunds'  => $payment ? PaymentRefund::findBy('payment_id', $payment->id) : [],
             'address'  => $order->getAddress(),

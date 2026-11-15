@@ -29,12 +29,13 @@ class CheckoutService {
         $lineItems = [];
         foreach ($cartItems as $cartItem) {
             $product = $productsById[$cartItem->product_id];
-            $lineTotal = $cartItem->quantity * $product->price;
+            $lineTotal = $cartItem->quantity * ($product->price + $cartItem->getCustomizationTotal());
             $subtotal += $lineTotal;
             $lineItems[] = [
                 'product_id' => $cartItem->product_id,
+                'product_name' => $product->name,
                 'quantity' => $cartItem->quantity,
-                'unit_price' => $product->price,
+                'unit_price' => $product->price + $cartItem->getCustomizationTotal(),
             ];
         }
         $subtotal = round($subtotal, 2);
@@ -78,6 +79,8 @@ class CheckoutService {
                 'discount_value' => $promoResult['data']['discount_value'],
                 'target_product_ids' => $promoResult['data']['target_product_ids'],
                 'target_product_names' => $promoResult['data']['target_product_names'],
+                'eligible_product_names' => $promoResult['data']['eligible_product_names'],
+                'applied_product_names' => $promoResult['data']['applied_product_names'],
             ];
         }
 
@@ -96,9 +99,15 @@ class CheckoutService {
             'subtotal' => $subtotal,
             'discount' => $discount,
             'discount_reason' => $promotionDetails
-                ? 'Promo ' . $promotionDetails['code'] . ($promotionDetails['target_product_names']
-                    ? ' on ' . implode(', ', $promotionDetails['target_product_names'])
-                    : ' on eligible items')
+                ? match ($promotionDetails['discount_type']) {
+                    Promotion::TYPE_FREE_DELIVERY => 'Free delivery (' . $promotionDetails['code'] . ')',
+                    Promotion::TYPE_BUY_ONE_GET_ONE => 'Buy one, get one free (' . $promotionDetails['code'] . ')',
+                    default => 'Promo ' . $promotionDetails['code'] . (
+                        $promotionDetails['applied_product_names']
+                            ? ' on ' . implode(', ', $promotionDetails['applied_product_names'])
+                            : ' on eligible items'
+                    ),
+                }
                 : null,
             'promotion' => $promotionDetails,
             'loyalty_points_redeemed' => $redemption['data']['points_to_redeem'],
@@ -123,7 +132,19 @@ class CheckoutService {
             fn(CartItem $item) => $item->product_id,
             $cartItems
         ));
+        $quantitiesByProduct = [];
         foreach ($cartItems as $item) {
+            $quantitiesByProduct[$item->product_id] = ($quantitiesByProduct[$item->product_id] ?? 0) + $item->quantity;
+        }
+        foreach ($quantitiesByProduct as $quantity) {
+            if ($quantity > CartService::MAX_ITEM_QUANTITY) {
+                return $this->failure('A menu item exceeds the limit of 99 across its customizations. Reduce its quantity to continue.');
+            }
+        }
+        foreach ($cartItems as $item) {
+            if ($item->quantity > CartService::MAX_ITEM_QUANTITY) {
+                return $this->failure('A menu item quantity exceeds the limit of 99. Reduce the quantity in your cart to continue.');
+            }
             $product = $productsById[$item->product_id] ?? null;
             if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
                 return $this->failure(

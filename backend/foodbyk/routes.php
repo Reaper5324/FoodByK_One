@@ -62,6 +62,12 @@ function registerRoutes(Router $router): void {
     $router->get('/payments/return', [PaymentController::class, 'returnFromPayFast']);
     $router->get('/payments/cancel', [PaymentController::class, 'cancelFromPayFast']);
 
+    $router->get('/push/public-key', [PushController::class, 'publicKey']);
+    $router->post('/push/subscribe', [PushController::class, 'subscribe'], [new AuthMiddleware(), new CsrfMiddleware()]);
+    $router->post('/push/unsubscribe', [PushController::class, 'unsubscribe'], [new AuthMiddleware(), new CsrfMiddleware()]);
+    $router->get('/staff/orders/unacknowledged', [PushController::class, 'unacknowledgedOrders'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
+    $router->post('/staff/orders/{id}/acknowledge', [PushController::class, 'acknowledgeOrder'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin(), new CsrfMiddleware()]);
+
     $router->get('/staff/orders/incoming', [OrderController::class, 'incoming'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
     $router->get('/staff/orders', [OrderController::class, 'staffIndex'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);
     $router->get('/staff/orders/slots', [OrderController::class, 'availableSlots'], [new AuthMiddleware(), RoleMiddleware::staffOrAdmin()]);

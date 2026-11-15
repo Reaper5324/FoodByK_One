@@ -463,6 +463,8 @@ return $this->success(array_merge($this->publicUser($user), ['session_token' => 
             $db->prepare('DELETE FROM addresses WHERE customer_id = ? AND id NOT IN (SELECT address_id FROM orders WHERE address_id IS NOT NULL)')->execute([(int) $account['id']]);
             $db->prepare('DELETE FROM cart_items WHERE customer_id = ?')->execute([(int) $account['id']]);
             $db->prepare('DELETE FROM password_resets WHERE user_id = ?')->execute([(int) $account['id']]);
+            $db->prepare('DELETE FROM customer_payment_tokens WHERE user_id = ?')->execute([(int) $account['id']]);
+            $db->prepare('DELETE FROM customer_payment_token_setups WHERE user_id = ?')->execute([(int) $account['id']]);
             // Remove support messages with the account so ticket text is not left identifiable after erasure.
             $db->prepare('DELETE FROM support_tickets WHERE user_id = ?')->execute([(int) $account['id']]);
             $db->prepare("UPDATE payments p JOIN orders o ON o.id = p.order_id SET p.gateway_token = NULL, p.status = IF(p.status = 'tokenized', 'voided', p.status) WHERE o.customer_id = ?")->execute([(int) $account['id']]);

@@ -60,7 +60,7 @@ class SupportTicketService {
         $db = Database::getConnection();
         try {
             $db->beginTransaction();
-            $lock = $db->prepare('SELECT status FROM support_tickets WHERE id = ? FOR UPDATE');
+            $lock = $db->prepare('SELECT user_id, subject, status FROM support_tickets WHERE id = ? FOR UPDATE');
             $lock->execute([$ticketId]);
             $ticket = $lock->fetch();
             if (!$ticket) { $db->rollBack(); return $this->failure('Support ticket not found.'); }
@@ -74,6 +74,7 @@ class SupportTicketService {
                 $touch->execute([$ticketId]);
             }
             $db->commit();
+            (new PushService())->notifyCustomerOfSupportReply((int) $ticket['user_id'], $ticketId, (string) $ticket['subject']);
             return $this->ticket($ticketId);
         } catch (Throwable $error) {
             if ($db->inTransaction()) $db->rollBack();

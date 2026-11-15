@@ -1,6 +1,12 @@
 const adminLiveScript = document.createElement("script");
 adminLiveScript.src = new URL("admin-live.js", document.currentScript.src).href;
 document.head.appendChild(adminLiveScript);
+if (!document.querySelector('link[rel="manifest"]')) {
+    const pwaManifest = document.createElement("link"); pwaManifest.rel = "manifest"; pwaManifest.href = "/manifest.webmanifest"; document.head.appendChild(pwaManifest);
+}
+if (!document.querySelector('script[data-foodbyk-pwa]')) {
+    const pwaScript = document.createElement("script"); pwaScript.src = "/public%20assets/js/pwa.js"; pwaScript.dataset.foodbykPwa = "true"; document.head.appendChild(pwaScript);
+}
 
 /* ========================================
    MOBILE SIDEBAR
@@ -2969,52 +2975,7 @@ if (reportPeriod) {
 
     updateReportBtn.addEventListener("click", function () {
 
-        const period = reportPeriod.value;
-
-        const sales =
-            document.getElementById("reportSales");
-
-        const orders =
-            document.getElementById("reportOrders");
-
-        const average =
-            document.getElementById("reportAverage");
-
-
-        if (period === "today") {
-
-            sales.textContent = "R2,850";
-            orders.textContent = "21";
-            average.textContent = "R136";
-
-        }
-
-        else if (period === "week") {
-
-            sales.textContent = "R18,450";
-            orders.textContent = "126";
-            average.textContent = "R146";
-
-        }
-
-        else if (period === "month") {
-
-            sales.textContent = "R76,820";
-            orders.textContent = "534";
-            average.textContent = "R144";
-
-        }
-
-        else if (period === "year") {
-
-            sales.textContent = "R842,600";
-            orders.textContent = "5,940";
-            average.textContent = "R142";
-
-        }
-
-
-        alert("Report updated successfully.");
+        // Live report values are loaded from the admin analytics API.
 
     });
 

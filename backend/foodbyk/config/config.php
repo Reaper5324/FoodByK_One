@@ -18,13 +18,21 @@ define('PAYFAST_MERCHANT_KEY', getenv('PAYFAST_MERCHANT_KEY') ?: '');
 define('PAYFAST_RETURN_URL', getenv('PAYFAST_RETURN_URL') ?: '');
 define('PAYFAST_CANCEL_URL', getenv('PAYFAST_CANCEL_URL') ?: '');
 define('PAYFAST_NOTIFY_URL', getenv('PAYFAST_NOTIFY_URL') ?: '');
+// Public API origin used to build PayFast callbacks. The legacy individual
+// callback variables can retain an outdated Railway hostname after a domain change.
+define('API_BASE_URL', rtrim(getenv('API_BASE_URL') ?: 'https://api.foodbyk.co.za', '/'));
 define('PAYFAST_SANDBOX', getenv('PAYFAST_SANDBOX') ?: '');
+define('WEB_PUSH_VAPID_PUBLIC_KEY', getenv('WEB_PUSH_VAPID_PUBLIC_KEY') ?: '');
+define('WEB_PUSH_VAPID_PRIVATE_KEY', getenv('WEB_PUSH_VAPID_PRIVATE_KEY') ?: '');
+define('WEB_PUSH_VAPID_SUBJECT', getenv('WEB_PUSH_VAPID_SUBJECT') ?: 'mailto:support@foodbyk.co.za');
 define('PAYFAST_PASSPHRASE', getenv('PAYFAST_PASSPHRASE') ?: '');
 define('FRONTEND_URL', getenv('FRONTEND_URL') ?: '');
 define('RAG_SERVICE_URL', rtrim(getenv('RAG_SERVICE_URL') ?: '', '/'));
 define('RAG_SERVICE_API_KEY', getenv('RAG_SERVICE_API_KEY') ?: '');
 define('RESEND_API_KEY', getenv('RESEND_API_KEY') ?: '');
-define('RESEND_FROM_EMAIL', getenv('RESEND_FROM_EMAIL') ?: 'Food by K <onboarding@resend.dev>');
+// This address must use a domain verified in Resend. It is configurable per
+// deployment so staging and production can use their own verified identities.
+define('RESEND_FROM_EMAIL', getenv('RESEND_FROM_EMAIL') ?: 'Food by K <noreply@send.foodbyk.co.za>');
 define('EMAIL_PROVIDER', strtolower(trim(getenv('EMAIL_PROVIDER') ?: 'resend')));
 define('EMAIL_SMTP_HOST', getenv('EMAIL_SMTP_HOST') ?: 'smtp.gmail.com');
 define('EMAIL_SMTP_PORT', (int) (getenv('EMAIL_SMTP_PORT') ?: '587'));
@@ -44,3 +52,8 @@ define('TWILIO_TEMPLATE_CUSTOMER_CONFIRMED', getenv('TWILIO_TEMPLATE_CUSTOMER_CO
 define('TWILIO_TEMPLATE_CUSTOMER_DECLINED', getenv('TWILIO_TEMPLATE_CUSTOMER_DECLINED') ?: '');
 define('TWILIO_TEMPLATE_CUSTOMER_PAID', getenv('TWILIO_TEMPLATE_CUSTOMER_PAID') ?: '');
 define('TWILIO_TEMPLATE_CUSTOMER_PAYMENT_FAILED', getenv('TWILIO_TEMPLATE_CUSTOMER_PAYMENT_FAILED') ?: '');
+define('TWILIO_TEMPLATE_STAFF_NEW_ORDER_RICH', getenv('TWILIO_TEMPLATE_STAFF_NEW_ORDER_RICH') ?: '');
+define('TWILIO_TEMPLATE_CUSTOMER_CONFIRMED_RICH', getenv('TWILIO_TEMPLATE_CUSTOMER_CONFIRMED_RICH') ?: '');
+define('TWILIO_TEMPLATE_CUSTOMER_DECLINED_RICH', getenv('TWILIO_TEMPLATE_CUSTOMER_DECLINED_RICH') ?: '');
+define('TWILIO_TEMPLATE_CUSTOMER_PAID_RICH', getenv('TWILIO_TEMPLATE_CUSTOMER_PAID_RICH') ?: '');
+define('TWILIO_TEMPLATE_CUSTOMER_PAYMENT_FAILED_RICH', getenv('TWILIO_TEMPLATE_CUSTOMER_PAYMENT_FAILED_RICH') ?: '');

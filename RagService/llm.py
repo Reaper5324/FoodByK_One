@@ -1,4 +1,6 @@
 import os
+import logging
+import time
 
 from dotenv import load_dotenv
 from groq import Groq
@@ -8,6 +10,7 @@ from prompt_builder import SYSTEM_INSTRUCTIONS
 load_dotenv()
 
 _client = None
+logger = logging.getLogger("foodbyk-rag")
 
 
 def get_client() -> Groq:
@@ -21,13 +24,16 @@ def get_client() -> Groq:
 
 
 def generate_answer(prompt: str) -> str:
+    started = time.perf_counter()
     response = get_client().chat.completions.create(
-        model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+        model=os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
         messages=[
             {"role": "system", "content": SYSTEM_INSTRUCTIONS},
             {"role": "user", "content": prompt},
         ],
         temperature=0.2,
-        max_tokens=260,
+        max_completion_tokens=max(128, min(1200, int(os.getenv("GROQ_MAX_COMPLETION_TOKENS", "600")))),
+        reasoning_effort=os.getenv("GROQ_REASONING_EFFORT", "low"),
     )
+    logger.info("groq_generation_ms=%.1f model=%s", (time.perf_counter() - started) * 1000, os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"))
     return response.choices[0].message.content or ""

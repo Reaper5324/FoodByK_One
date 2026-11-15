@@ -87,17 +87,15 @@ Promotions can apply to the whole order or to selected menu items. The `promotio
 
 When upgrading an existing database, run [`database/promotion_product_targets.sql`](database/promotion_product_targets.sql) once before deploying the promotion service changes. The main `migration.sql` includes this table for new installations.
 
+Product customizations are optional priced extras. For an existing database, back it up and run [`database/product_options.sql`](database/product_options.sql) once before deploying the updated backend. The main `migration.sql` includes the option table and cart/order snapshot fields for new installations. Product options are validated and priced by the API; the selected names and prices are retained on cart rows and immutable order-item snapshots.
+
 Admin-only `PUT /admin/staff/{id}`, `PUT /admin/products/{id}`, and `PUT /admin/promotions/{id}` routes edit records through their owning services. `DELETE /admin/staff/{id}` deactivates staff accounts, `DELETE /admin/products/{id}` marks products removed, and `DELETE /admin/promotions/{id}` deactivates promotions; these operations preserve historical references rather than deleting database rows. Staff updates accept `full_name`, `email`, `phone`, and optionally `is_active`. Promotion updates accept `code`, `discount_type`, `discount_value`, `start_date`, `end_date`, and `is_active`; send `null` for an optional date to clear it.
 
 ### Orders and Payments
 
 Order status changes use `Order::ALLOWED_TRANSITIONS` as the single state-machine source of truth. Every status mutation must occur inside a database transaction after `Order::lockById()` has locked the row, and must insert an `OrderStatusHistory` entry in the same transaction.
 
-Payment is a two-stage PayFast tokenization workflow:
-
-1. Submission obtains a PayFast token; no money is charged.
-2. After staff acceptance, `PaymentService` charges the token.
-3. The asynchronous PayFast notification determines final payment success/failure.
+Customers first save a PayFast payment method; an order cannot be created until the API has a confirmed token for that customer. Order submission attaches the encrypted saved token to its payment record without sending the customer back through tokenization. Staff accept or adjust the order to trigger a charge against that token. The asynchronous PayFast notification determines final payment success/failure. Existing databases must run `database/customer_payment_tokens.sql` before deploying this workflow.
 
 `Payment` does not change orders directly. The service coordinates payment, locked order status, and history atomically. This avoids concurrent staff-review and duplicate-webhook races.
 
@@ -120,7 +118,7 @@ DB_SSL=
 DB_SSL_CA=
 PAYMENT_TOKEN_ENCRYPTION_KEY= # base64-encoded 32-byte key; required for token storage
 RESEND_API_KEY=...
-RESEND_FROM_EMAIL=Food by K <onboarding@resend.dev>
+RESEND_FROM_EMAIL=Food by K <noreply@send.foodbyk.co.za> # use an address on your verified Resend domain
 EMAIL_PROVIDER=resend # resend or smtp; applies to staff links and order notifications
 EMAIL_SMTP_HOST=smtp.gmail.com
 EMAIL_SMTP_PORT=587
@@ -140,9 +138,14 @@ TWILIO_TEMPLATE_CUSTOMER_CONFIRMED=HX...
 TWILIO_TEMPLATE_CUSTOMER_DECLINED=HX...
 TWILIO_TEMPLATE_CUSTOMER_PAID=HX...
 TWILIO_TEMPLATE_CUSTOMER_PAYMENT_FAILED=HX...
+TWILIO_TEMPLATE_STAFF_NEW_ORDER_RICH=HX... # optional; approved template must use {{1}} order number and {{2}} order summary
+TWILIO_TEMPLATE_CUSTOMER_CONFIRMED_RICH=HX... # optional rich WhatsApp templates follow the same {{1}} / {{2}} convention
+TWILIO_TEMPLATE_CUSTOMER_DECLINED_RICH=HX...
+TWILIO_TEMPLATE_CUSTOMER_PAID_RICH=HX...
+TWILIO_TEMPLATE_CUSTOMER_PAYMENT_FAILED_RICH=HX...
 ```
 
-Set `EMAIL_PROVIDER=resend` to keep using the Resend integration, or `EMAIL_PROVIDER=smtp` to send through SMTP with STARTTLS. The selected provider sends customer verification links, staff setup/password links, and email order notifications. For Resend testing, `onboarding@resend.dev` can only send to the Resend account owner until a sending domain is verified. Gmail SMTP uses `smtp.gmail.com` on port `587`; use a Google app password as `EMAIL_SMTP_PASSWORD`, and set `EMAIL_FROM_ADDRESS` to the same Gmail address as the SMTP username. Railway currently allows SMTP only on Pro and higher plans; Free, Trial, and Hobby plans must use an HTTPS email API. Add all SMTP credentials as Railway service variables and never commit them. Twilio WhatsApp normally sends use the configured Content Template Builder SIDs. Set `TWILIO_WHATSAPP_SANDBOX=true` for Sandbox testing; this sends free-form notification text from the Sandbox sender only to the comma-separated allowlist in `TWILIO_WHATSAPP_SANDBOX_RECIPIENTS`. Each recipient must have joined the Sandbox, and free-form messages are limited to the 24-hour customer service window after their last inbound WhatsApp message. Set the switch back to `false` after upgrading to use the live sender and approved templates again. SMS does not use template SIDs. `DOMAIN.md` additionally defines PayFast and geocoding configuration.
+Set `EMAIL_PROVIDER=resend` and configure `RESEND_API_KEY` plus `RESEND_FROM_EMAIL` in the backend deployment. The sender must be an address on the verified Resend domain, `send.foodbyk.co.za` (for example, `Food by K <noreply@send.foodbyk.co.za>`). This shared service sends customer verification and password reset links, admin-created staff setup links, and order emails with itemized prices, fulfilment timing, discounts, delivery fees, loyalty redemption, totals, and payment status. Resend click tracking is enabled for the sending domain with the tracking subdomain `track.send.foodbyk.co.za`; the shared Resend integration includes both HTML and plain-text bodies so Resend can rewrite HTML links for click tracking. Keep open tracking disabled for transactional messages. Resend accepts API requests only when the sender identity is authorized for the API key; a verified domain does not update the sender address configured in Railway automatically. `onboarding@resend.dev` is only for Resend testing and is not the production sender. Gmail SMTP uses `smtp.gmail.com` on port `587`; use a Google app password as `EMAIL_SMTP_PASSWORD`, and set `EMAIL_FROM_ADDRESS` to the same Gmail address as the SMTP username. Railway currently allows SMTP only on Pro and higher plans; Free, Trial, and Hobby plans must use an HTTPS email API. Add all credentials as Railway service variables and never commit them. Twilio WhatsApp normally sends use approved Content Template Builder SIDs. The optional `*_RICH` SIDs select richer approved templates whose content includes `{{1}}` for the order number and `{{2}}` for the itemized order summary; create and approve those templates in Twilio before setting these variables. When a rich SID is unset, current template IDs remain active, and the app fills their existing second variable with order details where that variable is already used. Set `TWILIO_WHATSAPP_SANDBOX=true` for Sandbox testing; this sends free-form itemized notification text from the Sandbox sender only to the comma-separated allowlist in `TWILIO_WHATSAPP_SANDBOX_RECIPIENTS`. Each recipient must have joined the Sandbox, and free-form messages are limited to the 24-hour customer service window after their last inbound WhatsApp message. Set the switch back to `false` after upgrading to use the live sender and approved templates again. SMS does not use template SIDs. `DOMAIN.md` additionally defines PayFast and geocoding configuration.
 
 ### Database setup and production
 
@@ -150,7 +153,7 @@ For a new database, run `database/migration.sql`. Existing databases should be b
 
 For a clean database, run `database/migration.sql` once. It already includes the current schema and must not be followed by the older upgrade scripts above. Existing databases restored from a backup that predates support tickets should run `database/support_tickets.sql` once; it creates the ticket and reply tables if they are missing. To create the first customer, staff, and admin accounts, set `INITIAL_CUSTOMER_PASSWORD`, `INITIAL_STAFF_PASSWORD`, and `INITIAL_ADMIN_PASSWORD` in the local terminal environment, then run `php database/create_initial_accounts.php`. The script asks for names and email addresses, verifies the target database name, hashes each password using the same algorithm as the application, and creates all three accounts in one transaction. The customer must accept the current terms and privacy notice after signing in.
 
-For an existing database, run `database/customer_email_verification.sql` once before deploying the email-verification code. It marks accounts already in the database as verified so current customers and staff are not locked out. New customer registrations stay inactive for customer features until their one-time email link is used. The link is valid for 24 hours. If verification mail is not delivered, check the selected `EMAIL_PROVIDER` and its Railway credentials; a Resend trial sender cannot deliver to arbitrary customer addresses without a verified sending domain.
+For an existing database, run `database/customer_email_verification.sql` once before deploying the email-verification code. It marks accounts already in the database as verified so current customers and staff are not locked out. New customer registrations stay inactive for customer features until their one-time email link is used. The link is valid for 24 hours. If mail is not delivered, check the backend deployment's `EMAIL_PROVIDER`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `FRONTEND_URL` settings and inspect API logs for provider failures.
 
 Alternatively, `database/create_initial_accounts.sql` creates the initial customer, staff, and admin accounts from the Railway backup, keeping their existing password hashes (no plaintext passwords are included). Run it once against the clean database after `migration.sql`. It is a one-time insert and will fail if any of those email addresses already exist. The customer must accept the current terms and privacy notice after signing in. Treat this SQL file as sensitive because it contains account details and password hashes.
 

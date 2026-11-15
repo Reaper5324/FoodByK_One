@@ -182,12 +182,15 @@
 
 .foodbyk-assistant-message {
     align-self: flex-start;
+    box-sizing: border-box;
+    min-width: 0;
     max-width: min(88%, 620px);
     padding: 13px 16px;
     border-radius: 12px 12px 12px 3px;
     background: #f5f3f0;
     font-size: 15px;
     line-height: 1.6;
+    overflow-wrap: anywhere;
 }
 
 .foodbyk-assistant-message.is-customer {
@@ -200,7 +203,10 @@
 .foodbyk-assistant-message strong,
 .foodbyk-assistant-message p {
     display: block;
+    max-width: 100%;
     margin: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .foodbyk-assistant-message strong {
@@ -210,14 +216,37 @@
 
 .foodbyk-assistant-message small {
     display: block;
+    max-width: 100%;
     margin-top: 7px;
     opacity: .78;
     font-size: 10px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.foodbyk-assistant-message a {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .foodbyk-assistant-message.is-error {
     border: 1px solid #efb9b9;
     background: #fff5f5;
+}
+
+.foodbyk-assistant-message.is-pending p::after {
+    content: "";
+    display: inline-block;
+    width: 1.2em;
+    animation: foodbyk-assistant-progress 1.2s steps(4, end) infinite;
+    vertical-align: bottom;
+}
+
+@keyframes foodbyk-assistant-progress {
+    0% { content: ""; }
+    25% { content: "."; }
+    50% { content: ".."; }
+    75%, 100% { content: "..."; }
 }
 
 .foodbyk-assistant-form {

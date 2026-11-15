@@ -30,6 +30,8 @@ class PromotionService {
             'discount_value' => $promotion->discount_value,
             'target_product_ids' => $promotion->target_product_ids,
             'target_product_names' => $promotion->target_product_names,
+            'eligible_product_names' => $promotion->eligibleProductNames($lineItems),
+            'applied_product_names' => $promotion->appliedProductNames($lineItems),
         ]);
     }
 
