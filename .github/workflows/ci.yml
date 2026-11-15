@@ -119,7 +119,6 @@ jobs:
       run:
         working-directory: RagService
     env:
-      RAG_DATA_DIR: ${{ runner.temp }}/foodbyk-rag-tests
       RAG_SERVICE_API_KEY: test-only-rag-key
       PYTHONUNBUFFERED: '1'
     steps:
