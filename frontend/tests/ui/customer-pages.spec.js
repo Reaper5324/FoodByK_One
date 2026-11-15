@@ -230,7 +230,7 @@ test('admin optional extras editor adds and removes paired name/price rows', asy
 
   await page.goto('/admin/menu-items.html');
   await expect(page.locator('#adminLoadingState')).toHaveCount(0);
-  await page.getByRole('button', { name: /add menu item/i }).click();
+  await page.locator('#addMenuBtn').click();
   const rows = page.locator('#itemOptions .optional-extra-row');
   await expect(rows).toHaveCount(1);
   await rows.first().locator('.item-option-name').fill('Extra cheese');
