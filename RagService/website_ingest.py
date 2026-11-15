@@ -56,12 +56,12 @@ def _allowed(url: str, host: str) -> bool:
 
 
 def crawl_public_site() -> list[dict]:
-    base = os.getenv("FOODBYK_WEBSITE_URL", "https://foodbyks.netlify.app/").strip()
+    base = os.getenv("FOODBYK_WEBSITE_URL", "https://foodbyk.co.za/").strip()
     parsed_base = urlparse(base)
     host = parsed_base.hostname
     if parsed_base.scheme != "https" or not host:
         raise ValueError("FOODBYK_WEBSITE_URL must be an https URL")
-    approved_hosts = {item.strip().lower() for item in os.getenv("FOODBYK_WEBSITE_ALLOWED_HOSTS", "foodbyks.netlify.app").split(",") if item.strip()}
+    approved_hosts = {item.strip().lower() for item in os.getenv("FOODBYK_WEBSITE_ALLOWED_HOSTS", "foodbyk.co.za,foodbyks.netlify.app").split(",") if item.strip()}
     if host.lower() not in approved_hosts:
         raise ValueError("FOODBYK_WEBSITE_URL host is not in FOODBYK_WEBSITE_ALLOWED_HOSTS")
     session = requests.Session()

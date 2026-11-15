@@ -137,7 +137,7 @@ def _fuse_context(chunks: list[dict]) -> list[dict]:
     def rank(chunk: dict) -> tuple[float, float]:
         if chunk.get("doc_type") == "product":
             authority = 4.0
-        elif str(chunk.get("url", "")).startswith("https://foodbyks.netlify.app/"):
+        elif str(chunk.get("url", "")).startswith(("https://foodbyk.co.za/", "https://foodbyks.netlify.app/")):
             authority = 3.0
         elif chunk.get("doc_type") == "external":
             authority = 1.0
