@@ -22,15 +22,17 @@ logger = logging.getLogger("foodbyk-rag")
 app = FastAPI(title="Food by K Customer FAQ", docs_url=None, redoc_url=None)
 
 TRANSACTIONAL_PATTERN = re.compile(
-    r"\b(payment|payfast|refund|charge|charged|card|checkout|"
-    r"tracking|track|status|time slot|delivery fee|"
+    r"\b(my|the)\s+(payment|payfast|refund|charge|charged|card|checkout)\b|"
+    r"\b(payment|payfast|refund|charge|charged|card|checkout)\s+(status|issue|problem|confirmation|failed|went through)\b|"
+    r"\b(did|has|was)\s+(my\s+)?(payment|card|charge)\b|"
+    r"\b(can|could|may)\s+i\s+(get|have|request)\s+(a\s+)?refund\b|"
+    r"\b(tracking|track|status|time slot|delivery fee|"
     r"delivery area|delivery availability|delivery eligibility|delivery time|"
     r"account|my details)\b|"
     r"\b(my|the)\s+orders?\b|\borders?\s+(status|tracking|update|progress|history|number)\b|"
     r"\b(where is|track|cancel|change|check)\s+(my|the)\s+orders?\b|"
     r"\b(collection|collect)\s+(?:slot|availability|eligibility|time)\b|\bwhen (?:is|will) my collection\b|"
-    r"\b(do you deliver|deliver to (me|my|this)|is delivery available)\b|"
-    r"\b(how do|how can) i (place|submit|make) an? order\b",
+    r"\b(deliver to (me|my|this)|is delivery available)\b",
     re.IGNORECASE,
 )
 PRODUCT_PATTERN = re.compile(
@@ -39,15 +41,18 @@ PRODUCT_PATTERN = re.compile(
     r"ingredients?|allergens?|contains?|how much|recommend(?:ation|ed)?|suggest(?:ion|ed)?|"
     r"filling|hearty|satisfying|substantial|hungry|meal|something to eat|fill me up|big appetite|good to eat|cheap|cheapest|affordable|budget)\b|"
     r"\bwhat (?:would you|do you) recommend\b|"
+    r"\bwhat (?:do you|you|u|y'all|yall) (?:have|got)\b|\bwhat have you got\b|"
     r"\bwhat(?:'s| is) good\b|\bwhat should i (?:get|try|eat)\b|"
     r"\b(?:i am|i'm|im) (?:hungry|starving)\b|\blooking for something to eat\b",
     re.IGNORECASE,
 )
 POLICY_PATTERN = re.compile(
     r"\b(open|opening|hours?|close[sd]?|closing|trading|location|located|address|contact|"
-    r"phone|whatsapp|instagram|facebook|tiktok|about|business|restaurant|shop|reach)\b|"
+    r"phone|whatsapp|instagram|facebook|tiktok|about|business|restaurant|shop|reach|"
+    r"promotion|promotions|specials?|deals?|discounts?|loyalty|rewards?|points?|"
+    r"payment|pay|paid|paying|cash|payfast|delivery|deliver(?:y|ies)?|collection|collect|pickup|takeaway|ordering)\b|"
     r"\b(what time|which days|when do you open|when do you close|what times do they close)\b|"
-    r"where are you|where is the shop",
+    r"where are you|where is the shop|where (?:you|u|y'all|yall) (?:at|located)",
     re.IGNORECASE,
 )
 PERSONAL_DATA_PATTERN = re.compile(
@@ -58,6 +63,8 @@ PERSONAL_DATA_PATTERN = re.compile(
     re.IGNORECASE,
 )
 CAPABILITY_PATTERN = re.compile(
+    r"\bwhat\s+can\s+(?:you|u|this assistant|the assistant|this|the bot)\s+do\b|"
+    r"\bwhat\s+do\s+(?:you|this assistant|the assistant)\s+do\b|"
     r"\bwhat\s+(?:can|do)\s+(?:you|this assistant|the assistant)\s+(?:answer|help with|know)\b|"
     r"\bwhat questions?\s+(?:can|should)\s+(?:i|we)\s+ask\b|"
     r"\bwhat can\s+(?:i|we)\s+ask(?:\s+about)?\b|"
@@ -67,15 +74,18 @@ CAPABILITY_PATTERN = re.compile(
     re.IGNORECASE,
 )
 CAPABILITY_REPLY = (
-    "I can answer questions about the current menu, including item descriptions, "
-    "prices and availability, suggest a meal based on its description, and share "
-    "Food by K's published hours, location and contact details. I can't check or "
-    "change orders, payments, delivery or collection decisions, or customer accounts. "
-    "Try asking: ‘What can I get for a filling meal?’ or ‘What time do you close?’"
+    "I can answer questions about the current menu, item descriptions, prices "
+    "and availability; suggest meals; explain published promotions, loyalty "
+    "rewards, payment steps, and general collection and delivery rules; and share "
+    "Food by K's published hours, location and contact details. I can't access or "
+    "change your account or order, verify a payment, or decide whether a specific "
+    "address or time slot is eligible. Try asking about a filling meal, how points "
+    "work, or when Food by K is open."
 )
 TRANSACTIONAL_REPLY = (
-    "I can help with Food by K's menu and approved general FAQs. "
-    "For orders, payments, delivery, collection, or account questions, please contact the Food by K team."
+    "I can explain Food by K's general menu and service information, but I can't "
+    "access or change a specific order/account, verify a payment, or decide "
+    "delivery or collection eligibility. Please contact the Food by K team for help with that."
 )
 PRIVACY_REPLY = (
     "For your privacy, please don't share personal, order, or payment details here. "

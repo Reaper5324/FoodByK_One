@@ -107,6 +107,13 @@ balance; this FAQ cannot look it up.
 
 ## Checkout, payment, collection, and delivery
 
+How do I place an order? Add available menu items to your cart, choose
+collection or delivery, select an available time, and review any promotion,
+loyalty redemption, fees, and total shown at checkout. PayFast then securely
+sets up the card used for the order. Staff review the request and may accept,
+adjust, or decline it. A submitted request is not accepted until staff confirm
+it.
+
 Does placing an order mean it is accepted? No. The public Terms page describes
 submission as a request for staff review. Staff may accept it, suggest an
 adjustment, or decline it. Review any revised amount or time shown by the app.

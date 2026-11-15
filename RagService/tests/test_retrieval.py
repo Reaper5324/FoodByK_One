@@ -3,7 +3,7 @@ import unittest
 from chuncker import chunk_text
 from product_catalog import select_products
 from retriever import expand_query, reciprocal_rank_fusion
-from main import PERSONAL_DATA_PATTERN, PRODUCT_PATTERN, TRANSACTIONAL_PATTERN
+from main import CAPABILITY_PATTERN, PERSONAL_DATA_PATTERN, PRODUCT_PATTERN, TRANSACTIONAL_PATTERN
 from prompt_builder import SYSTEM_INSTRUCTIONS
 from website_ingest import _allowed
 
@@ -16,6 +16,14 @@ class RetrievalEvaluation(unittest.TestCase):
     def test_food_need_expands_to_menu_concepts(self):
         terms = expand_query("I am hungry and need something filling")
         self.assertTrue({"hungry", "menu", "food", "filling", "hearty"}.issubset(set(terms)))
+
+    def test_casual_phrasing_expands_to_business_faq_terms(self):
+        deals = set(expand_query("wat specials y'all got?"))
+        rewards = set(expand_query("how do my points work"))
+        location = set(expand_query("where yall at?"))
+        self.assertTrue({"specials", "promotion", "discount", "offer"}.issubset(deals))
+        self.assertTrue({"points", "loyalty", "rewards", "earn", "redeem"}.issubset(rewards))
+        self.assertTrue({"location", "address", "branch"}.issubset(location))
 
     def test_fusion_promotes_items_retrieved_by_both_methods(self):
         scores = reciprocal_rank_fusion(["dense-only", "both"], {"both": 1, "sparse-only": 2})
@@ -47,6 +55,21 @@ class RetrievalEvaluation(unittest.TestCase):
         for question in ("Where is my order?", "Can I get a refund?", "Did my payment go through?"):
             with self.subTest(question=question):
                 self.assertRegex(question, TRANSACTIONAL_PATTERN)
+
+    def test_capability_question_uses_direct_answer(self):
+        for question in ("What can you do?", "What can this assistant do?", "What questions can I ask?"):
+            with self.subTest(question=question):
+                self.assertRegex(question, CAPABILITY_PATTERN)
+
+    def test_general_payment_and_fulfilment_questions_are_not_transaction_handoffs(self):
+        for question in (
+            "How does payment work?",
+            "How do collection and delivery work?",
+            "Do you deliver?",
+            "How do I place an order?",
+        ):
+            with self.subTest(question=question):
+                self.assertIsNone(TRANSACTIONAL_PATTERN.search(question))
 
     def test_menu_recommendation_using_order_word_is_not_transactional(self):
         question = "Recommend a meal I can order for a big appetite"

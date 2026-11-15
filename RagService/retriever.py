@@ -16,18 +16,57 @@ CHROMA_PATH = Path(os.getenv("RAG_DATA_DIR") or str(BASE_DIR / "chroma_db")).res
 ACTIVE_COLLECTION_FILE = CHROMA_PATH / "active_policy_collection.txt"
 client = chromadb.PersistentClient(path=str(CHROMA_PATH))
 _ALIASES = {
-    "close": {"closing", "hours", "trading", "open"},
-    "visit": {"location", "address", "find", "where"},
+    "open": {"opening", "hours", "trading", "close", "closing"},
+    "close": {"closing", "hours", "trading", "open", "opening"},
+    "when": {"hours", "opening", "closing", "trading", "open"},
+    "where": {"location", "address", "branch", "find", "located"},
+    "location": {"where", "address", "branch", "find", "located"},
+    "visit": {"location", "address", "find", "where", "directions"},
+    "branch": {"location", "address", "find", "where"},
+    "located": {"location", "address", "find", "where"},
     "hungry": {"menu", "food", "meal", "filling", "recommend"},
     "filling": {"hearty", "substantial", "satisfying"},
-    "contact": {"phone", "whatsapp", "reach"},
+    "lekker": {"tasty", "good", "food", "menu"},
+    "tasty": {"lekker", "good", "food", "menu"},
+    "deal": {"deals", "special", "specials", "promotion", "promotions", "discount", "offer"},
+    "deals": {"deal", "special", "specials", "promotion", "promotions", "discount", "offer"},
+    "special": {"deal", "deals", "specials", "promotion", "promotions", "discount", "offer"},
+    "specials": {"deal", "deals", "special", "promotion", "promotions", "discount", "offer"},
+    "got": {"menu", "food", "items", "products", "offers", "specials"},
+    "promo": {"promotion", "promotions", "deal", "special", "discount", "offer"},
+    "points": {"loyalty", "rewards", "earn", "redeem"},
+    "reward": {"loyalty", "points", "earn", "redeem"},
+    "loyalty": {"points", "rewards", "earn", "redeem"},
+    "pay": {"payment", "payfast", "card", "charge"},
+    "paying": {"payment", "payfast", "card", "charge"},
+    "payment": {"pay", "payfast", "card", "charged"},
+    "deliver": {"delivery", "deliveries", "dropoff", "address"},
+    "delivery": {"deliver", "deliveries", "dropoff", "address"},
+    "pickup": {"collection", "collect", "pick"},
+    "collect": {"collection", "pickup", "pick"},
+    "takeaway": {"collection", "pickup", "collect"},
+    "contact": {"phone", "whatsapp", "reach", "call", "message"},
+    "call": {"contact", "phone", "whatsapp", "reach"},
 }
-_STOP = {"a", "an", "and", "are", "do", "for", "i", "in", "is", "it", "me", "of", "on", "the", "to", "what", "when", "you", "your"}
+_STOP = {"a", "an", "and", "are", "at", "by", "do", "for", "get", "got", "guys", "how", "i", "in", "is", "it", "me", "my", "of", "on", "the", "there", "to", "u", "we", "what", "when", "where", "work", "you", "your"}
 _TOKEN = re.compile(r"[a-z0-9]+")
 
 
 def expand_query(question: str) -> list[str]:
-    terms = set(_TOKEN.findall(question.lower()))
+    normalized = question.lower()
+    for pattern, replacement in (
+        (r"\by'all\b|\byall\b|\bu\b", "you"),
+        (r"\bur\b", "your"),
+        (r"\bwat\b", "what"),
+        (r"\bwen\b", "when"),
+        (r"\bwher\b", "where"),
+        (r"\bwhats\b", "what is"),
+        (r"\bwheres\b", "where is"),
+        (r"\bwhens\b", "when is"),
+        (r"\bwanna\b", "want to"),
+    ):
+        normalized = re.sub(pattern, replacement, normalized)
+    terms = set(_TOKEN.findall(normalized))
     expanded = set(terms)
     for term in terms:
         expanded.update(_ALIASES.get(term, set()))
@@ -87,29 +126,34 @@ def _retrieve_cached(collection_name: str, normalized_question: str, limit: int)
     if count == 0:
         return ()
     candidate_count = min(count, max(12, limit * 4))
+    expanded_query = " ".join([normalized_question, *expand_query(normalized_question)])
     dense = collection.query(
-        query_embeddings=[embed_text(normalized_question)],
+        query_embeddings=[embed_text(normalized_question), embed_text(expanded_query)],
         n_results=candidate_count,
         where={"doc_type": "policy"},
         include=["documents", "metadatas", "distances"],
     )
     all_ids, all_documents, all_metadatas = _sparse_corpus(collection_name)
     sparse = _sparse_rank(expand_query(normalized_question), list(all_ids), list(all_documents))
-    raw_dense_ids = (dense.get("ids") or [[]])[0]
-    raw_dense_docs = (dense.get("documents") or [[]])[0]
-    raw_dense_meta = (dense.get("metadatas") or [[]])[0]
-    raw_dense_distances = (dense.get("distances") or [[]])[0]
+    query_ids = dense.get("ids") or [[]]
+    query_docs = dense.get("documents") or [[]]
+    query_meta = dense.get("metadatas") or [[]]
+    query_distances = dense.get("distances") or [[]]
     max_distance = float(os.getenv("RAG_MAX_VECTOR_DISTANCE", "1.6"))
-    dense_rows = {
-        identity: (document, metadata or {}, distance)
-        for identity, document, metadata, distance in zip(raw_dense_ids, raw_dense_docs, raw_dense_meta, raw_dense_distances)
-        if distance is None or float(distance) <= max_distance
-    }
-    dense_ids = list(dense_rows)
+    dense_rows = {}
+    dense_ids = []
+    for ids, docs, metadatas, distances in zip(query_ids, query_docs, query_meta, query_distances):
+        for rank, (identity, document, metadata, distance) in enumerate(zip(ids, docs, metadatas, distances), start=1):
+            if distance is not None and float(distance) > max_distance:
+                continue
+            dense_ids.append(identity)
+            previous = dense_rows.get(identity)
+            if previous is None or rank < previous[2]:
+                dense_rows[identity] = (document, metadata or {}, rank, distance)
     fused = reciprocal_rank_fusion(dense_ids, sparse)
     dense_docs = {identity: row[0] for identity, row in dense_rows.items()}
     dense_meta = {identity: row[1] for identity, row in dense_rows.items()}
-    dense_distance = {identity: row[2] for identity, row in dense_rows.items()}
+    dense_distance = {identity: row[3] for identity, row in dense_rows.items()}
     all_docs = dict(zip(all_ids, all_documents))
     all_meta = dict(zip(all_ids, all_metadatas))
     ordered = sorted(fused, key=lambda identity: (-fused[identity], identity))[:limit]

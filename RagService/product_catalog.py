@@ -210,7 +210,8 @@ def select_products(question: str, products: list[dict[str, Any]]) -> list[dict[
 
     broad_menu_question = bool(re.search(
         r"\b(menu|menus|offer|offers|sell|serve|available|food|prices?|items?|recommend|suggest|hungry|filling|hearty|meal|eat|good)\b|"
-        r"what do you have|what do you serve|what should i (?:get|try|eat)|what's good|what is good|"
+        r"what (?:do you have|do you serve|you have|you got|u got|y'all got|yall got)|what have you got|"
+        r"what should i (?:get|try|eat)|what's good|what is good|"
         r"(?:looking|in the mood) for (?:something|food)",
         question,
         re.IGNORECASE,
