@@ -46,6 +46,14 @@ PRODUCT_PATTERN = re.compile(
     r"\b(?:i am|i'm|im) (?:hungry|starving)\b|\blooking for something to eat\b",
     re.IGNORECASE,
 )
+MENU_LIST_PATTERN = re.compile(
+    r"\bwhat(?:'s|s| is)\s+(?:on|in)\s+(?:(?:the|your)\s+)?menu\b|"
+    r"\bwhat\s+(?:do you have|have you got|do you serve)\s+(?:on\s+)?(?:the\s+)?menu\b|"
+    r"\b(?:show|list|browse)\s+(?:me\s+)?(?:the\s+)?(?:full\s+)?menu\b|"
+    r"\b(?:full|current)\s+menu\b|"
+    r"\bwhat\s+(?:menu\s+)?(?:items|food|meals)\s+(?:do you have|do you sell|do you serve|are available)\b",
+    re.IGNORECASE,
+)
 POLICY_PATTERN = re.compile(
     r"\b(open|opening|hours?|close[sd]?|closing|trading|location|located|address|contact|"
     r"phone|whatsapp|instagram|facebook|tiktok|about|business|restaurant|shop|reach|"
@@ -95,6 +103,40 @@ PRIVACY_REPLY = (
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=500)
+
+
+def _format_live_menu(products: list[dict]) -> str:
+    available = [product for product in products if product.get("available", True)]
+    if not available:
+        return "There are no menu items listed as available right now. Please check the menu page again shortly."
+
+    grouped: dict[str, list[dict]] = {}
+    for product in available:
+        category = str(product.get("category") or "Other")
+        grouped.setdefault(category, []).append(product)
+
+    lines = ["Here is the current menu and prices:"]
+    shown = 0
+    total = len(available)
+    for category, items in grouped.items():
+        heading = f"\n{category}:"
+        if len("\n".join(lines)) + len(heading) > 2700:
+            break
+        lines.append(heading)
+        for product in items:
+            row = f"- {product.get('name', 'Menu item')} — {product.get('price', 'Price unavailable')}"
+            if len("\n".join(lines)) + len(row) + 1 > 2700:
+                break
+            lines.append(row)
+            shown += 1
+        if shown < total and len("\n".join(lines)) > 2600:
+            break
+
+    if shown < total:
+        lines.append(f"\nShowing {shown} of {total} available items. Browse the menu page for the full list and descriptions.")
+    else:
+        lines.append("\nBrowse the menu page for item descriptions and images.")
+    return "\n".join(lines)
 
 
 @app.get("/health")
@@ -189,6 +231,19 @@ def ask(
         logger.info("ask_ms=%.1f route=handoff", (time.perf_counter() - request_started) * 1000)
         return {"answer": TRANSACTIONAL_REPLY, "sources": []}
 
+    if MENU_LIST_PATTERN.search(question):
+        try:
+            answer = _format_live_menu(fetch_products())
+        except (requests.RequestException, RuntimeError, ValueError) as exc:
+            logger.warning("Live menu unavailable (%s)", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Menu information is temporarily unavailable") from None
+        elapsed_ms = (time.perf_counter() - request_started) * 1000
+        logger.info("ask_ms=%.1f route=live_menu", elapsed_ms)
+        return {
+            "answer": answer,
+            "sources": [{"source": "Live Food by K menu", "url": "https://foodbyk.co.za/pages/customer/menu.html"}],
+        }
+
     is_policy_question = bool(POLICY_PATTERN.search(question))
     is_product_question = bool(PRODUCT_PATTERN.search(question)) or (
         not is_policy_question and bool(re.search(r"\bwhat is|what are|do you have|what do you have\b", question, re.IGNORECASE))
@@ -200,7 +255,9 @@ def ask(
         except Exception as exc:
             logger.warning("Semantic intent classification unavailable (%s)", type(exc).__name__)
         logger.info("intent_classification_ms=%.1f product=%s", (time.perf_counter() - intent_started) * 1000, is_product_question)
-    chunks = retrieve(question)
+    # Menu-only requests use live catalogue facts and do not need FAQ vector
+    # retrieval. Mixed product/policy questions retain both evidence sources.
+    chunks = retrieve(question) if not is_product_question or is_policy_question else []
 
     if is_product_question:
         try:

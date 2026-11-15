@@ -3,7 +3,7 @@ import unittest
 from chuncker import chunk_text
 from product_catalog import select_products
 from retriever import expand_query, reciprocal_rank_fusion
-from main import CAPABILITY_PATTERN, PERSONAL_DATA_PATTERN, PRODUCT_PATTERN, TRANSACTIONAL_PATTERN
+from main import CAPABILITY_PATTERN, MENU_LIST_PATTERN, PERSONAL_DATA_PATTERN, PRODUCT_PATTERN, TRANSACTIONAL_PATTERN, _format_live_menu
 from prompt_builder import SYSTEM_INSTRUCTIONS
 from website_ingest import _allowed
 
@@ -75,6 +75,28 @@ class RetrievalEvaluation(unittest.TestCase):
         question = "Recommend a meal I can order for a big appetite"
         self.assertIsNone(TRANSACTIONAL_PATTERN.search(question))
         self.assertIsNotNone(PRODUCT_PATTERN.search(question))
+
+    def test_full_menu_questions_use_the_direct_catalogue_route(self):
+        for question in (
+            "What's on the menu?",
+            "Whats on menu?",
+            "What is on your menu?",
+            "What do you have on the menu?",
+            "Show me the full menu",
+            "List menu items",
+            "What meals do you serve?",
+        ):
+            with self.subTest(question=question):
+                self.assertRegex(question, MENU_LIST_PATTERN)
+
+    def test_live_menu_answer_lists_available_items_and_prices(self):
+        answer = _format_live_menu([
+            {"name": "Chicken Kota", "category": "Kotas", "price": "R85.00", "available": True},
+            {"name": "Unavailable Meal", "category": "Meals", "price": "R100.00", "available": False},
+        ])
+        self.assertIn("Chicken Kota", answer)
+        self.assertIn("R85.00", answer)
+        self.assertNotIn("Unavailable Meal", answer)
 
     def test_personal_data_and_retrieved_instructions_remain_untrusted(self):
         self.assertIsNotNone(PERSONAL_DATA_PATTERN.search("Email me at customer@example.com"))
