@@ -8,7 +8,7 @@ import chromadb
 import fitz
 
 from chuncker import chunk_text
-from embedding import EMBEDDING_MODEL, embed_text
+from embedding import EMBEDDING_MODEL, embed_texts
 from website_ingest import crawl_public_site
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -94,12 +94,16 @@ def main():
             if not batch:
                 continue
             texts = [item[0] for item in batch]
+            end = start + len(batch)
+            print(f"Embedding FAQ chunks {start + 1}-{end} of {len(prepared)}...", flush=True)
+            embeddings = embed_texts(texts, batch_size=8)
             collection.add(
                 ids=[hashlib.sha256((item[1]["doc_id"] + str(start + index) + item[1]["content_hash"]).encode("utf-8")).hexdigest() for index, item in enumerate(batch)],
-                embeddings=[embed_text(text) for text in texts],
+                embeddings=embeddings,
                 documents=texts,
                 metadatas=[item[1] for item in batch],
             )
+            print(f"Stored FAQ chunks {end} of {len(prepared)}.", flush=True)
 
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=CHROMA_PATH, delete=False) as pointer:
             pointer.write(collection_name)

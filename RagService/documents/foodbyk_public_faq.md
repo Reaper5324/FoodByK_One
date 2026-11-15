@@ -50,14 +50,11 @@ and available and uses current catalogue prices for the checkout preview; it
 saves an order price snapshot at submission. Do not quote stale third-party
 prices.
 
-Is there a maximum number of items in a cart? No public maximum was found. The
-current cart service has no overall cart-line or total-quantity cap. Adding the
-same product again increases that product's quantity on its existing cart line.
-The customer cart code accepts positive quantities, and zero or a negative
-quantity removes a line when updating it. A separate staff order-adjustment
-screen limits a product line to 99; that is not evidence of a 99-item customer
-cart limit. Never invent a maximum spend or basket size. Checkout may still fail
-if an item becomes unavailable or another order constraint applies.
+Is there a maximum number of items in a cart? A single menu item can have a
+quantity of up to 99 per cart line. Adding the same product again increases its
+existing line, up to that limit. No separate maximum for the number of distinct
+products or overall basket total is specified. Checkout may still fail if an
+item becomes unavailable or another order constraint applies.
 
 Can I ask about ingredients, allergens, or dietary requirements? The live menu
 may not list every ingredient or cross-contamination detail. Do not claim an
