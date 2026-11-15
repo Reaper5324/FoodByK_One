@@ -213,6 +213,16 @@ jobs:
       - name: Run load test and generate KPI reports
         run: php backend/tests/load_test.php
 
+      - name: Add load-test results to job summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f backend/tests/load-test-results.md ]]; then
+            cat backend/tests/load-test-results.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Load-test report was not generated. Check the preceding step output for setup or runtime errors." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload load-test KPI reports
         if: always()
         uses: actions/upload-artifact@v4

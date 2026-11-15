@@ -235,11 +235,11 @@ test('admin optional extras editor adds and removes paired name/price rows', asy
   await expect(rows).toHaveCount(1);
   await rows.first().locator('.item-option-name').fill('Extra cheese');
   await rows.first().locator('.item-option-price').fill('8.00');
-  await page.getByRole('button', { name: /add extra/i }).click();
+  await page.locator('#addItemOptionBtn').click();
   await expect(rows).toHaveCount(2);
   await rows.nth(1).locator('.item-option-name').fill('Free sauce');
   await rows.nth(1).locator('.item-option-price').fill('0.00');
-  await page.getByRole('button', { name: /add extra/i }).click();
+  await page.locator('#addItemOptionBtn').click();
   await expect(rows).toHaveCount(3);
   await rows.nth(2).locator('.item-option-name').fill('Removed extra');
   await rows.nth(2).locator('button[data-remove-item-option]').click();
@@ -247,7 +247,7 @@ test('admin optional extras editor adds and removes paired name/price rows', asy
   await rows.nth(1).locator('button[data-remove-item-option]').click();
   await expect(rows).toHaveCount(1);
   await expect(rows.first().locator('.item-option-name')).toHaveValue('Extra cheese');
-  await page.getByRole('button', { name: /add extra/i }).click();
+  await page.locator('#addItemOptionBtn').click();
   await expect(rows).toHaveCount(2);
   await rows.nth(1).locator('.item-option-name').fill('Free sauce');
   await rows.nth(1).locator('.item-option-price').fill('0.00');
