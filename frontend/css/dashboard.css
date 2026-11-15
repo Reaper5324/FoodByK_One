@@ -690,6 +690,20 @@ td {
     color: var(--black);
 }
 
+.orders-live-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; padding: 10px 14px; border: 1px solid #e8e5e0; border-radius: 8px; background: #fff; color: var(--grey); font-size: .8rem; }
+.orders-live-copy { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.orders-live-indicator { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #2f9e61; box-shadow: 0 0 0 3px rgb(47 158 97 / 13%); }
+.orders-live-toolbar.is-refreshing .orders-live-indicator { background: var(--orange); box-shadow: 0 0 0 3px rgb(232 144 31 / 14%); animation: orders-live-pulse 1s ease-in-out infinite alternate; }
+.orders-live-toolbar.is-error .orders-live-indicator { background: #cf342a; box-shadow: 0 0 0 3px rgb(207 52 42 / 13%); }
+.orders-refresh-button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 7px 11px; border: 1px solid #ddd8d0; border-radius: 7px; background: #fff; color: var(--black); font: inherit; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.orders-refresh-button:hover { border-color: var(--orange); color: #9b4f00; }
+.orders-filter-count { display: inline-grid; min-width: 19px; height: 19px; place-items: center; margin-left: 4px; padding: 0 5px; border-radius: 20px; background: rgb(232 144 31 / 16%); color: inherit; font-size: .72rem; font-weight: 800; }
+.order-status-label { display: inline-block; text-transform: capitalize; }
+.order-status-label.is-awaiting { color: #965100; font-weight: 800; }
+.order-waiting-time { display: block; margin-top: 3px; color: var(--grey); font-size: .7rem; white-space: nowrap; }
+@keyframes orders-live-pulse { to { opacity: .45; } }
+@media (max-width: 520px) { .orders-live-toolbar { align-items: flex-start; } .orders-live-copy { align-items: flex-start; } .orders-refresh-button { padding-inline: 9px; } }
+
 .order-view-tab:focus-visible,
 .pagination-btn:focus-visible {
     outline: 2px solid var(--orange);
@@ -1396,6 +1410,9 @@ td {
     justify-content: space-between;
     gap: 20px;
 }
+
+.menu-availability-filter { display: inline-flex; align-items: center; gap: 8px; color: var(--grey); font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.menu-availability-filter select { min-height: 38px; padding: 7px 30px 7px 10px; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: var(--black); font: inherit; }
 
 .menu-filter-buttons {
     display: flex;

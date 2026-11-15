@@ -194,6 +194,25 @@ class AnalyticsService {
         );
         $topProducts->execute([$from, $until]);
 
+        $topPromotions = $db->prepare(
+            "SELECT pr.code, pr.discount_type, COUNT(DISTINCT o.id) AS uses,
+                    COALESCE(SUM(o.locked_discount), 0) AS discounts_given,
+                    COALESCE(SUM(payments.amount), 0) AS sales
+             FROM orders o
+             JOIN promotions pr ON pr.id = o.promotion_id
+             JOIN (
+                 SELECT order_id, SUM(amount) AS amount
+                 FROM payments
+                 WHERE status = 'success' AND charged_at >= ? AND charged_at < ?
+                 GROUP BY order_id
+             ) payments ON payments.order_id = o.id
+             WHERE o.created_at >= ? AND o.created_at < ?
+             GROUP BY pr.id, pr.code, pr.discount_type
+             ORDER BY COUNT(DISTINCT o.id) DESC, discounts_given DESC
+             LIMIT 5"
+        );
+        $topPromotions->execute([$from, $until, $from, $until]);
+
         return $this->success([
             'period' => $period,
             'from' => $start->format('Y-m-d'),
@@ -214,6 +233,7 @@ class AnalyticsService {
                 'returning_customers' => max(0, $uniqueCustomers - $newCustomers),
             ],
             'top_products' => $topProducts->fetchAll(),
+            'top_promotions' => $topPromotions->fetchAll(),
         ]);
     }
 

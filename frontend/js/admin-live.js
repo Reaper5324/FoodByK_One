@@ -508,6 +508,23 @@ const initializeAdminLive = async () => {
                 const empty = document.createElement("p"); empty.className = "sf-empty"; empty.textContent = "No paid orders in this period."; productList.appendChild(empty);
             }
         }
+        const promotionList = document.getElementById("topPromotionsList");
+        if (promotionList) {
+            promotionList.replaceChildren();
+            (data.top_promotions || []).forEach((promotion, index) => {
+                const item = document.createElement("p");
+                const uses = Number(promotion.uses || 0);
+                const saved = Number(promotion.discounts_given || 0);
+                item.textContent = `${index + 1}. ${promotion.code} - ${uses} paid uses · R${saved.toFixed(2)} discounts · R${Number(promotion.sales || 0).toFixed(2)} sales`;
+                promotionList.appendChild(item);
+            });
+            if (!(data.top_promotions || []).length) {
+                const empty = document.createElement("p");
+                empty.className = "sf-empty";
+                empty.textContent = "No paid promotion uses in this period.";
+                promotionList.appendChild(empty);
+            }
+        }
         if (typeof window.renderAdditionalReports === "function") window.renderAdditionalReports(data);
     };
 
@@ -535,6 +552,20 @@ const initializeAdminLive = async () => {
         const active = document.getElementById("activeCategories");
         if (active) active.textContent = String(result.data.length);
         window.adminCategories = result.data;
+    };
+
+    const applyMenuFilters = () => {
+        const query = (document.getElementById("menuSearch")?.value || "").trim().toLowerCase();
+        const category = document.querySelector(".menu-filter-btn.active")?.dataset.category || "all";
+        const availability = document.getElementById("menuAvailabilityFilter")?.value || "all";
+        document.querySelectorAll("#menuGrid .menu-card").forEach((card) => {
+            const matchesText = card.textContent.toLowerCase().includes(query);
+            const matchesCategory = category === "all" || card.dataset.category === category;
+            const unavailable = Boolean(card.querySelector(".availability.unavailable"));
+            const matchesAvailability = availability === "all"
+                || (availability === "unavailable") === unavailable;
+            card.hidden = !(matchesText && matchesCategory && matchesAvailability);
+        });
     };
 
     const loadProducts = async () => {
@@ -618,6 +649,7 @@ const initializeAdminLive = async () => {
         const counter = document.getElementById("totalMenuItems");
         if (counter) counter.textContent = String(productResult.data.length);
         window.adminProducts = productResult.data;
+        applyMenuFilters();
     };
 
     const loadPromotions = async () => {
@@ -774,7 +806,37 @@ const initializeAdminLive = async () => {
     let ordersView = "all";
     let orderOffset = 0;
     let orderLoadVersion = 0;
+    let ordersLastSuccessfulRefresh = null;
+    let ordersPendingCount = null;
     const orderPageSize = 50;
+    const updateOrdersLiveStatus = (state = "current") => {
+        const toolbar = document.querySelector(".orders-live-toolbar");
+        const status = document.getElementById("ordersLiveStatus");
+        const count = document.getElementById("awaitingOrdersFilterCount");
+        if (!toolbar || !status) return;
+        toolbar.classList.toggle("is-refreshing", state === "refreshing");
+        toolbar.classList.toggle("is-error", state === "error");
+        toolbar.setAttribute("aria-busy", String(state === "refreshing"));
+        if (ordersPendingCount !== null && count) count.textContent = String(ordersPendingCount);
+        if (state === "refreshing") {
+            status.textContent = "Refreshing orders…";
+            return;
+        }
+        if (state === "error") {
+            status.textContent = ordersLastSuccessfulRefresh
+                ? `Could not refresh. Last updated ${ordersLastSuccessfulRefresh}.`
+                : "Could not load orders. Try refreshing.";
+            return;
+        }
+        if (!ordersLastSuccessfulRefresh) {
+            status.textContent = "Live order updates are on.";
+            return;
+        }
+        const pendingText = ordersPendingCount === null
+            ? ""
+            : `${ordersPendingCount} order${ordersPendingCount === 1 ? "" : "s"} need review · `;
+        status.textContent = `${pendingText}updated ${ordersLastSuccessfulRefresh}`;
+    };
     const displayOrderDate = (value) => {
         const datePart = String(value || "").slice(0, 10);
         const parts = datePart.split("-").map(Number);
@@ -783,6 +845,19 @@ const initializeAdminLive = async () => {
         return Number.isNaN(date.getTime()) ? "â€”" : date.toLocaleDateString([], {
             day: "numeric", month: "short", year: "numeric", timeZone: "UTC"
         });
+    };
+    const orderWaitingTime = (createdAt) => {
+        const raw = String(createdAt || "").trim();
+        if (!raw) return "";
+        const normalized = raw.includes("T") ? raw : raw.replace(" ", "T");
+        const timestamp = new Date(/[zZ]|[+-]\d\d:\d\d$/.test(normalized) ? normalized : `${normalized}Z`).getTime();
+        if (!Number.isFinite(timestamp)) return "";
+        const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+        if (minutes < 1) return "Just arrived";
+        if (minutes < 60) return `Waiting ${minutes}m`;
+        const hours = Math.floor(minutes / 60);
+        const remainder = minutes % 60;
+        return `Waiting ${hours}h${remainder ? ` ${remainder}m` : ""}`;
     };
 
     let staffOrderPoller = null;
@@ -848,6 +923,7 @@ const initializeAdminLive = async () => {
 
     const loadOrders = async () => {
         const requestVersion = ++orderLoadVersion;
+        updateOrdersLiveStatus("refreshing");
         const orderQuery = new URLSearchParams({
             view: ordersView,
             limit: String(orderPageSize),
@@ -860,6 +936,7 @@ const initializeAdminLive = async () => {
         if (requestVersion !== orderLoadVersion) return;
         if (analytics.success) {
             const summary = analytics.data || {};
+            ordersPendingCount = Number(summary.pending_orders ?? 0);
             const setMetric = (id, value) => {
                 const element = document.getElementById(id);
                 if (element) element.textContent = String(value);
@@ -872,7 +949,16 @@ const initializeAdminLive = async () => {
         } else {
             showResult(analytics);
         }
-        if (!showResult(result)) return;
+        if (!showResult(result)) {
+            if (requestVersion === orderLoadVersion) updateOrdersLiveStatus("error");
+            return;
+        }
+        if (requestVersion === orderLoadVersion) {
+            ordersLastSuccessfulRefresh = new Intl.DateTimeFormat("en-ZA", {
+                hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg"
+            }).format(new Date());
+            updateOrdersLiveStatus("current");
+        }
         const body = document.querySelector("#ordersTable tbody");
         if (!body) return;
         body.replaceChildren();
@@ -909,10 +995,30 @@ const initializeAdminLive = async () => {
                 - Number(order.locked_discount || 0) - Number(order.loyalty_points_redeemed || 0)
                 + Number(order.loyalty_points_refunded || 0));
             makeCell(row, "R" + Number(total).toFixed(2));
-            makeCell(row, String(order.status || "unknown").replaceAll("_", " "));
+            const statusCell = document.createElement("td");
+            const statusLabel = document.createElement("span");
+            statusLabel.className = `order-status-label${order.status === "submitted" ? " is-awaiting" : ""}`;
+            statusLabel.textContent = String(order.status || "unknown").replaceAll("_", " ");
+            statusCell.appendChild(statusLabel);
+            if (order.status === "submitted") {
+                const waiting = orderWaitingTime(order.created_at);
+                if (waiting) {
+                    const waitingLabel = document.createElement("small");
+                    waitingLabel.className = "order-waiting-time";
+                    waitingLabel.textContent = waiting;
+                    statusCell.appendChild(waitingLabel);
+                }
+            }
+            row.appendChild(statusCell);
             const actions = document.createElement("td");
             addAction(actions, order.status === "submitted" ? "Review" : "View / Manage", "order-review", order.id);
             row.appendChild(actions); body.appendChild(row);
+        });
+        const activeStatusFilter = document.querySelector(".filter-btn.active")?.dataset.filter || "all";
+        const searchText = (document.getElementById("orderSearch")?.value || "").trim().toLowerCase();
+        body.querySelectorAll("tr[data-id]").forEach((row) => {
+            row.hidden = (activeStatusFilter !== "all" && row.dataset.status !== activeStatusFilter)
+                || !row.textContent.toLowerCase().includes(searchText);
         });
         window.adminOrders = records;
         const requestedOrder = new URLSearchParams(window.location.search).get("order");
@@ -1667,7 +1773,12 @@ const initializeAdminLive = async () => {
             await installStaffPush();
             await checkUnacknowledgedStaffOrders();
             staffOrderPoller = window.setInterval(() => {
-                if (document.visibilityState === "visible") checkUnacknowledgedStaffOrders();
+                if (document.visibilityState !== "visible") return;
+                checkUnacknowledgedStaffOrders();
+                const focusedOrderControl = document.activeElement?.closest(
+                    "#ordersTable, #orderSearch, .filter-buttons, .order-view-tabs, #ordersPreviousPage, #ordersNextPage, #orderModal"
+                );
+                if (page === "orders.html" && !focusedOrderControl) loadOrders();
             }, 30000);
         }
         if (initialDataLoadError) {
@@ -1738,6 +1849,12 @@ const initializeAdminLive = async () => {
         });
     };
     document.getElementById("orderSearch")?.addEventListener("input", () => filterRows("#ordersTable tbody", "#orderSearch", null, null));
+    document.getElementById("refreshOrdersBtn")?.addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try { await loadOrders(); }
+        finally { button.disabled = false; }
+    });
     document.querySelectorAll("[data-orders-view]").forEach((tab) => {
         tab.addEventListener("click", () => {
             ordersView = tab.dataset.ordersView === "all" ? "all" : "today";
@@ -1778,11 +1895,7 @@ const initializeAdminLive = async () => {
         document.querySelectorAll(selector).forEach((button) => button.classList.remove("active"));
         filter.classList.add("active");
         if (isMenu) {
-            const query = (document.getElementById("menuSearch")?.value || "").toLowerCase();
-            const category = filter.dataset.category || "all";
-            document.querySelectorAll("#menuGrid .menu-card").forEach((card) => {
-                card.hidden = !card.textContent.toLowerCase().includes(query) || (category !== "all" && card.dataset.category !== category);
-            });
+            applyMenuFilters();
         } else {
             document.querySelectorAll("#ordersTable tbody tr").forEach((row) => {
                 row.hidden = filter.dataset.filter !== "all" && row.dataset.status !== filter.dataset.filter;
@@ -1790,12 +1903,9 @@ const initializeAdminLive = async () => {
         }
     }, true);
     document.getElementById("menuSearch")?.addEventListener("input", () => {
-        const category = document.querySelector(".menu-filter-btn.active")?.dataset.category || "all";
-        const query = document.getElementById("menuSearch").value.toLowerCase();
-        document.querySelectorAll("#menuGrid .menu-card").forEach((card) => {
-            card.hidden = !card.textContent.toLowerCase().includes(query) || (category !== "all" && card.dataset.category !== category);
-        });
+        applyMenuFilters();
     });
+    document.getElementById("menuAvailabilityFilter")?.addEventListener("change", applyMenuFilters);
 };
 
 if (document.readyState === "loading") {

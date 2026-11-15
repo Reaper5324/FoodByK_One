@@ -26,7 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html>
-<head><title>Payment</title></head>
+<head><title>Payment</title><link rel="icon" type="image/png" href="/images/logo-mark.png">
+</head>
 <body>
 <?php if ($paymentSetup): ?>
   <p>Redirecting to PayFast to securely save your card details...</p>
