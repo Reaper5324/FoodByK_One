@@ -38,10 +38,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const productPromotions = (product, promotions) => promotions
-        .filter((promotion) => promotionTargetsProduct(promotion, product.id))
+        .filter((promotion) => {
+            const ids = Array.isArray(promotion.target_product_ids) ? promotion.target_product_ids : [];
+            const names = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
+            if (ids.length === 0) return true;
+            return promotionTargetsProduct(promotion, product.id)
+                || names.some((name) => String(name).trim().toLocaleLowerCase() === String(product.name || "").trim().toLocaleLowerCase());
+        })
         .filter((promotion) => ["percentage", "fixed_amount", "buy_one_get_one", "free_delivery"].includes(promotion.discount_type))
-        .filter((promotion) => promotion.discount_type !== "free_delivery"
-            || (Array.isArray(promotion.target_product_ids) && promotion.target_product_ids.length > 0))
         .sort((left, right) => {
             const order = { percentage: 0, buy_one_get_one: 1, fixed_amount: 2, free_delivery: 3 };
             const typeOrder = order[left.discount_type] - order[right.discount_type];
