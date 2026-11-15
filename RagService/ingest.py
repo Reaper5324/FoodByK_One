@@ -1,5 +1,6 @@
 import os
 import tempfile
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -7,7 +8,8 @@ import chromadb
 import fitz
 
 from chuncker import chunk_text
-from embedding import embed_text
+from embedding import EMBEDDING_MODEL, embed_text
+from website_ingest import crawl_public_site
 
 BASE_DIR = Path(__file__).resolve().parent
 DOCUMENT_DIR = BASE_DIR / "documents"
@@ -29,7 +31,7 @@ def extract_text_from_pdf(pdf_path: Path) -> list[dict]:
 
 def reset_collection(client: chromadb.PersistentClient):
     collection_name = "policy_" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
-    return client.create_collection(name=collection_name), collection_name
+    return client.create_collection(name=collection_name, metadata={"hnsw:space": "l2", "embedding_model": EMBEDDING_MODEL}), collection_name
 
 
 def extract_text_file(path: Path) -> list[dict]:
@@ -56,9 +58,31 @@ def main():
         for chunk in chunk_text(document["text"], chunk_size=650, overlap=80):
             prepared.append((chunk, {
                 "source": document["source"],
+                "url": document.get("url", ""),
+                "title": document.get("title", document["source"]),
+                "doc_id": document.get("url") or document["source"],
+                "content_hash": hashlib.sha256(chunk.encode("utf-8")).hexdigest(),
+                "fetched_at": document.get("fetched_at", ""),
+                "last_modified": document.get("last_modified", ""),
                 "page": document["page_number"] or 0,
                 "doc_type": "policy",
             }))
+
+    if os.getenv("FOODBYK_WEBSITE_SYNC", "false").lower() == "true":
+        try:
+            website_pages = crawl_public_site()
+            if not website_pages:
+                raise RuntimeError("Website sync produced no pages; refusing to activate an incomplete index")
+            for document in website_pages:
+                for index, chunk in enumerate(chunk_text(document["text"], chunk_size=850, overlap=100)):
+                    prepared.append((chunk, {
+                        "source": document["source"], "url": document["url"], "title": document["title"],
+                        "doc_id": document["url"], "content_hash": hashlib.sha256(chunk.encode("utf-8")).hexdigest(),
+                        "fetched_at": document["fetched_at"], "last_modified": document["last_modified"],
+                        "page": 0, "chunk_index": index, "doc_type": "policy",
+                    }))
+        except Exception as exc:
+            raise RuntimeError(f"Website sync failed ({type(exc).__name__}); active index was not changed") from exc
 
     CHROMA_PATH.mkdir(parents=True, exist_ok=True)
     client = chromadb.PersistentClient(path=str(CHROMA_PATH))
@@ -71,7 +95,7 @@ def main():
                 continue
             texts = [item[0] for item in batch]
             collection.add(
-                ids=[f"policy-{start + index}" for index in range(len(batch))],
+                ids=[hashlib.sha256((item[1]["doc_id"] + str(start + index) + item[1]["content_hash"]).encode("utf-8")).hexdigest() for index, item in enumerate(batch)],
                 embeddings=[embed_text(text) for text in texts],
                 documents=texts,
                 metadatas=[item[1] for item in batch],

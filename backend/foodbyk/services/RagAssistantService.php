@@ -5,6 +5,7 @@ class RagAssistantService {
     private const REQUEST_TIMEOUT_SECONDS = 30;
 
     public function ask(string $question): array {
+        $startedAt = microtime(true);
         $question = trim($question);
         if ($question === '' || $this->stringLength($question) > self::MAX_QUESTION_LENGTH) {
             return $this->failure('Ask a question using 1 to 500 characters.', 422);
@@ -37,7 +38,7 @@ class RagAssistantService {
         $upstreamStatus = isset($statusMatch[1]) ? (int) $statusMatch[1] : 0;
 
         if (!is_string($responseBody) || $upstreamStatus < 200 || $upstreamStatus >= 300) {
-            error_log('RAG assistant upstream request failed with HTTP ' . ($upstreamStatus ?: 'unavailable') . '.');
+            error_log('RAG proxy duration_ms=' . (int) ((microtime(true) - $startedAt) * 1000) . ' outcome=upstream_error http=' . ($upstreamStatus ?: 'unavailable'));
             return $this->failure('The Food by K assistant is temporarily unavailable. Please try again shortly.', 503);
         }
 
@@ -53,10 +54,19 @@ class RagAssistantService {
             if (!is_array($source)) continue;
             $label = trim((string) ($source['source'] ?? ''));
             if ($label === '') continue;
-            $sources[] = ['source' => function_exists('mb_substr') ? mb_substr($label, 0, 160) : substr($label, 0, 160)];
+            $item = ['source' => function_exists('mb_substr') ? mb_substr($label, 0, 160) : substr($label, 0, 160)];
+            $url = trim((string) ($source['url'] ?? ''));
+            if ($url !== '' && str_starts_with($url, 'https://')) {
+                $item['url'] = substr($url, 0, 500);
+            }
+            if (($source['verified'] ?? null) === false) {
+                $item['verified'] = false;
+            }
+            $sources[] = $item;
             if (count($sources) >= 5) break;
         }
 
+        error_log('RAG proxy duration_ms=' . (int) ((microtime(true) - $startedAt) * 1000) . ' outcome=success');
         return [
             'success' => true,
             'data' => ['answer' => $answer, 'sources' => $sources],

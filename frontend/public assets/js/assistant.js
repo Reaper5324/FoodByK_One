@@ -61,7 +61,21 @@
         message.append(label, body);
         if (sources.length) {
             const sourceList = document.createElement("small");
-            sourceList.textContent = `Based on: ${sources.map((source) => source.source).filter(Boolean).join(", ")}`;
+            sourceList.append(document.createTextNode("Based on: "));
+            sources.filter((source) => source && source.source).forEach((source, index) => {
+                if (index) sourceList.append(document.createTextNode(", "));
+                const url = String(source.url || "");
+                if (url.startsWith("https://")) {
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                    link.textContent = source.source;
+                    sourceList.appendChild(link);
+                } else {
+                    sourceList.append(document.createTextNode(source.source));
+                }
+            });
             message.appendChild(sourceList);
         }
         messages.appendChild(message);

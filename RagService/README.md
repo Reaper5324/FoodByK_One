@@ -13,8 +13,20 @@ the backend proxies requests to this service.
 - Chroma contains public FAQ documents from `documents/` (`.pdf`, `.md`, and
   `.txt`). Keep them grounded in Food by K's own public statements; flag
   third-party sources and never use them for dynamic menu or policy decisions.
+- Retrieval combines MiniLM dense search with local sparse keyword ranking and
+  Reciprocal Rank Fusion. The embedding model and persistent Chroma strategy
+  are retained; a new versioned collection activates only after ingestion.
+- The optional crawler is restricted to the HTTPS host in
+  `FOODBYK_WEBSITE_URL`, reads robots.txt, skips account/checkout/payment/API
+  paths, applies a delay, and caps pages. It runs only during ingestion. Failed
+  or empty website sync aborts activation so a partial crawl cannot replace the
+  active index.
+- Optional Tavily search runs only when local context is empty and the live
+  menu is not the subject. It is disabled without `TAVILY_API_KEY`; results are
+  unverified and cannot establish current prices, availability, hours, or policy.
 - If no relevant source is found, the service returns a fixed fallback without
-  calling the language model. Responses are limited to 260 generated tokens.
+  calling the language model. Completion length is bounded by
+  `GROQ_MAX_COMPLETION_TOKENS` (default 600, including reasoning tokens).
 - Email addresses, phone numbers, card-like number sequences, and explicit
   personal-address details are rejected before retrieval or model calls.
 - Orders, payments, refunds, delivery, collection, and account requests receive
@@ -32,10 +44,28 @@ on the Railway RAG service:
 
 ```text
 GROQ_API_KEY=your Groq API key
+GROQ_MODEL=openai/gpt-oss-20b
+GROQ_MAX_COMPLETION_TOKENS=600
+GROQ_REASONING_EFFORT=low
 RAG_SERVICE_API_KEY=a long random shared secret
 FOODBYK_API_URL=https://your-foodbyk-backend-domain
 RAG_DATA_DIR=/data
+FOODBYK_CATALOG_CACHE_SECONDS=30
+RAG_MIN_FUSION_SCORE=0.012
+RAG_MAX_VECTOR_DISTANCE=1.6
+RAG_PRODUCT_INTENT_THRESHOLD=0.48
+FOODBYK_WEBSITE_SYNC=false
+FOODBYK_WEBSITE_URL=https://foodbyks.netlify.app/
+FOODBYK_WEBSITE_ALLOWED_HOSTS=foodbyks.netlify.app
+FOODBYK_WEBSITE_MAX_PAGES=30
+FOODBYK_CRAWL_DELAY_SECONDS=1
+TAVILY_API_KEY=optional
 ```
+
+`GROQ_MODEL` defaults to `openai/gpt-oss-20b`, Groq's listed replacement for
+the previously configured `llama-3.1-8b-instant`. Keep the model configurable
+and validate answer quality and latency with the production account before
+changing it. `TAVILY_API_KEY` is optional; provider usage may incur charges.
 
 Set the same `RAG_SERVICE_API_KEY` on the PHP backend, and set its
 `RAG_SERVICE_URL` to the private/public Railway service URL. The secret is sent
@@ -75,7 +105,25 @@ serving a half-built index and allows the previous collection to remain
 available if ingestion fails.
 
 After deploy, and after changing FAQ documents, run `python ingest.py` in the
-RAG service environment. Product facts remain live and do not require ingestion.
+RAG service environment. To include the official site, set
+`FOODBYK_WEBSITE_SYNC=true` and configure a Railway scheduled job (or another
+operator-controlled scheduler) to run `python ingest.py` at a suitable cadence.
+The crawler never runs on customer requests. The old collection remains for
+rollback; product facts remain live and need no ingestion.
+
+## Retrieval evaluation and observability
+
+Run focused checks with `python -m unittest discover -s tests`. They cover
+paraphrase expansion, rank fusion, heading-preserving chunks, and live-catalogue
+budget/cheapest selection. These are regression checks, not a measured end-to-end
+quality benchmark. No production corpus, Groq credential, or latency trace is in
+this checkout, so it makes no p50/p95/p99 or before/after claims. Logs record
+aggregate retrieval, catalogue, LLM, external-search, and request durations
+without questions, prompts, or credentials.
+
+The PHP proxy remains the only customer-facing route and retains its shared-key
+authentication, origin allowlist, size validation, and rate limit. RAG has no
+transactional database access.
 
 ## Backend/frontend connection
 

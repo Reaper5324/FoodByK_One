@@ -453,3 +453,30 @@ Before merging a change, identify which logical domain and runtime scenario it a
 | Policy acknowledgment | Versioned record that customer accepted the terms and acknowledged reading the privacy notice; distinct from cookie preference and marketing consent |
 | RAG | Retrieval-augmented generation; FAQ documents and live public menu data are retrieved to ground a bounded answer |
 | 4+1 | Logical, development, process, and physical views, plus scenarios that validate the architecture across those views |
+
+## 12. FAQ retrieval updates
+
+The customer assistant remains bounded by the existing browser → PHP API →
+private FastAPI service flow. The PHP service key and origin/rate checks remain
+in place, and RAG reads public catalogue endpoints only; it has no database
+credentials. Transaction and privacy checks run before retrieval.
+
+The RAG service fuses MiniLM vector candidates and sparse expanded-keyword
+candidates with Reciprocal Rank Fusion. Chunking retains Markdown headings and
+paragraph boundaries; PDF page metadata and source URLs are retained. The
+active Chroma collection pointer is switched only after ingestion succeeds.
+The optional website crawler runs as an ingestion operation, is host bounded,
+checks robots.txt, skips transactional paths, and fails closed on an empty sync.
+Optional Tavily results are marked unverified and used only when local evidence
+is absent; they cannot establish menu or business policy facts. The live public
+catalogue stays authoritative for product price and availability.
+
+Answer context is deduplicated and ordered by source authority and freshness.
+The product cache has an environment-controlled short TTL; retrieval caching is
+keyed by active collection name and normalized question. Aggregate timings are
+logged for PHP proxy, API request, retrieval, catalogue, context preparation,
+Groq generation, and optional external search. No production latency or quality
+percentiles are asserted until deployment telemetry and a representative
+evaluation corpus are available. Streaming remains a separate improvement
+because it requires preserving this same authentication and error behavior
+across the PHP proxy and browser.
