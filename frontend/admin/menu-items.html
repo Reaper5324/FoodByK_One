@@ -1717,10 +1717,23 @@
 
                     </div>
 
-                    <div class="form-group">
-                        <label for="itemOptions">EXTRAS AND CUSTOMIZATIONS</label>
-                        <textarea id="itemOptions" rows="4" placeholder="Extra cheese | 8.00&#10;Add egg | 6.00"></textarea>
-                        <small>One optional extra per line. Use “Name | extra price”. Leave the price off for a free option.</small>
+                    <div class="form-group optional-extras-group">
+                        <div class="optional-extras-heading">
+                            <div>
+                                <label>OPTIONAL EXTRAS</label>
+                                <small>Add choices customers can select when customizing this item. Enter 0.00 for a free extra.</small>
+                            </div>
+                            <button type="button" id="addItemOptionBtn" class="optional-extra-add-btn" aria-label="Add another optional extra">
+                                <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                                <span>Add extra</span>
+                            </button>
+                        </div>
+                        <div class="optional-extra-columns" aria-hidden="true">
+                            <span>NAME</span>
+                            <span>PRICE (R)</span>
+                            <span></span>
+                        </div>
+                        <div id="itemOptions" class="optional-extra-list" aria-live="polite"></div>
                     </div>
 
 

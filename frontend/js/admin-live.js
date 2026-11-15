@@ -37,8 +37,51 @@ const uploadProductImage = async (file) => {
     }
 };
 
+const createProductOptionRow = (option = {}) => {
+    const row = document.createElement("div");
+    row.className = "optional-extra-row";
+
+    const name = document.createElement("input");
+    name.type = "text";
+    name.className = "item-option-name";
+    name.maxLength = 100;
+    name.placeholder = "e.g. Extra cheese";
+    name.setAttribute("aria-label", "Extra name");
+    name.value = option.name || "";
+
+    const price = document.createElement("input");
+    price.type = "number";
+    price.className = "item-option-price";
+    price.min = "0";
+    price.step = "0.01";
+    price.placeholder = "0.00";
+    price.setAttribute("aria-label", "Extra price in rand");
+    price.value = option.price_delta === undefined || option.price_delta === null
+        ? ""
+        : Number(option.price_delta || 0).toFixed(2);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "optional-extra-remove-btn";
+    remove.dataset.removeItemOption = "true";
+    remove.setAttribute("aria-label", `Remove ${option.name || "this optional extra"}`);
+    remove.title = "Remove extra";
+    remove.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
+
+    row.append(name, price, remove);
+    return row;
+};
+
+const setProductOptionRows = (options = []) => {
+    const list = document.getElementById("itemOptions");
+    if (!list) return;
+    const validOptions = Array.isArray(options) ? options : [];
+    list.replaceChildren(...(validOptions.length ? validOptions.map(createProductOptionRow) : [createProductOptionRow()]));
+};
+
 const initializeAdminLive = async () => {
     const page = location.pathname.split("/").pop();
+    setProductOptionRows();
     const loadingState = document.getElementById("adminLoadingState");
     const showLoadingError = (message) => {
         if (!loadingState) return;
@@ -1423,10 +1466,10 @@ const initializeAdminLive = async () => {
 
     
     document.addEventListener("click", async (event) => {
-        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn, .check-refund-options-btn");
+        const target = event.target.closest("[data-admin-action], #addCategoryBtn, #addMenuBtn, #addItemOptionBtn, [data-remove-item-option], #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn, .check-refund-options-btn");
         if (!target) return;
         const action = target.dataset.adminAction;
-        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn, .check-refund-options-btn")) return;
+        if (!action && !target.matches("#addCategoryBtn, #addMenuBtn, #addItemOptionBtn, [data-remove-item-option], #addPromotionBtn, #addUserBtn, #updateReportBtn, #printReportBtn, #saveHoursBtn, #saveAccountBtn, #addOrderItemBtn, #saveOrderAdjustmentsBtn, [data-remove-order-item], .close-category-modal, .close-menu-modal, #closePromotionModal, #closeUserModal, #cancelUserBtn, .close-modal, .refresh-btn, .accept-order-btn, .confirm-time-btn, .confirm-decline-btn, .save-status-btn, .submit-refund-btn, .check-refund-status-btn, .check-refund-options-btn")) return;
         event.preventDefault(); event.stopImmediatePropagation();
 
         if (action === "support-ticket-open") return openSupportTicket(target.dataset.id);
@@ -1438,6 +1481,16 @@ const initializeAdminLive = async () => {
         if (target.matches(".close-modal")) return closeModal(target.closest("#orderModal") ? "#orderModal" : "#customerModal");
         if (target.matches("[data-remove-order-item]")) {
             target.closest(".order-item-line")?.remove();
+            return;
+        }
+        if (target.matches("#addItemOptionBtn")) {
+            document.getElementById("itemOptions")?.appendChild(createProductOptionRow());
+            return;
+        }
+        if (target.matches("[data-remove-item-option]")) {
+            const list = document.getElementById("itemOptions");
+            target.closest(".optional-extra-row")?.remove();
+            if (list && !list.children.length) list.appendChild(createProductOptionRow());
             return;
         }
         if (target.matches("#addOrderItemBtn")) {
@@ -1491,7 +1544,7 @@ const initializeAdminLive = async () => {
             return alert("Settings form is not available.");
         }
         if (target.matches("#addCategoryBtn")) { editingId = null; document.getElementById("categoryForm")?.reset(); openModal("#categoryModal"); return; }
-        if (target.matches("#addMenuBtn")) { editingId = null; document.getElementById("menuForm")?.reset(); openModal("#menuModal"); return; }
+        if (target.matches("#addMenuBtn")) { editingId = null; document.getElementById("menuForm")?.reset(); setProductOptionRows(); openModal("#menuModal"); return; }
         if (target.matches("#addPromotionBtn")) {
             editingId = null;
             document.getElementById("promotionForm")?.reset();
@@ -1523,8 +1576,7 @@ const initializeAdminLive = async () => {
             document.getElementById("itemPrice").value = record.price;
             document.getElementById("itemImage").value = record.image_key || "";
             document.getElementById("itemDescription").value = record.description || "";
-            document.getElementById("itemOptions").value = (record.options || [])
-                .map((option) => `${option.name} | ${Number(option.price_delta || 0).toFixed(2)}`).join("\n");
+            setProductOptionRows(record.options || []);
             openModal("#menuModal");
         } else if (action === "category-delete" && confirm("Delete this category? It must have no products assigned.")) {
             const result = await apiDelete(`/admin/categories/${id}`); if (showResult(result)) await loadCategories();
@@ -1757,14 +1809,17 @@ const initializeAdminLive = async () => {
                 if (!showResult(upload)) return;
                 imageUrl = upload.data.key;
             }
-            const options = (document.getElementById("itemOptions").value || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
-                const separator = line.lastIndexOf("|");
-                const name = (separator < 0 ? line : line.slice(0, separator)).trim();
-                const priceText = separator < 0 ? "0" : line.slice(separator + 1).trim();
-                return { name, price_delta: Number(priceText) };
-            });
+            const optionRows = [...(document.getElementById("itemOptions")?.querySelectorAll(".optional-extra-row") || [])];
+            const options = [];
+            for (const row of optionRows) {
+                const name = row.querySelector(".item-option-name")?.value.trim() || "";
+                const priceText = row.querySelector(".item-option-price")?.value.trim() || "";
+                if (!name && !priceText) continue;
+                if (!name || !priceText) return alert("Enter both a name and price for each extra. Use 0.00 for a free extra.");
+                options.push({ name, price_delta: Number(priceText) });
+            }
             if (options.some((option) => !option.name || !Number.isFinite(option.price_delta) || option.price_delta < 0)) {
-                return alert("Enter each extra as Name | price, using a non-negative price.");
+                return alert("Enter a valid name and a non-negative price for each extra.");
             }
             const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: document.getElementById("itemDescription").value.trim(), price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active", options };
             result = id ? await apiPut(`/admin/products/${id}`, body) : await apiPost("/admin/products", body);
