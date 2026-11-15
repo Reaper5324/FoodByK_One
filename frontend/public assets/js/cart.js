@@ -108,15 +108,37 @@ document.addEventListener("DOMContentLoaded", async () => {
             unitPrice.textContent = `R${price.toFixed(2)} each`;
             itemInfo.append(name, unitPrice);
 
+            const currentQuantity = Number(item.quantity) || 1;
             const quantity = document.createElement("input");
             quantity.type = "number";
             quantity.min = "1";
+            quantity.max = String(Math.max(99, currentQuantity));
             quantity.step = "1";
-            quantity.value = String(item.quantity);
+            quantity.inputMode = "numeric";
+            quantity.value = String(currentQuantity);
+            quantity.id = `cart-quantity-${item.id}`;
             quantity.setAttribute("aria-label", `Quantity for ${name.textContent}`);
-            const quantityLabel = document.createElement("label");
+            const quantityControl = document.createElement("div");
+            quantityControl.className = "cart-quantity-control";
+            const decrease = document.createElement("button");
+            decrease.type = "button";
+            decrease.className = "cart-quantity-button";
+            decrease.textContent = "−";
+            decrease.setAttribute("aria-label", `Decrease ${name.textContent} quantity`);
+            decrease.disabled = currentQuantity <= 1;
+            const increase = document.createElement("button");
+            increase.type = "button";
+            increase.className = "cart-quantity-button";
+            increase.textContent = "+";
+            increase.setAttribute("aria-label", `Increase ${name.textContent} quantity`);
+            increase.disabled = currentQuantity >= 99;
+            quantityControl.append(decrease, quantity, increase);
+            const quantityLabel = document.createElement("div");
             quantityLabel.className = "cart-quantity-label";
-            quantityLabel.append("Quantity", quantity);
+            const quantityText = document.createElement("label");
+            quantityText.htmlFor = quantity.id;
+            quantityText.textContent = "Quantity";
+            quantityLabel.append(quantityText, quantityControl);
             const lineTotal = price * Number(item.quantity);
             total += lineTotal;
 
@@ -141,12 +163,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
 
-            quantity.addEventListener("change", async () => {
-                const newQuantity = Number.parseInt(quantity.value, 10);
-                if (!Number.isInteger(newQuantity) || newQuantity < 1) {
+            const updateQuantity = async (newQuantity) => {
+                if (!Number.isInteger(newQuantity) || newQuantity < 1 || newQuantity > 99) {
                     quantity.value = String(item.quantity);
+                    if (newQuantity > 99) showMessage("You can add up to 99 of the same menu item.", true);
                     return;
                 }
+                decrease.disabled = true;
+                increase.disabled = true;
                 quantity.disabled = true;
                 const result = await apiPut(`/cart/items/${item.id}`, { quantity: newQuantity });
                 if (result.success) {
@@ -155,10 +179,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
                 else {
                     quantity.disabled = false;
+                    decrease.disabled = newQuantity <= 1;
+                    increase.disabled = newQuantity >= 99;
                     quantity.value = String(item.quantity);
                     showMessage(result.error || "Unable to update the quantity.", true);
                 }
+            };
+
+            decrease.addEventListener("click", () => {
+                const current = Number(quantity.value);
+                updateQuantity(current > 99 ? 99 : current - 1);
             });
+            increase.addEventListener("click", () => updateQuantity(Number(quantity.value) + 1));
+            quantity.addEventListener("change", () => updateQuantity(Number(quantity.value)));
 
             row.append(image, itemInfo, quantityLabel, subtotal, remove);
             cartItems.appendChild(row);

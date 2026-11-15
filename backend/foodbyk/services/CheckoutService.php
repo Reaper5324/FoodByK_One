@@ -124,6 +124,9 @@ class CheckoutService {
             $cartItems
         ));
         foreach ($cartItems as $item) {
+            if ($item->quantity > CartService::MAX_ITEM_QUANTITY) {
+                return $this->failure('A menu item quantity exceeds the limit of 99. Reduce the quantity in your cart to continue.');
+            }
             $product = $productsById[$item->product_id] ?? null;
             if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
                 return $this->failure(

@@ -31,6 +31,8 @@
 
     let previewReady = false;
     let addressesLoaded = false;
+    let previewRequestId = 0;
+    let previewTimer = null;
 
     const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, {
         minimumFractionDigits: 2,
@@ -77,12 +79,37 @@
         window.foodByKNotify?.(text, isError ? "error" : "success");
     };
 
-    const clearPreview = () => {
+    const showSummaryMessage = (text) => {
+        summary.replaceChildren();
+        const heading = document.createElement("div");
+        heading.className = "checkout-summary-heading";
+        const kicker = document.createElement("p");
+        kicker.textContent = "Live price breakdown";
+        const title = document.createElement("h2");
+        title.textContent = "Your order total";
+        heading.append(kicker, title);
+        const note = document.createElement("p");
+        note.className = "checkout-summary-note";
+        note.textContent = text;
+        summary.append(heading, note);
+        summary.hidden = false;
+        summary.setAttribute("aria-busy", "false");
+    };
+
+    const clearPreview = (prompt = "Update the checkout details to see your latest total.") => {
+        previewRequestId++;
         previewReady = false;
-        summary.hidden = true;
+        previewButton.disabled = false;
+        previewButton.innerHTML = 'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
         submitButton.hidden = true;
         message.hidden = true;
         showDeliveryMessage("");
+        showSummaryMessage(prompt);
+    };
+
+    const schedulePreview = () => {
+        window.clearTimeout(previewTimer);
+        previewTimer = window.setTimeout(() => requestPreview({ silent: true }), 350);
     };
 
     // Show the new address form
@@ -112,6 +139,7 @@
         newDeliveryAddressDefault.checked = false;
 
         clearPreview();
+        schedulePreview();
     });
 
     // Save the new delivery address
@@ -180,6 +208,7 @@
         newDeliveryAddressDefault.checked = false;
 
         clearPreview();
+        schedulePreview();
 
         if (savedAddress.has_coordinates === false) {
             showMessage(
@@ -322,30 +351,35 @@
         });
     };
 
-    const requestPreview = async () => {
+    const requestPreview = async ({ silent = false } = {}) => {
         message.hidden = true;
-        clearPreview();
+        previewReady = false;
+        submitButton.hidden = true;
+        const requestId = ++previewRequestId;
+
+        const explain = (text, isError = true) => {
+            if (requestId !== previewRequestId) return;
+            showSummaryMessage(text);
+            if (!silent) showMessage(text, isError);
+        };
 
         if (!fulfilment.value) {
-            showMessage(
-                "Choose collection or delivery before reviewing your order.",
-                true
-            );
+            explain("Choose collection or delivery to calculate your order total.");
             return;
         }
 
         if (!slotSelect.value) {
-            showMessage("Choose an available fulfilment time.", true);
+            explain("Choose an available fulfilment time to calculate your total.");
             return;
         }
 
         if (fulfilment.value === "delivery" && !addressSelect.value) {
-            showMessage("Choose a delivery address or add one to your account.", true);
+            explain("Choose a delivery address to include the delivery fee in your total.");
             return;
         }
 
         if (fulfilment.value === "delivery" && !newAddressSection.hidden) {
-            showMessage("Please save your new delivery address before reviewing your order.", true);
+            explain("Save your new delivery address to calculate the delivery fee.");
             return;
         }
 
@@ -372,12 +406,13 @@
 
         const result = await apiPost("/checkout/preview", payload);
 
+        if (requestId !== previewRequestId) return;
+
         previewButton.disabled = false;
         previewButton.innerHTML =
             'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
 
         if (!result.success) {
-            summary.hidden = true;
             summary.setAttribute("aria-busy", "false");
 
             const deliveryErrors = [
@@ -395,7 +430,9 @@
                 deliveryErrors.includes(errorMessage)
             ) {
                 showDeliveryMessage(errorMessage);
-            } else {
+            }
+            showSummaryMessage(errorMessage);
+            if (!silent && !(fulfilment.value === "delivery" && deliveryErrors.includes(errorMessage))) {
                 showMessage(errorMessage, true);
             }
 
@@ -515,7 +552,7 @@
         submitButton.hidden = false;
         previewReady = true;
 
-        showMessage("Total reviewed. Check the breakdown below before continuing.");
+        if (!silent) showMessage("Total updated. Check the breakdown before continuing.");
     };
 
     fulfilment.addEventListener("change", async () => {
@@ -527,18 +564,20 @@
         if (fulfilment.value === "delivery" && !addressesLoaded) {
             await loadAddresses();
         }
+        schedulePreview();
     });
 
     dateInput.addEventListener("change", async () => {
         clearPreview();
         await loadSlots();
+        schedulePreview();
     });
 
     [addressSelect, slotSelect, promotionInput, loyaltyPointsInput]
         .filter(Boolean)
         .forEach((input) => {
-            input.addEventListener("change", clearPreview);
-            input.addEventListener("input", clearPreview);
+            input.addEventListener("change", () => { clearPreview(); schedulePreview(); });
+            input.addEventListener("input", () => { clearPreview(); schedulePreview(); });
         });
 
     promotionInput.addEventListener("input", () => {
@@ -556,9 +595,10 @@
         }
 
         clearPreview();
+        schedulePreview();
     });
 
-    previewButton.addEventListener("click", requestPreview);
+    previewButton.addEventListener("click", () => requestPreview());
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -627,4 +667,5 @@
 
     await loadSlots();
     await loadLoyaltyBalance();
+    showSummaryMessage("Choose collection or delivery, an available time, and any offer or rewards to see your live total.");
 });

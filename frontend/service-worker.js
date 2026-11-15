@@ -1,5 +1,23 @@
-const CACHE_NAME = "foodbyk-pwa-v1";
+const CACHE_NAME = "foodbyk-pwa-v2";
+const IMAGE_CACHE_NAME = "foodbyk-product-images-v1";
 const APP_SHELL = ["/src/index.html", "/manifest.webmanifest", "/images/pwa-icon.svg"];
+
+const isSignedS3Image = (url) => {
+    const host = url.hostname.toLowerCase();
+    return url.protocol === "https:" && (
+        host.endsWith(".amazonaws.com") || host === "amazonaws.com" ||
+        host.endsWith(".storage.googleapis.com") || host === "storage.googleapis.com" ||
+        host.endsWith(".digitaloceanspaces.com") || host.endsWith(".r2.cloudflarestorage.com") ||
+        url.searchParams.has("X-Amz-Signature") || url.searchParams.has("x-amz-signature") ||
+        url.searchParams.has("X-Goog-Signature") || url.searchParams.has("x-goog-signature")
+    );
+};
+
+const canonicalImageRequest = (url) => new Request(`${url.origin}${url.pathname}`, {
+    method: "GET",
+    mode: "cors",
+    credentials: "omit",
+});
 
 self.addEventListener("install", (event) => {
     event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
@@ -13,7 +31,28 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
     const request = event.request;
-    if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
+    if (request.method !== "GET") return;
+    const requestUrl = new URL(request.url);
+    if (requestUrl.origin !== self.location.origin) {
+        if (request.destination !== "image" || !isSignedS3Image(requestUrl)) return;
+        const cacheKey = canonicalImageRequest(requestUrl);
+        event.respondWith((async () => {
+            const cache = await caches.open(IMAGE_CACHE_NAME);
+            const cached = await cache.match(cacheKey);
+            const refresh = fetch(request).then((response) => {
+                if (response.ok || response.type === "opaque") {
+                    return cache.put(cacheKey, response.clone()).then(() => response);
+                }
+                return response;
+            });
+            if (cached) {
+                event.waitUntil(refresh.catch(() => {}));
+                return cached;
+            }
+            return refresh.catch(async () => (await cache.match(cacheKey)) || Response.error());
+        })());
+        return;
+    }
     event.respondWith(fetch(request).then((response) => {
         if (response.ok && request.destination !== "document") {
             const copy = response.clone();
@@ -34,6 +73,8 @@ self.addEventListener("push", (event) => {
         tag: payload.tag || "foodbyk-update",
         renotify: Boolean(payload.renotify),
         requireInteraction: Boolean(payload.requireInteraction),
+        silent: false,
+        vibrate: [180, 90, 180],
         data: { url: payload.url || "/pages/customer/orders.html", orderId: payload.orderId || null }
     };
     event.waitUntil(self.registration.showNotification(title, options));

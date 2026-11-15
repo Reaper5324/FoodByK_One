@@ -78,7 +78,7 @@
 
 .cart-row {
     display: grid;
-    grid-template-columns: 104px minmax(0, 1fr) 90px 130px 100px;
+    grid-template-columns: 104px minmax(0, 1fr) 130px 130px 100px;
     align-items: center;
     gap: clamp(12px, 2vw, 22px);
     min-width: 0;
@@ -93,7 +93,12 @@
 .cart-item-name { color: var(--cart-ink); font-size: 15px; font-weight: 950; line-height: 1.3; }
 .cart-item-unit-price { color: #746b61; font-size: 12px; }
 .cart-quantity-label { display: grid; gap: 4px; color: #746b61; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
-.cart-row input { width: 76px; min-height: 42px; padding: 8px 10px; border: 1px solid #d8d0c5; border-radius: 2px; color: var(--cart-ink); font-size: 15px; }
+.cart-quantity-label > label { color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; }
+.cart-quantity-control { display: flex; align-items: center; gap: 4px; }
+.cart-quantity-control input { width: 54px; min-height: 42px; padding: 7px 5px; border: 1px solid #d8d0c5; border-radius: 2px; color: var(--cart-ink); font-size: 15px; text-align: center; }
+.cart-quantity-button { display: grid; width: 32px; height: 42px; flex: 0 0 32px; place-items: center; padding: 0; border: 1px solid #d8d0c5; border-radius: 2px; color: var(--cart-ink); background: #fff; font-size: 21px; font-weight: 700; line-height: 1; cursor: pointer; }
+.cart-quantity-button:hover:not(:disabled) { border-color: var(--food-red); color: var(--food-red); }
+.cart-quantity-button:disabled { cursor: not-allowed; opacity: .45; }
 .cart-row input:focus { outline: 3px solid rgba(215, 25, 32, .12); border-color: var(--food-red); }
 .cart-line-total { color: var(--cart-ink); font-size: 15px; font-weight: 950; white-space: nowrap; }
 .cart-remove-button { min-height: 40px; padding: 9px 12px; border: 1px solid #ded5ca; border-radius: 2px; color: var(--cart-ink); background: #fff; font-size: 10px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
@@ -105,7 +110,7 @@
 .cart-skeleton-info { display: grid; gap: 10px; }
 .cart-skeleton-name { width: min(78%, 230px); height: 16px; }
 .cart-skeleton-price { width: 96px; height: 12px; }
-.cart-skeleton-quantity { width: 76px; height: 42px; border-radius: 2px; }
+.cart-skeleton-quantity { width: 124px; height: 42px; border-radius: 2px; }
 .cart-skeleton-subtotal { width: 78px; height: 16px; }
 .cart-skeleton-remove { width: 86px; height: 40px; border-radius: 2px; }
 

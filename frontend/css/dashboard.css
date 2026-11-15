@@ -3101,7 +3101,21 @@ td {
 .order-items-list { border: 1px solid var(--border); border-radius: 10px; padding: 0 14px; }
 .order-item-line, .order-total-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid #eee; font-size: .85rem; }
 .order-item-line:last-child, .order-total-row:last-child { border-bottom: 0; }
-.order-item-name { display: flex; flex-direction: column; gap: 4px; }
+.order-item-line { align-items: center; }
+.order-item-image { width: 64px; height: 64px; flex: 0 0 64px; border-radius: 8px; object-fit: cover; background: #f1eee9; }
+.order-item-image-placeholder { display: grid; place-items: center; color: var(--grey); font-size: .58rem; text-align: center; }
+.order-item-details { display: flex; min-width: 0; flex: 1; align-items: center; gap: 12px; }
+.order-item-name { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.order-promo-eligible { align-self: flex-start; padding: 4px 7px; border-radius: 5px; color: #4d3300 !important; background: #ffe8a3; font-size: .65rem !important; font-weight: 700; }
+.order-promotion-panel { margin-top: 16px; padding: 14px; border: 1px solid #f1d37e; border-radius: 9px; background: #fff9e9; }
+.order-promotion-panel h4 { margin: 0 0 8px; }
+.order-promotion-panel p { margin: 6px 0 0; color: var(--grey); font-size: .8rem; line-height: 1.45; }
+@media (max-width: 600px) {
+    .order-item-line { gap: 9px; }
+    .order-item-image { width: 52px; height: 52px; flex-basis: 52px; }
+    .order-item-details { gap: 8px; }
+    .order-item-line > strong { white-space: nowrap; }
+}
 .order-item-name span { color: var(--grey); font-size: .78rem; }
 .order-item-edit-controls { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
 .order-item-edit-controls input { width: 76px; min-height: 36px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 7px; font: inherit; }
@@ -3179,6 +3193,10 @@ td {
     margin: 0 0 8px;
     font-size: 0.9rem;
 }
+
+.notification-settings-actions { display: grid; gap: 8px; margin: 12px 0; }
+.notification-settings-actions button { border: 0; border-radius: 8px; padding: 10px 12px; background: var(--green); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.notification-settings-actions button:disabled { opacity: .55; cursor: wait; }
 
 .notification-panel small,
 .account-panel small {

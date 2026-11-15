@@ -375,6 +375,9 @@ class OrderService {
 
             $subtotal = 0.0;
             foreach ($cartItems as $cartItem) {
+                if ($cartItem->quantity > CartService::MAX_ITEM_QUANTITY) {
+                    throw new \Exception('A menu item quantity exceeds the limit of 99. Reduce the quantity in your cart to continue.');
+                }
                 $product = $productsById[$cartItem->product_id] ?? null;
                 if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
                     throw new \Exception("Item {$cartItem->product_id} is no longer available.");
@@ -715,10 +718,13 @@ $payment = $order->getPayment();
 
         $items = $order->getItems();
         $this->attachCurrentProductImages($items);
+        $promotion = $order->promotion_id ? Promotion::findById($order->promotion_id) : null;
+        if ($promotion) Promotion::attachTargets([$promotion]);
 
         return $this->success([
             'order'    => $order,
             'items'    => $items,
+            'promotion' => $promotion,
             'payment'  => $payment,
             'refunds'  => $payment ? PaymentRefund::findBy('payment_id', $payment->id) : [],
             'address'  => $order->getAddress(),

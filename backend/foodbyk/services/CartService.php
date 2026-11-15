@@ -2,9 +2,12 @@
 
 class CartService {
 
+    public const MAX_ITEM_QUANTITY = 99;
+
     public function addItem(int $customerId, int $productId, int $quantity = 1): array {
         if ($customerId <= 0 || $productId <= 0) return $this->failure('Invalid request.');
         if ($quantity <= 0) return $this->failure('Quantity must be at least 1.');
+        if ($quantity > self::MAX_ITEM_QUANTITY) return $this->failure('You can add up to 99 of the same menu item.');
 
         return $this->withCustomerLock($customerId, function (PDO $db) use ($customerId, $productId, $quantity): array {
             $productLock = $db->prepare(
@@ -12,6 +15,13 @@ class CartService {
             );
             $productLock->execute([$productId, Product::STATUS_ACTIVE]);
             if (!$productLock->fetchColumn()) return $this->failure('This item is not available.');
+
+            $existingQuery = $db->prepare('SELECT quantity FROM cart_items WHERE customer_id = ? AND product_id = ? FOR UPDATE');
+            $existingQuery->execute([$customerId, $productId]);
+            $existingQuantity = (int) ($existingQuery->fetchColumn() ?: 0);
+            if ($existingQuantity + $quantity > self::MAX_ITEM_QUANTITY) {
+                return $this->failure('You can add up to 99 of the same menu item.');
+            }
 
             $stmt = $db->prepare(
                 'INSERT INTO cart_items (customer_id, product_id, quantity) VALUES (?, ?, ?) '
@@ -28,6 +38,7 @@ class CartService {
 
     public function updateQuantity(int $customerId, int $cartItemId, int $quantity): array {
         if ($cartItemId <= 0) return $this->failure('Cart item not found.');
+        if ($quantity > self::MAX_ITEM_QUANTITY) return $this->failure('You can add up to 99 of the same menu item.');
         return $this->withCustomerLock($customerId, function (PDO $db) use ($customerId, $cartItemId, $quantity): array {
             $lock = $db->prepare('SELECT id FROM cart_items WHERE id = ? AND customer_id = ? FOR UPDATE');
             $lock->execute([$cartItemId, $customerId]);

@@ -129,6 +129,25 @@ class PushService {
         ]); } catch (Throwable $error) { error_log('Customer push notification failed: ' . $error->getMessage()); }
     }
 
+    public function notifyCustomerOfSupportReply(int $customerId, int $ticketId, string $subject): void {
+        if (!$this->available()) return;
+        try {
+            $statement = Database::getConnection()->prepare(
+                'SELECT endpoint, public_key, auth_token FROM push_subscriptions WHERE user_id = ?'
+            );
+            $statement->execute([$customerId]);
+            $this->deliver($statement->fetchAll(), [
+                'title' => 'Food by K: Support replied',
+                'body' => 'There is a new reply to your support ticket: ' . $subject,
+                'tag' => 'foodbyk-support-ticket-' . $ticketId,
+                'renotify' => true,
+                'url' => '/pages/customer/support.html?ticket=' . $ticketId,
+            ]);
+        } catch (Throwable $error) {
+            error_log('Customer support reply push notification failed: ' . $error->getMessage());
+        }
+    }
+
     private function deliver(array $rows, array $payload): void {
         if (!$rows || !$this->available()) return;
         $webPush = new Minishlink\WebPush\WebPush(['VAPID' => [
@@ -145,12 +164,12 @@ class PushService {
                 ]);
                 $webPush->queueNotification($subscription, $json, ['TTL' => 86400, 'urgency' => 'high']);
             } catch (Throwable $error) {
-                error_log('Unable to queue order status push: ' . $error->getMessage());
+                error_log('Unable to queue push notification: ' . $error->getMessage());
             }
         }
         foreach ($webPush->flush() as $report) {
             if ($report->isSubscriptionExpired()) PushSubscription::deleteEndpoint((string) $report->getEndpoint());
-            elseif (!$report->isSuccess()) error_log('Order status push delivery failed: ' . $report->getReason());
+            elseif (!$report->isSuccess()) error_log('Push notification delivery failed: ' . $report->getReason());
         }
     }
 

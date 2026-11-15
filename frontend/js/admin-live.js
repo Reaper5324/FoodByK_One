@@ -133,8 +133,12 @@ const initializeAdminLive = async () => {
         notificationPanel.className = "topbar-popover notification-panel";
         notificationPanel.innerHTML = `
             <h3>Notifications</h3>
-            <p>No new notifications.</p>
-            <small>Notifications are not yet connected to the backend.</small>
+            <p>New orders are checked while this dashboard is open. Allow browser notifications to receive alerts when it is in the background.</p>
+            <div class="notification-settings-actions">
+                <button type="button" id="enableStaffPushBtn">Enable pop-up alerts</button>
+                <button type="button" id="enableStaffSoundBtn">Enable sound alerts</button>
+            </div>
+            <small id="staffNotificationHelp">Sound plays while the dashboard is open. Your device controls the sound for browser notifications.</small>
         `;
         topbarRight.appendChild(notificationPanel);
     }
@@ -298,23 +302,72 @@ const initializeAdminLive = async () => {
     };
 
     const installStaffPush = async () => {
-        if (!navigator.serviceWorker || !window.PushManager || !window.isSecureContext) return;
+        if (!navigator.serviceWorker || !window.PushManager || !window.isSecureContext) return false;
         try {
             const response = await apiGet("/push/public-key");
-            if (!response?.success || !response.data?.enabled || !response.data.public_key) return;
+            if (!response?.success || !response.data?.enabled || !response.data.public_key) {
+                window.foodByKNotify?.("Browser alerts are not configured on the service yet.", "error");
+                return false;
+            }
             const registration = await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
-            if (Notification.permission !== "granted") return;
+            if (Notification.permission !== "granted") return false;
             const existing = await registration.pushManager.getSubscription();
             const subscription = existing || await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: decodeVapidKey(response.data.public_key)
             });
             const saved = await apiPost("/push/subscribe", { subscription: subscription.toJSON() });
-            if (!saved?.success) console.warn("Unable to save staff notification subscription.", saved?.error);
+            if (!saved?.success) {
+                console.warn("Unable to save staff notification subscription.", saved?.error);
+                if (requestPermission) window.foodByKNotify?.(saved?.error || "Unable to enable browser alerts.", "error");
+                return false;
+            }
+            return true;
         } catch (error) {
             console.warn("Staff push notifications could not be enabled.", error);
+            if (requestPermission) window.foodByKNotify?.("Unable to enable browser alerts. Try again from this dashboard.", "error");
+            return false;
         }
     };
+    document.getElementById("enableStaffPushBtn")?.addEventListener("click", async (event) => {
+        event.currentTarget.disabled = true;
+        if (!("Notification" in window)) {
+            window.foodByKNotify?.("This browser does not support pop-up notifications.", "error");
+            event.currentTarget.disabled = false;
+            return;
+        }
+        let permission = Notification.permission;
+        try {
+            if (permission !== "granted" && permission !== "denied") {
+                permission = await Notification.requestPermission();
+            }
+        } catch (_) {
+            permission = "denied";
+        }
+        if (permission !== "granted") {
+            window.foodByKNotify?.("Allow browser notifications to receive new order pop-ups.", "info");
+            event.currentTarget.disabled = false;
+            return;
+        }
+        const enabled = await installStaffPush();
+        if (enabled) {
+            event.currentTarget.textContent = "Pop-up alerts enabled";
+            window.foodByKNotify?.("New order pop-up alerts are enabled on this device.", "success");
+        }
+        event.currentTarget.disabled = false;
+    });
+    document.getElementById("enableStaffSoundBtn")?.addEventListener("click", async (event) => {
+        try {
+            staffAudioContext ||= new AudioContext();
+            await staffAudioContext.resume();
+            staffSoundEnabled = true;
+            localStorage.setItem("foodbyk-staff-sound", "on");
+            playStaffOrderSound();
+            event.currentTarget.textContent = "Sound alerts enabled";
+        } catch (error) {
+            window.foodByKNotify?.("Sound alerts are not available in this browser.", "error");
+        }
+    });
     const decodeVapidKey = (value) => {
         const padding = "=".repeat((4 - value.length % 4) % 4);
         const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -735,6 +788,29 @@ const initializeAdminLive = async () => {
     let staffOrderPoller = null;
     let lastStaffOrderIds = new Set();
     let staffAcknowledgementInFlight = false;
+    let staffAudioContext = null;
+    let staffSoundEnabled = false;
+    try { staffSoundEnabled = localStorage.getItem("foodbyk-staff-sound") === "on"; } catch (_) {}
+    const playStaffOrderSound = () => {
+        if (!staffSoundEnabled || !staffAudioContext || staffAudioContext.state !== "running") return;
+        const startAt = staffAudioContext.currentTime;
+        [880, 1175].forEach((frequency, index) => {
+            const oscillator = staffAudioContext.createOscillator();
+            const gain = staffAudioContext.createGain();
+            oscillator.type = "sine";
+            oscillator.frequency.value = frequency;
+            gain.gain.setValueAtTime(0.0001, startAt + index * 0.16);
+            gain.gain.exponentialRampToValueAtTime(0.16, startAt + index * 0.16 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startAt + index * 0.16 + 0.24);
+            oscillator.connect(gain); gain.connect(staffAudioContext.destination);
+            oscillator.start(startAt + index * 0.16);
+            oscillator.stop(startAt + index * 0.16 + 0.25);
+        });
+    };
+    document.addEventListener("pointerdown", () => {
+        if (!staffSoundEnabled || staffAudioContext) return;
+        try { staffAudioContext = new AudioContext(); staffAudioContext.resume().catch(() => {}); } catch (_) {}
+    }, { passive: true });
     const checkUnacknowledgedStaffOrders = async () => {
         if (role === "customer" || staffAcknowledgementInFlight) return;
         const result = await apiGet("/staff/orders/unacknowledged");
@@ -743,26 +819,20 @@ const initializeAdminLive = async () => {
         if (pending.length) {
             const foreground = document.visibilityState === "visible" && document.hasFocus();
             if (foreground) {
-                const audio = window.foodByKOrderAlert;
-                if (audio && (lastStaffOrderIds.size === 0 || pending.some((order) => !lastStaffOrderIds.has(String(order.id))))) {
-                    audio.currentTime = 0;
-                    audio.play().catch(() => {});
-                }
+                if (lastStaffOrderIds.size === 0 || pending.some((order) => !lastStaffOrderIds.has(String(order.id)))) playStaffOrderSound();
                 for (const order of pending) {
                     if (lastStaffOrderIds.has(String(order.id))) continue;
-                    const acknowledged = await apiPost(`/staff/orders/${order.id}/acknowledge`, {});
-                    if (acknowledged?.success) {
-                        lastStaffOrderIds.add(String(order.id));
-                        const notice = document.createElement("div");
-                        notice.className = "staff-order-alert";
-                        notice.setAttribute("role", "alert");
-                        const text = document.createElement("span");
-                        text.textContent = `New order #${order.id} from ${order.customer_name || "a customer"} needs review.`;
-                        const link = document.createElement("a"); link.href = `orders.html?order=${encodeURIComponent(order.id)}`; link.textContent = "Open order";
-                        notice.append(text, link); document.body.appendChild(notice);
-                        window.setTimeout(() => notice.remove(), 10000);
-                        break;
-                    }
+                    lastStaffOrderIds.add(String(order.id));
+                    await apiPost(`/staff/orders/${order.id}/acknowledge`, {}).catch(() => null);
+                    const notice = document.createElement("div");
+                    notice.className = "staff-order-alert";
+                    notice.setAttribute("role", "alert");
+                    const text = document.createElement("span");
+                    text.textContent = `New order #${order.id} from ${order.customer_name || "a customer"} needs review.`;
+                    const link = document.createElement("a"); link.href = `orders.html?order=${encodeURIComponent(order.id)}`; link.textContent = "Open order";
+                    notice.append(text, link); document.body.appendChild(notice);
+                    window.setTimeout(() => notice.remove(), 10000);
+                    break;
                 }
             } else {
                 await navigator.serviceWorker?.ready.then((registration) => registration.showNotification("Food by K: New order", {
@@ -942,12 +1012,42 @@ const initializeAdminLive = async () => {
         }
         const canEditItems = currentReviewData?.order?.status === "submitted"
             && currentReviewData?.payment?.status === "tokenized";
+        const promotion = currentReviewData?.promotion;
+        const promoTargets = Array.isArray(promotion?.target_product_ids)
+            ? promotion.target_product_ids.map(Number)
+            : [];
+        const isProductPromotion = promotion && promotion.discount_type !== "free_delivery";
         items.forEach((item) => {
             const row = document.createElement("div"); row.className = "order-item-line";
             row.dataset.productId = String(item.product_id || "");
+            let image;
+            if (item.image_url) {
+                image = document.createElement("img");
+                image.className = "order-item-image";
+                image.src = item.image_url;
+                image.alt = item.product_name || item.name || "Menu item";
+                image.loading = "lazy";
+                image.addEventListener("error", () => {
+                    const placeholder = document.createElement("div");
+                    placeholder.className = "order-item-image order-item-image-placeholder";
+                    placeholder.textContent = "Image unavailable";
+                    image.replaceWith(placeholder);
+                }, { once: true });
+            } else {
+                image = document.createElement("div");
+                image.className = "order-item-image order-item-image-placeholder";
+                image.textContent = "Image unavailable";
+            }
+            const details = document.createElement("div"); details.className = "order-item-details";
             const name = document.createElement("div"); name.className = "order-item-name";
             const title = document.createElement("strong"); title.textContent = item.product_name || item.name || `Menu item #${item.product_id || "?"}`; name.appendChild(title);
             const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} Ã— ${money(item.unit_price ?? item.price)}`; name.appendChild(detail);
+            if (isProductPromotion && (promoTargets.length === 0 || promoTargets.includes(Number(item.product_id)))) {
+                const promoBadge = document.createElement("span");
+                promoBadge.className = "order-promo-eligible";
+                promoBadge.textContent = "Promotion eligible";
+                name.appendChild(promoBadge);
+            }
             if (canEditItems) {
                 const controls = document.createElement("div"); controls.className = "order-item-edit-controls";
                 const quantity = document.createElement("input");
@@ -957,8 +1057,29 @@ const initializeAdminLive = async () => {
                 controls.append(quantity, remove); name.appendChild(controls);
             }
             const total = document.createElement("strong"); total.textContent = money(item.line_total ?? (Number(item.quantity || 0) * Number(item.unit_price ?? item.price ?? 0)));
-            row.append(name, total); container.appendChild(row);
+            details.appendChild(name);
+            row.append(image, details, total); container.appendChild(row);
         });
+    };
+
+    const renderOrderPromotion = (promotion) => {
+        const panel = document.getElementById("modalPromotionPanel");
+        if (!panel) return;
+        panel.hidden = !promotion;
+        if (!promotion) return;
+
+        const value = Number(promotion.discount_value || 0);
+        const label = promotion.discount_type === "percentage" ? `${value}% off`
+            : promotion.discount_type === "fixed_amount" ? `${money(value)} off`
+                : promotion.discount_type === "buy_one_get_one" ? "Buy one, get one free"
+                    : promotion.discount_type === "free_delivery" ? "Free delivery"
+                        : "Promotion";
+        setText("modalPromotionName", `${promotion.code || "Promotion"} - ${label}`);
+        const targetNames = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
+        const targetText = promotion.discount_type === "free_delivery"
+            ? (targetNames.length ? `Free delivery offer for orders containing: ${targetNames.join(", ")}.` : "Free delivery offer for eligible delivery orders.")
+            : (targetNames.length ? `Eligible menu items: ${targetNames.join(", ")}.` : "All menu items in the order are eligible.");
+        setText("modalPromotionTargets", targetText);
     };
 
     const loadOrderEditProducts = async () => {
@@ -983,6 +1104,7 @@ const initializeAdminLive = async () => {
         currentReviewData = null;
         setText("modalOrderId", `Order #${id}`);
         setText("modalItems", "Loading order itemsâ€¦");
+        renderOrderPromotion(null);
         openModal("#orderModal");
         const result = await apiGet(`/staff/orders/${id}`);
         if (!showResult(result)) return;
@@ -1005,6 +1127,7 @@ const initializeAdminLive = async () => {
         const addressRow = document.getElementById("modalAddressRow");
         if (addressRow) addressRow.hidden = order.fulfilment_type !== "delivery";
         setText("modalAddress", addressText);
+        renderOrderPromotion(data.promotion);
         renderOrderItems(data.items || order.items || []);
         setText("modalSubtotal", money(order.subtotal));
         setText("modalDiscount", money(order.locked_discount));
@@ -1205,7 +1328,7 @@ const initializeAdminLive = async () => {
                 if (Number(existing.quantity) >= 99) return alert("An item quantity cannot exceed 99.");
                 existing.quantity = Number(existing.quantity) + 1;
             } else {
-                currentReviewData.items.push({ product_id: productId, product_name: product.name, quantity: 1, unit_price: Number(product.price) });
+                currentReviewData.items.push({ product_id: productId, product_name: product.name, quantity: 1, unit_price: Number(product.price), image_url: product.image_url || null });
             }
             renderOrderItems(currentReviewData.items);
             return;
