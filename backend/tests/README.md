@@ -5,6 +5,11 @@ what still needs a human or an external service. CI runs repeatable automated
 checks on pushes and pull requests to `main`; it does not claim that a passing
 build proves the whole business is ready to launch.
 
+For the full system-level test strategy, expanded business criteria, RAG
+evaluation, release gates, and known coverage gaps, see the repository-root
+[`TESTING_GUIDE.md`](../../TESTING_GUIDE.md). The checklist for hands-on staging
+acceptance remains [`USER_ACCEPTANCE.md`](USER_ACCEPTANCE.md).
+
 ## Test coverage by category
 
 | Requested category | Automated/manual coverage | What is checked |
@@ -12,9 +17,16 @@ build proves the whole business is ready to launch.
 | Security | `security_checks.php` and `api_integration_checks.php` | PayFast token encryption, authenticated API access, role boundaries, CSRF enforcement, session cookie flags, safe account responses, and CORS allow/block behavior. |
 | Integration | `api_integration_checks.php` with the real API server and MySQL | Health and catalogue endpoints, customer registration/session, profile update, middleware, API response codes, and database-backed request handling. |
 | User acceptance | [`USER_ACCEPTANCE.md`](USER_ACCEPTANCE.md) | Human checks of customer, staff, admin, payment-provider, notification, accessibility, and device scenarios in staging. |
-| Data validation | `model_checks.php`, `database_checks.php`, and API integration checks | Password/account, product, promotion, address-coordinate, and request validation at service, API, and SQL-constraint boundaries. |
-| User interface | `frontend/tests/ui/customer-pages.spec.js` | Chromium rendering and asynchronous product/cart/order behavior with controlled API responses. |
-| Database | `database_checks.php` | Migration seed data, uniqueness, foreign keys, check constraints, and transaction rollback against MySQL 8. |
+| Unit | `model_checks.php`, `security_checks.php`, and `RagService/tests/test_retrieval.py` | Domain calculations, product/extra validation, state rules, token cryptography, retrieval, and request routing. |
+| Product validation | `model_checks.php`, `database_checks.php`, and API integration checks | Product and option input boundaries plus relational constraints. |
+| Functional | `model_checks.php`, `api_integration_checks.php`, and browser scenarios | Promotion/order calculations, API behavior, customization pricing/submission, and visible customer outcomes. |
+| Integration | `api_integration_checks.php` and RAG routing tests | HTTP/session/CSRF/CORS contracts and isolated RAG route behavior with mocked dependencies. |
+| System | API, database, browser, and CI workflows together | Cross-component contracts from the static frontend through the API and database; external providers remain sandbox/UAT scoped. |
+| User interface and usability | `frontend/tests/ui/customer-pages.spec.js` | Chromium rendering, promotion labels/images, customization price and submission, mobile layout, cart loading, and order progress. |
+| Database | `database_checks.php` | Migration seeds, uniqueness, foreign keys, product options, promotion targets, check constraints, and rollback against MySQL 8. |
+| Security | `security_checks.php` and `api_integration_checks.php` | Payment-token protection, authentication, role boundaries, CSRF, sessions, safe account data, and CORS. |
+| Performance and load | `load_test.php` | Public endpoint latency/error baseline with aggregate and per-endpoint thresholds and sample counts. |
+| RAG evaluation | `RagService/tests/test_retrieval.py`, `evaluation_cases.json`, and `requirements-test.txt` | Deterministic retrieval, full-menu route, catalogue failure, key validation, and benchmark-data structure; CI runs this suite without model/API credentials, Chroma, or model downloads. |
 
 ## Automated checks
 
@@ -117,7 +129,7 @@ These are browser behavior checks, not full production-backend tests.
 
 ## CI workflow
 
-`.github/workflows/ci.yml` has three independent jobs:
+`.github/workflows/ci.yml` has five independent jobs:
 
 1. **Backend unit, validation, and security:** PHP syntax linting, domain and
    input checks, and payment-token security checks.
@@ -126,9 +138,14 @@ These are browser behavior checks, not full production-backend tests.
    then checks sessions, CSRF, role access, and CORS over HTTP.
 3. **Customer UI:** installs Playwright and Chromium, then runs the customer
    browser suite. Failure traces are uploaded as a workflow artifact.
+4. **RAG unit and routing:** installs the RAG dependencies and runs deterministic
+   tests without model weights, Groq credentials, or outbound provider calls.
+5. **HTTP load baseline:** starts a disposable database/API and runs the
+   read-only public-endpoint baseline, publishing JSON and Markdown KPIs.
 
 The workflow uses synthetic credentials and a disposable database. It never
-calls PayFast, Resend, or Twilio.
+calls PayFast, Resend, Twilio, Groq, or Tavily. Provider delivery and answer
+quality against live services remain separate staging acceptance activities.
 
 ## Manual user acceptance and limits
 

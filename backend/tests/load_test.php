@@ -50,6 +50,16 @@ $minimumSamples = max(
     (int) (getenv('LOAD_TEST_MIN_SAMPLES') ?: 20)
 );
 
+$endpointP95LimitMs = max(
+    1,
+    (float) (getenv('LOAD_TEST_ENDPOINT_P95_LIMIT_MS') ?: $p95LimitMs)
+);
+
+$endpointErrorRateLimit = max(
+    0,
+    min(100, (float) (getenv('LOAD_TEST_ENDPOINT_ERROR_LIMIT_PERCENT') ?: $errorRateLimit))
+);
+
 $endpoints = [
     '/health',
     '/products',
@@ -332,6 +342,15 @@ $checks = [
         && $overall['error_rate_percent'] <= $errorRateLimit,
 ];
 
+foreach ($endpointResults as $endpoint => $result) {
+    $key = str_replace(['/', '?', '='], '_', trim($endpoint, '/')) ?: 'root';
+    $checks["endpoint_{$key}_minimum_samples"] = $result['requests'] >= max(1, (int) ceil($minimumSamples / count($endpoints)));
+    $checks["endpoint_{$key}_p95_latency"] = $result['latency_ms']['p95'] !== null
+        && $result['latency_ms']['p95'] <= $endpointP95LimitMs;
+    $checks["endpoint_{$key}_error_rate"] = $result['error_rate_percent'] !== null
+        && $result['error_rate_percent'] <= $endpointErrorRateLimit;
+}
+
 $passed = !in_array(false, $checks, true);
 
 $report = [
@@ -349,6 +368,9 @@ $report = [
         'minimum_samples' => $minimumSamples,
         'maximum_p95_latency_ms' => $p95LimitMs,
         'maximum_error_rate_percent' => $errorRateLimit,
+        'per_endpoint_minimum_samples' => max(1, (int) ceil($minimumSamples / count($endpoints))),
+        'per_endpoint_maximum_p95_latency_ms' => $endpointP95LimitMs,
+        'per_endpoint_maximum_error_rate_percent' => $endpointErrorRateLimit,
     ],
     'overall' => $overall,
     'endpoints' => $endpointResults,
@@ -407,6 +429,8 @@ foreach ($endpointResults as $endpoint => $result) {
     $markdown .= "{$format($result['latency_ms']['p95'])} | ";
     $markdown .= "{$format($result['latency_ms']['max'])} |\n";
 }
+
+$markdown .= "\nEach endpoint is checked independently for minimum samples, p95 latency, and error rate so aggregate health cannot hide a catalogue or promotion endpoint regression.\n";
 
 $markdown .= "\n## Threshold checks\n\n";
 

@@ -79,6 +79,21 @@ try {
 
     $products = apiRequest('GET', '/products');
     apiExpect($products['status'] === 200 && ($products['json']['success'] ?? false), 'Public products endpoint must be reachable.');
+    apiExpect(is_array($products['json']['data'] ?? null), 'Public products must return a JSON list.');
+    foreach ($products['json']['data'] as $product) {
+        apiExpect(isset($product['id'], $product['name'], $product['price']), 'Public product records must include stable identifiers, names, and prices.');
+        apiExpect(is_numeric($product['price']) && (float) $product['price'] >= 0, 'Public catalogue prices must be non-negative numeric values.');
+        apiExpect(is_array($product['options'] ?? null), 'Public products must return product options as a list.');
+    }
+
+    $categories = apiRequest('GET', '/categories');
+    apiExpect($categories['status'] === 200 && ($categories['json']['success'] ?? false)
+        && is_array($categories['json']['data'] ?? null), 'Public categories must return a successful JSON list.');
+    $promotions = apiRequest('GET', '/promotions/active');
+    apiExpect($promotions['status'] === 200 && ($promotions['json']['success'] ?? false)
+        && is_array($promotions['json']['data'] ?? null), 'Active promotions must return a successful JSON list.');
+    $missingProduct = apiRequest('GET', '/products/999999999');
+    apiExpect($missingProduct['status'] === 404, 'Unknown product identifiers must return not found.');
 
     $unauthenticatedCart = apiRequest('GET', '/cart');
     apiExpect($unauthenticatedCart['status'] === 401, 'Cart data must require authentication.');
@@ -136,6 +151,11 @@ try {
 
     $missingCsrf = apiRequest('PUT', '/account/profile', ['full_name' => 'Integration Customer', 'email' => $email], [], $cookieFile);
     apiExpect($missingCsrf['status'] === 419, 'Authenticated writes must reject missing CSRF tokens.');
+    $invalidCsrf = apiRequest('PUT', '/account/profile', ['full_name' => 'Forged Update', 'email' => $email], [
+        'X-CSRF-Token: invalid-token',
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect($invalidCsrf['status'] === 419, 'Authenticated writes must reject invalid CSRF tokens.');
 
     $updated = apiRequest('PUT', '/account/profile', ['full_name' => 'Integration Customer Updated', 'email' => $email], [
         'X-CSRF-Token: ' . $me['headers']['x-csrf-token'],
@@ -145,6 +165,11 @@ try {
 
     $customerAdminAttempt = apiRequest('GET', '/admin/staff', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
     apiExpect($customerAdminAttempt['status'] === 403, 'Customer sessions must not access admin resources.');
+    $customerProductAdminAttempt = apiRequest('GET', '/admin/products', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    apiExpect($customerProductAdminAttempt['status'] === 403, 'Customer sessions must not access administrative product data.');
+    $profileAfterRejectedWrites = apiRequest('GET', '/auth/me', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    apiExpect(($profileAfterRejectedWrites['json']['data']['full_name'] ?? '') === 'Integration Customer Updated',
+        'Rejected CSRF attempts must not mutate customer profile data.');
 
     $allowedCors = apiRequest('OPTIONS', '/products', null, [
         'Origin: https://foodbyks.netlify.app',

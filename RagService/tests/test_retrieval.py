@@ -1,14 +1,47 @@
+import os
+import json
+import sys
+import tempfile
+import types
 import unittest
+from unittest.mock import patch
+
+# Chroma initializes at import time; keep all test collections outside the repo.
+_TEST_DATA_DIR = tempfile.TemporaryDirectory(prefix="foodbyk-rag-tests-")
+os.environ["RAG_DATA_DIR"] = _TEST_DATA_DIR.name
+os.environ["RAG_SERVICE_API_KEY"] = "test-only-rag-key"
+
+# These tests cover deterministic routing/retrieval helpers and never query a
+# vector database. Avoid importing/downloading the production Chroma stack.
+if "chromadb" not in sys.modules:
+    try:
+        import chromadb  # noqa: F401
+    except ModuleNotFoundError:
+        chroma_stub = types.ModuleType("chromadb")
+        chroma_stub.PersistentClient = lambda **_kwargs: object()
+        sys.modules["chromadb"] = chroma_stub
 
 from chuncker import chunk_text
 from product_catalog import select_products
 from retriever import expand_query, reciprocal_rank_fusion
-from main import CAPABILITY_PATTERN, MENU_LIST_PATTERN, PERSONAL_DATA_PATTERN, PRODUCT_PATTERN, TRANSACTIONAL_PATTERN, _format_live_menu
+from fastapi import HTTPException
+from main import AskRequest, CAPABILITY_PATTERN, MENU_LIST_PATTERN, PERSONAL_DATA_PATTERN, PRODUCT_PATTERN, TRANSACTIONAL_PATTERN, _format_live_menu, ask
 from prompt_builder import SYSTEM_INSTRUCTIONS
 from website_ingest import _allowed
 
 
 class RetrievalEvaluation(unittest.TestCase):
+    def test_benchmark_cases_have_required_question_intent_and_source(self):
+        cases_path = os.path.join(os.path.dirname(__file__), "evaluation_cases.json")
+        with open(cases_path, encoding="utf-8") as cases_file:
+            cases = json.load(cases_file)
+        self.assertGreaterEqual(len(cases), 10)
+        for case in cases:
+            with self.subTest(case=case):
+                self.assertTrue(case.get("question", "").strip())
+                self.assertTrue(case.get("intent", "").strip())
+                self.assertIn("expected_source", case)
+
     def test_natural_hours_paraphrase_expands_for_sparse_search(self):
         terms = expand_query("What time do you guys close?")
         self.assertTrue({"close", "closing", "hours", "trading"}.issubset(set(terms)))
@@ -97,6 +130,28 @@ class RetrievalEvaluation(unittest.TestCase):
         self.assertIn("Chicken Kota", answer)
         self.assertIn("R85.00", answer)
         self.assertNotIn("Unavailable Meal", answer)
+
+    def test_full_menu_request_uses_live_catalogue_without_retrieval_or_llm(self):
+        products = [{"name": "Chicken Kota", "category": "Kotas", "price": "R85.00", "available": True}]
+        with patch("main.fetch_products", return_value=products), \
+             patch("main.retrieve", side_effect=AssertionError("menu list should skip FAQ retrieval")), \
+             patch("main.generate_answer", side_effect=AssertionError("menu list should skip LLM generation")):
+            result = ask(AskRequest(question="What's on the menu?"), provided_key="test-only-rag-key")
+        self.assertIn("Chicken Kota", result["answer"])
+        self.assertEqual("Live Food by K menu", result["sources"][0]["source"])
+
+    def test_full_menu_request_returns_bounded_service_error_when_catalogue_is_down(self):
+        import requests
+
+        with patch("main.fetch_products", side_effect=requests.Timeout("catalogue timeout")):
+            with self.assertRaises(HTTPException) as raised:
+                ask(AskRequest(question="What's on the menu?"), provided_key="test-only-rag-key")
+        self.assertEqual(503, raised.exception.status_code)
+
+    def test_rag_request_rejects_invalid_shared_key(self):
+        with self.assertRaises(HTTPException) as raised:
+            ask(AskRequest(question="What's on the menu?"), provided_key="wrong-key")
+        self.assertEqual(401, raised.exception.status_code)
 
     def test_personal_data_and_retrieved_instructions_remain_untrusted(self):
         self.assertIsNotNone(PERSONAL_DATA_PATTERN.search("Email me at customer@example.com"))

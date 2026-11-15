@@ -7,6 +7,7 @@ require_once __DIR__ . '/../foodbyk/models/Product.php';
 require_once __DIR__ . '/../foodbyk/models/Promotion.php';
 require_once __DIR__ . '/../foodbyk/services/AuthService.php';
 require_once __DIR__ . '/../foodbyk/services/ProductService.php';
+require_once __DIR__ . '/../foodbyk/services/ProductOptionService.php';
 
 function expect(bool $condition, string $message): void {
     if (!$condition) {
@@ -86,6 +87,29 @@ expect(
 );
 
 $productService = new ProductService();
+$optionService = new ProductOptionService();
+$validOptions = $optionService->validateList([
+    ['name' => ' Extra cheese ', 'price_delta' => '8.005'],
+    ['name' => 'Extra egg', 'price_delta' => 0],
+]);
+expect($validOptions['success'], 'Valid free and paid product options must be accepted.');
+expect($validOptions['data'][0] === ['name' => 'Extra cheese', 'price_delta' => 8.01], 'Option names must be trimmed and prices rounded to cents.');
+expect($validOptions['data'][1]['price_delta'] === 0.0, 'Free options must be accepted at zero cost.');
+expect(!$optionService->validateList('not an array')['success'], 'Non-array option collections must be rejected.');
+expect(!$optionService->validateList([['name' => ['invalid'], 'price_delta' => 1]])['success'], 'Non-text option names must be rejected.');
+expect(!$optionService->validateList([['name' => '', 'price_delta' => 1]])['success'], 'Empty option names must be rejected.');
+expect(!$optionService->validateList([['name' => 'Cheese', 'price_delta' => -0.01]])['success'], 'Negative option prices must be rejected.');
+expect(!$optionService->validateList([['name' => 'Cheese', 'price_delta' => 'free']])['success'], 'Non-numeric option prices must be rejected.');
+expect(!$optionService->validateList([['name' => 'Cheese', 'price_delta' => 100000.01]])['success'], 'Option prices over the supported limit must be rejected.');
+expect(!$optionService->validateList([['name' => str_repeat('x', 81), 'price_delta' => 1]])['success'], 'Option names over 80 characters must be rejected.');
+$duplicateOptions = $optionService->validateList([
+    ['name' => 'Cheese', 'price_delta' => 1],
+    ['name' => ' cheese ', 'price_delta' => 2],
+]);
+expect(!$duplicateOptions['success'], 'Duplicate option names must be rejected case-insensitively.');
+$tooManyOptions = $optionService->validateList(array_fill(0, 31, ['name' => 'Extra', 'price_delta' => 1]));
+expect(!$tooManyOptions['success'], 'More than 30 options must be rejected.');
+
 $validProduct = $productService->validateProductInput([
     'category_id' => 1,
     'name' => 'Classic Burger',
@@ -140,6 +164,17 @@ $invalidProduct = $productService->validateProductInput([
     'price' => '-1',
 ]);
 expect(!$invalidProduct['success'], 'Negative product prices must be rejected.');
+expect(!$productService->validateProductInput([
+    'category_id' => 1,
+    'name' => str_repeat('x', 151),
+    'price' => '1.00',
+])['success'], 'Product names over the supported limit must be rejected.');
+expect(!$productService->validateProductInput([
+    'category_id' => 1,
+    'name' => 'Large description',
+    'description' => str_repeat('x', 2001),
+    'price' => '1.00',
+])['success'], 'Product descriptions over the supported limit must be rejected.');
 $invalidImageProduct = $productService->validateProductInput([
     'category_id' => 1,
     'name' => 'Classic Burger',

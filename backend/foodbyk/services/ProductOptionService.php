@@ -32,8 +32,10 @@ class ProductOptionService {
         $validated = [];
         $names = [];
         foreach ($options as $option) {
-            if (!is_array($option)) return $this->failure('Each customization needs a name and price.');
-            $name = trim((string) ($option['name'] ?? ''));
+            if (!is_array($option) || !is_string($option['name'] ?? null)) {
+                return $this->failure('Each customization needs a text name and price.');
+            }
+            $name = trim($option['name']);
             $price = $option['price_delta'] ?? null;
             $nameLength = function_exists('mb_strlen') ? mb_strlen($name) : strlen($name);
             if ($name === '' || $nameLength > 80 || !is_numeric($price) || (float) $price < 0 || (float) $price > 100000) {

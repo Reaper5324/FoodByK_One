@@ -65,3 +65,85 @@ passes or has an explicitly accepted issue.
 - [ ] Verify production secrets are configured only in deployment secret
   storage and that production error responses/logs do not expose tokens,
   passwords, or database credentials.
+
+## Product options and promotions
+
+- [ ] In admin, create a product with no extras, a free extra, a priced extra,
+  and several extras. Edit the product and confirm each extra appears in its
+  own name/price row; add and remove rows; use keyboard-only navigation.
+- [ ] Try a partially completed extra row, a negative amount, a malformed
+  amount, and a free extra entered as `0.00`. Invalid rows must explain the
+  correction and must not be saved.
+- [ ] Select free and paid extras on a customer menu item. Confirm the displayed
+  amount, cart line, checkout preview, submitted order snapshot, and staff
+  order review contain the same selected extras and calculated prices.
+- [ ] Tamper with an option ID or submit an option belonging to another product
+  or one that is no longer available. The API must reject it and keep the
+  existing cart/order unchanged.
+- [ ] Exercise percentage, fixed-amount, BOGO, and free-delivery promotions
+  against both targeted and non-targeted products, mixed baskets, expired and
+  inactive dates, delivery and collection, and edge quantities.
+- [ ] Confirm every eligible menu item shows its offer label; ineligible items
+  do not. Confirm percent/fixed-price presentation, code requirements, and
+  BOGO/free-delivery wording agree with the checkout calculation.
+- [ ] Open the customer promotions page and verify targeted product images and
+  names match each offer. Simulate a missing image and confirm the offer remains
+  readable and usable.
+- [ ] Combine a promotion with loyalty redemption and verify the subtotal,
+  delivery fee, promotion discount, points value, and final amount are correct
+  in preview, order details, and staff review.
+
+## RAG assistant and ingestion
+
+- [ ] Ask the FAQ a representative set of business questions in formal, casual,
+  misspelled, and paraphrased language. Record the question, expected source,
+  answer, correctness, grounding, and any unsupported claims.
+- [ ] Ask a full-menu, cheapest-item, ingredient, and budget question. Confirm
+  current catalogue names/prices/availability are used and unavailable items
+  are not recommended.
+- [ ] Ask about order status, payment status, refund, account data, or an
+  address-specific delivery decision. Confirm the assistant hands the customer
+  to the correct authenticated workflow rather than claiming to execute it.
+- [ ] Ask an unsupported question, include personal data, and try prompt
+  injection. Confirm the answer is safe, no private data is exposed, and logs
+  do not contain the submitted question or secrets.
+- [ ] With a test index, ingest updated FAQ content and restart the service with
+  its Railway volume mounted. Confirm the new index is active only after
+  successful completion and the prior active index remains available if ingest
+  is interrupted.
+- [ ] Simulate slow/unavailable catalogue, model, and RAG service responses.
+  Confirm progress/error behavior is understandable, requests time out within
+  the agreed budget, and the customer can retry or use the menu directly.
+
+## Notifications, PWA, and resilience
+
+- [ ] Place a test order and verify a staff notification identifies the order,
+  customer, items/quantities, fulfilment/time, and total. Verify customer
+  confirmed, declined, payment-success, and payment-failure notices show the
+  correct event and amount.
+- [ ] Reply to a test support ticket and confirm only its owning customer is
+  notified. Test an expired push subscription and provider rejection; the ticket
+  or order status change must still be saved.
+- [ ] Verify staff browser notification sound/popup behavior with a supported
+  browser, granted permission, active/inactive tab, and a newly submitted order.
+  Record browser/OS restrictions that affect sound or display.
+- [ ] Verify production WhatsApp template wording/placeholders in Twilio
+  sandbox/approved test configuration. Do not assume the application can
+  change the content of an already approved template by changing PHP alone.
+- [ ] Load menu images twice and confirm cache behavior. After image replacement
+  or a service-worker update, confirm customers receive the current image and
+  private account/cart/checkout API responses are not cached for another user.
+- [ ] Simulate API, database, object-storage, email, WhatsApp, and push failures
+  independently. Confirm order integrity is preserved, the UI explains what
+  failed, and logs provide enough redacted detail for diagnosis.
+
+## Evidence and release sign-off
+
+- [ ] Record the commit SHA, environment, tester, date/time and timezone,
+  browser/device, checklist results, provider sandbox references, and links to
+  defects or accepted exceptions.
+- [ ] Confirm all test records were created in staging and cleaned up; no live
+  payment, customer message, or production data mutation was performed.
+- [ ] Confirm every release-blocking/high-severity failure is fixed or formally
+  accepted by the accountable business owner, and record rollback and
+  post-deployment smoke-check steps.

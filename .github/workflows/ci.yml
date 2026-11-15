@@ -112,6 +112,28 @@ jobs:
           path: frontend/test-results/
           if-no-files-found: ignore
 
+  rag-unit-and-routing:
+    name: RAG unit, retrieval, and routing checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: RagService
+    env:
+      RAG_DATA_DIR: ${{ runner.temp }}/foodbyk-rag-tests
+      RAG_SERVICE_API_KEY: test-only-rag-key
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: RagService/requirements-test.txt
+      - name: Install RAG service dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-test.txt
+      - name: Run deterministic RAG checks (no model/API credentials required)
+        run: python -m unittest discover -s tests -v
+
   load-test:
     name: HTTP load and baseline performance test
     runs-on: ubuntu-latest
