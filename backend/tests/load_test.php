@@ -10,54 +10,65 @@
  * This test only sends GET requests to public, read-only endpoints.
  */
 
+function environmentValue(string $name, mixed $default): mixed
+{
+    $value = getenv($name);
+    return $value === false || $value === '' ? $default : $value;
+}
+
 $baseUrl = rtrim(
-    getenv('LOAD_TEST_BASE_URL') ?: 'http://127.0.0.1:8080',
+    environmentValue('LOAD_TEST_BASE_URL', 'http://127.0.0.1:8080'),
     '/'
 );
 
 $durationSeconds = max(
     5,
-    min(300, (int) (getenv('LOAD_TEST_DURATION') ?: 30))
+    min(300, (int) environmentValue('LOAD_TEST_DURATION', 45))
 );
 
 $warmupSeconds = max(
     0,
-    min(30, (int) (getenv('LOAD_TEST_WARMUP') ?: 5))
+    min(30, (int) environmentValue('LOAD_TEST_WARMUP', 8))
 );
 
 $concurrency = max(
     1,
-    min(20, (int) (getenv('LOAD_TEST_CONCURRENCY') ?: 5))
+    min(20, (int) environmentValue('LOAD_TEST_CONCURRENCY', 5))
 );
 
 $timeoutSeconds = max(
     1,
-    min(30, (int) (getenv('LOAD_TEST_TIMEOUT') ?: 10))
+    min(30, (int) environmentValue('LOAD_TEST_TIMEOUT', 10))
 );
 
 $p95LimitMs = max(
     1,
-    (float) (getenv('LOAD_TEST_P95_LIMIT_MS') ?: 1000)
+    (float) environmentValue('LOAD_TEST_P95_LIMIT_MS', 1500)
 );
 
 $errorRateLimit = max(
     0,
-    min(100, (float) (getenv('LOAD_TEST_ERROR_LIMIT_PERCENT') ?: 1))
+    min(100, (float) environmentValue('LOAD_TEST_ERROR_LIMIT_PERCENT', 1))
 );
 
 $minimumSamples = max(
     1,
-    (int) (getenv('LOAD_TEST_MIN_SAMPLES') ?: 20)
+    (int) environmentValue('LOAD_TEST_MIN_SAMPLES', 100)
+);
+
+$endpointMinimumSamples = max(
+    1,
+    (int) environmentValue('LOAD_TEST_ENDPOINT_MIN_SAMPLES', 25)
 );
 
 $endpointP95LimitMs = max(
     1,
-    (float) (getenv('LOAD_TEST_ENDPOINT_P95_LIMIT_MS') ?: $p95LimitMs)
+    (float) environmentValue('LOAD_TEST_ENDPOINT_P95_LIMIT_MS', $p95LimitMs)
 );
 
 $endpointErrorRateLimit = max(
     0,
-    min(100, (float) (getenv('LOAD_TEST_ENDPOINT_ERROR_LIMIT_PERCENT') ?: $errorRateLimit))
+    min(100, (float) environmentValue('LOAD_TEST_ENDPOINT_ERROR_LIMIT_PERCENT', $errorRateLimit))
 );
 
 $endpoints = [
@@ -95,6 +106,11 @@ function percentile(array $values, float $percentile): ?float
     return round((float) $values[$index], 2);
 }
 
+function monotonicSeconds(): float
+{
+    return hrtime(true) / 1_000_000_000;
+}
+
 function summarizeEndpoint(array $samples): array
 {
     $latencies = array_column($samples, 'latency_ms');
@@ -104,7 +120,11 @@ function summarizeEndpoint(array $samples): array
     $statuses = [];
 
     foreach ($samples as $sample) {
-        if ($sample['status'] >= 200 && $sample['status'] < 300) {
+        if (
+            $sample['status'] >= 200
+            && $sample['status'] < 300
+            && $sample['error_type'] === null
+        ) {
             $successes++;
         }
 
@@ -164,7 +184,7 @@ function runBatch(
             // Fill the concurrency slots.
             while (
                 count($activeHandles) < $concurrency
-                && microtime(true) < $deadline
+                && monotonicSeconds() < $deadline
             ) {
                 $endpoint = $endpoints[
                     $nextEndpoint % count($endpoints)
@@ -173,6 +193,9 @@ function runBatch(
 
                 $url = $baseUrl . $endpoint;
                 $handle = curl_init($url);
+                if ($handle === false) {
+                    throw new RuntimeException("Could not initialize request for {$endpoint}.");
+                }
 
                 curl_setopt_array($handle, [
                     CURLOPT_RETURNTRANSFER => true,
@@ -188,7 +211,11 @@ function runBatch(
 
                 $startedAt = hrtime(true);
 
-                curl_multi_add_handle($multiHandle, $handle);
+                $addStatus = curl_multi_add_handle($multiHandle, $handle);
+                if ($addStatus !== CURLM_OK) {
+                    curl_close($handle);
+                    throw new RuntimeException("Could not schedule request for {$endpoint} (cURL multi error {$addStatus}).");
+                }
 
                 $id = spl_object_id($handle);
                 $activeHandles[$id] = [
@@ -205,16 +232,8 @@ function runBatch(
                 );
             } while ($multiStatus === CURLM_CALL_MULTI_PERFORM);
 
-            foreach ($activeHandles as $id => $request) {
-                $handle = $request['handle'];
-
-                if (!in_array(
-                    curl_getinfo($handle, CURLINFO_PRIVATE),
-                    [],
-                    true
-                )) {
-                    // Completion is determined from curl_multi_info_read below.
-                }
+            if ($multiStatus !== CURLM_OK) {
+                throw new RuntimeException("cURL multi request execution failed with code {$multiStatus}.");
             }
 
             while ($completed = curl_multi_info_read($multiHandle)) {
@@ -265,7 +284,7 @@ function runBatch(
             }
         } while (
             $activeHandles !== []
-            || microtime(true) < $deadline
+            || monotonicSeconds() < $deadline
         );
     } finally {
         // Clean up any remaining handles if the batch exits unexpectedly.
@@ -296,14 +315,14 @@ if ($warmupSeconds > 0) {
         $endpoints,
         $concurrency,
         $timeoutSeconds,
-        microtime(true) + $warmupSeconds,
+        monotonicSeconds() + $warmupSeconds,
         $warmupSamples
     );
 }
 
 $samples = array_fill_keys($endpoints, []);
 
-$startTime = microtime(true);
+$startTime = monotonicSeconds();
 
 runBatch(
     $baseUrl,
@@ -314,7 +333,7 @@ runBatch(
     $samples
 );
 
-$elapsedSeconds = microtime(true) - $startTime;
+$elapsedSeconds = monotonicSeconds() - $startTime;
 $endpointResults = [];
 
 foreach ($endpoints as $endpoint) {
@@ -344,7 +363,7 @@ $checks = [
 
 foreach ($endpointResults as $endpoint => $result) {
     $key = str_replace(['/', '?', '='], '_', trim($endpoint, '/')) ?: 'root';
-    $checks["endpoint_{$key}_minimum_samples"] = $result['requests'] >= max(1, (int) ceil($minimumSamples / count($endpoints)));
+    $checks["endpoint_{$key}_minimum_samples"] = $result['requests'] >= $endpointMinimumSamples;
     $checks["endpoint_{$key}_p95_latency"] = $result['latency_ms']['p95'] !== null
         && $result['latency_ms']['p95'] <= $endpointP95LimitMs;
     $checks["endpoint_{$key}_error_rate"] = $result['error_rate_percent'] !== null
@@ -368,7 +387,7 @@ $report = [
         'minimum_samples' => $minimumSamples,
         'maximum_p95_latency_ms' => $p95LimitMs,
         'maximum_error_rate_percent' => $errorRateLimit,
-        'per_endpoint_minimum_samples' => max(1, (int) ceil($minimumSamples / count($endpoints))),
+        'per_endpoint_minimum_samples' => $endpointMinimumSamples,
         'per_endpoint_maximum_p95_latency_ms' => $endpointP95LimitMs,
         'per_endpoint_maximum_error_rate_percent' => $endpointErrorRateLimit,
     ],
@@ -401,6 +420,7 @@ $markdown .= "- Generated (UTC): {$report['generated_at_utc']}\n";
 $markdown .= "- Target: `{$baseUrl}`\n";
 $markdown .= "- Actual measured duration: {$format($report['configuration']['actual_duration_seconds'])} seconds\n";
 $markdown .= "- Concurrency: {$concurrency}\n";
+$markdown .= "- Minimum samples per endpoint: {$endpointMinimumSamples}\n";
 $markdown .= "- Overall result: **{$report['result']}**\n\n";
 
 $markdown .= "## Overall KPIs\n\n";

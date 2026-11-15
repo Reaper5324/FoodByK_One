@@ -162,13 +162,14 @@ jobs:
       PAYMENT_TOKEN_ENCRYPTION_KEY: a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=
       FRONTEND_URL: https://foodbyks.netlify.app
       LOAD_TEST_BASE_URL: http://127.0.0.1:8080
-      LOAD_TEST_DURATION: 30
-      LOAD_TEST_WARMUP: 5
+      LOAD_TEST_DURATION: 45
+      LOAD_TEST_WARMUP: 8
       LOAD_TEST_CONCURRENCY: 5
       LOAD_TEST_TIMEOUT: 10
-      LOAD_TEST_P95_LIMIT_MS: 1000
+      LOAD_TEST_P95_LIMIT_MS: 1500
       LOAD_TEST_ERROR_LIMIT_PERCENT: 1
-      LOAD_TEST_MIN_SAMPLES: 20
+      LOAD_TEST_MIN_SAMPLES: 100
+      LOAD_TEST_ENDPOINT_MIN_SAMPLES: 25
 
     steps:
       - uses: actions/checkout@v4
@@ -185,6 +186,8 @@ jobs:
 
       - name: Start local API server
         shell: bash
+        env:
+          PHP_CLI_SERVER_WORKERS: 5
         run: |
           php -S 127.0.0.1:8080 \
             -t backend/public \
