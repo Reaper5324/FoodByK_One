@@ -1,672 +1,527 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Food by K Admin</title>
 
-    <title>Settings - Food by K Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+  <link rel="icon" type="image/png" href="/images/logo-mark.png">
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <style>
+    /* ===== Settings: friendly, seamless, matches the Food by K look ===== */
+    .fbk-settings {
+      --red: #d71920; --red-dark: #b3131a; --ink: #111; --cream: #fdf8f2; --tile: #faf5ee;
+      --line: #e3dbd0; --muted: #5f5a54; --gold: #f5b323;
+      padding: 1.8rem clamp(1rem, 3vw, 2.2rem) 7rem;
+    }
 
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap"
-          rel="stylesheet">
+    /* header */
+    .fbk-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.2rem; flex-wrap: wrap; margin-bottom: 1.6rem; }
+    .fbk-head .tag { margin: 0 0 .5rem; font-size: .72rem; font-weight: 700; letter-spacing: .28em; text-transform: uppercase; color: var(--red); }
+    .fbk-head h3 { margin: 0 0 .35rem; font-size: clamp(1.7rem, 3.4vw, 2.4rem); font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
+    .fbk-head p.desc { margin: 0; color: var(--muted); font-size: .95rem; }
 
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    .fbk-search { position: relative; width: min(100%, 320px); }
+    .fbk-search i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: .85rem; pointer-events: none; }
+    .fbk-search input {
+      width: 100%; height: 46px; padding: 0 1rem 0 2.6rem; box-sizing: border-box; font: inherit; font-size: .92rem;
+      color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 999px; outline: none; transition: border-color .2s, box-shadow .2s;
+    }
+    .fbk-search input:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(215, 25, 32, .15); }
 
-    <link rel="stylesheet" href="../css/dashboard.css">
-<link rel="icon" type="image/png" href="/images/logo-mark.png">
+    /* layout */
+    .fbk-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 1.6rem; align-items: start; }
+    .fbk-stack { display: flex; flex-direction: column; gap: 1.4rem; min-width: 0; }
+
+    /* section nav */
+    .fbk-nav { position: sticky; top: 1rem; display: flex; flex-direction: column; gap: .25rem; padding: .7rem; background: #fff; border: 1px solid var(--line); border-radius: 16px; max-height: calc(100vh - 2rem); overflow-y: auto; }
+    .fbk-nav a {
+      display: flex; align-items: center; gap: .75rem; padding: .65rem .8rem; font-size: .86rem; font-weight: 500;
+      color: var(--ink); text-decoration: none; border-radius: 10px; transition: background .2s, color .2s;
+    }
+    .fbk-nav a i { width: 18px; text-align: center; color: var(--red); font-size: .9rem; }
+    .fbk-nav a:hover { background: var(--tile); }
+    .fbk-nav a.on { background: #fdecec; color: var(--red-dark); font-weight: 700; }
+
+    /* cards */
+    .fbk-card { scroll-margin-top: 1rem; padding: 1.7rem 1.9rem; background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 8px 26px rgba(20, 15, 10, .05); }
+    .fbk-card[hidden] { display: none; }
+    .card-h { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.4rem; padding-bottom: 1.2rem; border-bottom: 1px solid var(--line); }
+    .card-h .ic { flex: none; display: grid; place-items: center; width: 46px; height: 46px; font-size: 1.05rem; color: var(--red); background: #fdecec; border-radius: 14px; }
+    .card-h h4 { margin: 0 0 .15rem; font-size: 1.08rem; font-weight: 700; color: var(--ink); }
+    .card-h p { margin: 0; font-size: .86rem; color: var(--muted); }
+
+    /* fields */
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.1rem 1.3rem; margin-bottom: 1.2rem; }
+    .fld { display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
+    .fld.wide { grid-column: 1 / -1; }
+    .fld[hidden], .row[hidden] { display: none; }
+    .fld label { font-size: .7rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--ink); }
+    .fld small { font-size: .78rem; color: var(--muted); }
+    .fbk-settings .fld input, .fbk-settings .fld select, .fbk-settings .fld textarea {
+      width: 100%; box-sizing: border-box; font: inherit; font-size: .95rem; color: var(--ink); background: #fff;
+      border: 1px solid var(--line); border-radius: 10px; outline: none; transition: border-color .2s, box-shadow .2s;
+    }
+    .fbk-settings .fld input, .fbk-settings .fld select { height: 46px; padding: 0 1rem; }
+    .fbk-settings .fld textarea { padding: .8rem 1rem; line-height: 1.55; resize: vertical; min-height: 84px; }
+    .fbk-settings .fld input:hover, .fbk-settings .fld select:hover, .fbk-settings .fld textarea:hover { border-color: #bdb2a3; }
+    .fbk-settings .fld input:focus, .fbk-settings .fld select:focus, .fbk-settings .fld textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(215, 25, 32, .15); }
+    .inp { position: relative; }
+    .inp em { position: absolute; right: .9rem; top: 50%; transform: translateY(-50%); font-style: normal; font-size: .76rem; font-weight: 600; color: var(--muted); pointer-events: none; }
+    .inp input[type=number] { padding-right: 4.2rem; }
+
+    /* toggle rows */
+    .rows { display: flex; flex-direction: column; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 1.2rem; padding: .95rem .3rem; cursor: pointer; border-top: 1px solid var(--line); }
+    .row:first-child { border-top: 0; }
+    .grid + .rows .row:first-child { border-top: 1px solid var(--line); }
+    .row-t { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+    .row-t b { font-size: .94rem; font-weight: 600; color: var(--ink); }
+    .row-t small { font-size: .8rem; color: var(--muted); line-height: 1.4; }
+
+    .sw { position: relative; flex: none; width: 48px; height: 28px; }
+    .sw input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1; }
+    .sw i { position: absolute; inset: 0; background: #d9d1c5; border-radius: 99px; transition: background .2s; }
+    .sw i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .2s; }
+    .sw input:checked + i { background: var(--red); }
+    .sw input:checked + i::after { transform: translateX(20px); }
+    .sw input:focus-visible + i { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+    /* hours */
+    .hours { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1rem; }
+    .hr { display: grid; grid-template-columns: 120px minmax(0, 1fr) 48px; align-items: center; gap: 1rem; padding: .7rem 1rem; background: var(--tile); border: 1px solid var(--line); border-radius: 12px; transition: opacity .2s; }
+    .hr b { font-size: .92rem; }
+    .tm { display: flex; align-items: center; gap: .6rem; }
+    .tm span { font-size: .82rem; color: var(--muted); }
+    .hr input[type=time] { height: 40px; padding: 0 .7rem; font: inherit; font-size: .9rem; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 8px; outline: none; }
+    .hr input[type=time]:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(215, 25, 32, .15); }
+    .hr .cl { display: none; font-size: .86rem; font-weight: 600; color: var(--muted); }
+    .hr.off .tm { display: none; }
+    .hr.off .cl { display: block; }
+    .hr.off { opacity: .75; }
+    .hr .sw { justify-self: end; }
+
+    /* buttons */
+    .ghost, .danger {
+      display: inline-flex; align-items: center; gap: .55rem; height: 42px; padding: 0 1.2rem; font: inherit; font-size: .84rem; font-weight: 600;
+      color: var(--ink); background: #fff; border: 1.5px solid var(--line); border-radius: 999px; cursor: pointer; transition: border-color .2s, background .2s, color .2s;
+    }
+    .ghost:hover { border-color: var(--ink); background: var(--tile); }
+    .danger { color: var(--red); border-color: #f0c4c6; }
+    .danger:hover { background: #fdecec; border-color: var(--red); }
+    .btns { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.2rem; }
+
+    .empty { display: none; padding: 3rem 1rem; text-align: center; color: var(--muted); background: #fff; border: 1px dashed var(--line); border-radius: 16px; }
+
+    /* delivery-area card (filled in by dashboard.js) – restyle whatever it renders */
+    .fbk-settings .fbk-host { padding: 0 !important; margin: 0 !important; background: none !important; }
+    .fbk-settings .fbk-host:empty { display: none; }
+    .fbk-host :is(.content-card, .dashboard-card, .settings-card) { background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 8px 26px rgba(20, 15, 10, .05); }
+    .fbk-host :is(h2, h3) { margin: 0 0 .5rem; font-weight: 700; color: var(--ink); }
+    .fbk-host label { display: block; margin: 1rem 0 .4rem; font-size: .7rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--ink); }
+    .fbk-host input:not([type=checkbox]):not([type=radio]), .fbk-host select {
+      width: 100%; height: 46px; padding: 0 1rem; box-sizing: border-box; font: inherit; font-size: .95rem; color: var(--ink); background: #fff;
+      border: 1px solid var(--line); border-radius: 10px; outline: none; transition: border-color .2s, box-shadow .2s;
+    }
+    .fbk-host input:focus, .fbk-host select:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(215, 25, 32, .15); }
+    .fbk-host button { height: 46px; padding: 0 1.6rem; margin-top: 1.2rem; font: inherit; font-size: .85rem; font-weight: 700; color: #fff; background: var(--red); border: 0; border-radius: 999px; cursor: pointer; transition: background .2s; }
+    .fbk-host button:hover { background: var(--red-dark); }
+
+    /* unsaved-changes bar + toast */
+    .savebar {
+      position: fixed; right: clamp(1rem, 3vw, 2rem); bottom: 1.2rem; z-index: 60; display: flex; align-items: center; gap: .9rem; padding: .7rem .8rem .7rem 1.3rem;
+      color: #fff; background: #111; border-radius: 999px; box-shadow: 0 14px 36px rgba(0, 0, 0, .3);
+      transform: translateY(140%); opacity: 0; pointer-events: none; transition: transform .3s, opacity .3s;
+    }
+    .savebar.show { transform: none; opacity: 1; pointer-events: auto; }
+    .savebar span { font-size: .86rem; font-weight: 500; }
+    .savebar span::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: .6rem; background: var(--gold); border-radius: 50%; }
+    .savebar button { height: 40px; padding: 0 1.2rem; font: inherit; font-size: .82rem; font-weight: 700; border: 0; border-radius: 999px; cursor: pointer; }
+    .savebar .discard { color: #fff; background: transparent; }
+    .savebar .discard:hover { background: rgba(255, 255, 255, .12); }
+    .savebar .save { color: #fff; background: var(--red); }
+    .savebar .save:hover { background: var(--red-dark); }
+
+    .toast {
+      position: fixed; right: clamp(1rem, 3vw, 2rem); bottom: 1.2rem; z-index: 70; display: flex; align-items: center; gap: .7rem; padding: .85rem 1.3rem;
+      font-size: .9rem; font-weight: 600; color: #14532d; background: #eaf6ef; border: 1px solid #2ea05a; border-radius: 999px; box-shadow: 0 10px 28px rgba(0, 0, 0, .15);
+      transform: translateY(140%); opacity: 0; transition: transform .3s, opacity .3s; pointer-events: none;
+    }
+    .toast.show { transform: none; opacity: 1; }
+
+    @media (max-width: 960px) {
+      .fbk-layout { grid-template-columns: minmax(0, 1fr); }
+      .fbk-nav { position: static; flex-direction: row; max-height: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+      .fbk-nav::-webkit-scrollbar { display: none; }
+      .fbk-nav a { flex: none; white-space: nowrap; }
+    }
+    @media (max-width: 680px) {
+      .fbk-card { padding: 1.3rem 1.1rem; }
+      .grid { grid-template-columns: minmax(0, 1fr); }
+      .hr { grid-template-columns: 1fr 48px; }
+      .hr .tm, .hr .cl { grid-column: 1 / -1; grid-row: 2; }
+      .hr .sw { grid-row: 1; grid-column: 2; }
+      .savebar { left: 1rem; right: 1rem; justify-content: space-between; }
+    }
+    @media (prefers-reduced-motion: reduce) { .fbk-settings * { transition: none !important; } html { scroll-behavior: auto; } }
+    html { scroll-behavior: smooth; }
+  </style>
 </head>
 
 <body>
-    <div class="admin-page-skeleton" id="adminLoadingState" aria-label="Loading live dashboard data">
-        <div class="admin-skeleton-app" aria-hidden="true">
-            <aside class="admin-skeleton-sidebar"><span class="admin-skeleton-logo"></span><i></i><i></i><i></i><i></i><i></i><i></i></aside>
-            <main class="admin-skeleton-main"><div class="admin-skeleton-top"><i></i><i></i></div><div class="admin-skeleton-stats"><i></i><i></i><i></i><i></i></div><div class="admin-skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div></main>
+  <div class="admin-page-skeleton" id="adminLoadingState" aria-label="Loading live dashboard data">
+    <div class="admin-skeleton-app" aria-hidden="true">
+      <aside class="admin-skeleton-sidebar"><span class="admin-skeleton-logo"></span><i></i><i></i><i></i><i></i><i></i><i></i></aside>
+      <main class="admin-skeleton-main"><div class="admin-skeleton-top"><i></i><i></i></div><div class="admin-skeleton-stats"><i></i><i></i><i></i><i></i></div><div class="admin-skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div></main>
+    </div>
+    <div class="admin-loading-feedback"><p role="status" aria-live="polite" data-admin-loading-message>Loading current business data...</p><button type="button" data-admin-loading-retry hidden>Try again</button></div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand"><h1>FOOD <span>BY K</span></h1><p>ADMIN PANEL</p></div>
+    <nav class="sidebar-menu">
+      <a href="dashboard.html" class="menu-item"><i class="fa-solid fa-chart-line"></i><span>Dashboard</span></a>
+      <a href="orders.html" class="menu-item"><i class="fa-solid fa-receipt"></i><span>Orders</span></a>
+      <a href="menu-items.html" class="menu-item"><i class="fa-solid fa-utensils"></i><span>Menu Items</span></a>
+      <a href="categories.html" class="menu-item"><i class="fa-solid fa-layer-group"></i><span>Categories</span></a>
+      <a href="promotions.html" class="menu-item"><i class="fa-solid fa-tags"></i><span>Promotions</span></a>
+      <a href="customers.html" class="menu-item"><i class="fa-solid fa-users"></i><span>Customers</span></a>
+      <a href="support-tickets.html" class="menu-item"><i class="fa-solid fa-headset"></i><span>Support Tickets</span></a>
+      <a href="staff-users.html" class="menu-item"><i class="fa-solid fa-user-shield"></i><span>Staff &amp; Users</span></a>
+      <a href="reports.html" class="menu-item"><i class="fa-solid fa-chart-pie"></i><span>Reports</span></a>
+      <a href="settings.html" class="menu-item active"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
+    </nav>
+    <div class="sidebar-bottom"><a href="#" class="menu-item logout"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></a></div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><i class="fa-solid fa-bars"></i></button>
+        <div><p class="welcome-text">SYSTEM SETTINGS</p><h2>Settings</h2></div>
+      </div>
+      <div class="topbar-right">
+        <div class="admin-profile">
+          <div class="profile-image">A</div>
+          <div class="profile-info"><h4>Admin</h4><p>Administrator</p></div>
         </div>
-        <div class="admin-loading-feedback"><p role="status" aria-live="polite" data-admin-loading-message>Loading current business data...</p><button type="button" data-admin-loading-retry hidden>Try again</button></div>
+      </div>
+    </header>
+
+    <div class="fbk-settings">
+
+      <div class="fbk-head">
+        <div>
+          <p class="tag">Settings</p>
+          <h3>System settings</h3>
+          <p class="desc">Run Food by K your way. Changes are only applied when you press Save.</p>
+        </div>
+        <div class="fbk-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="fbkSearch" placeholder="Search settings…" aria-label="Search settings"></div>
+      </div>
+
+      <div class="fbk-layout">
+        <nav class="fbk-nav" id="fbkNav" aria-label="Settings sections"></nav>
+
+        <div class="fbk-stack" id="fbkRoot">
+          <!-- Ordering & delivery area (latitude, radius, delivery fee, trading times): filled in by dashboard.js -->
+          <section class="dashboard-content fbk-host" id="sec-zones"></section>
+          <!-- all other sections are built by the script below -->
+        </div>
+      </div>
+
+      <div class="empty" id="fbkEmpty"><i class="fa-regular fa-face-meh" style="font-size:1.6rem;margin-bottom:.6rem"></i><p>No settings match your search.</p></div>
     </div>
 
-
-    <!-- SIDEBAR -->
-
-    <aside class="sidebar">
-
-        <div class="brand">
-            <h1>FOOD <span>BY K</span></h1>
-            <p>ADMIN PANEL</p>
-        </div>
-
-        <nav class="sidebar-menu">
-
-            <a href="dashboard.html" class="menu-item">
-                <i class="fa-solid fa-chart-line"></i>
-                <span>Dashboard</span>
-            </a>
-
-            <a href="orders.html" class="menu-item">
-                <i class="fa-solid fa-receipt"></i>
-                <span>Orders</span>
-            </a>
-
-            <a href="menu-items.html" class="menu-item">
-                <i class="fa-solid fa-utensils"></i>
-                <span>Menu Items</span>
-            </a>
-
-            <a href="categories.html" class="menu-item">
-                <i class="fa-solid fa-layer-group"></i>
-                <span>Categories</span>
-            </a>
-
-            <a href="promotions.html" class="menu-item">
-                <i class="fa-solid fa-tags"></i>
-                <span>Promotions</span>
-            </a>
-
-            <a href="customers.html" class="menu-item">
-                <i class="fa-solid fa-users"></i>
-                <span>Customers</span>
-            </a>
-
-            <a href="staff-users.html" class="menu-item">
-                <i class="fa-solid fa-user-shield"></i>
-                <span>Staff & Users</span>
-            </a>
-
-            <a href="reports.html" class="menu-item">
-                <i class="fa-solid fa-chart-pie"></i>
-                <span>Reports</span>
-            </a>
-
-            <a href="settings.html" class="menu-item active">
-                <i class="fa-solid fa-gear"></i>
-                <span>Settings</span>
-            </a>
-
-        </nav>
-
-        <div class="sidebar-bottom">
-
-            <a href="#" class="menu-item logout">
-                <i class="fa-solid fa-right-from-bracket"></i>
-                <span>Logout</span>
-            </a>
-
-        </div>
-
-    </aside>
-
-
-    <!-- MAIN CONTENT -->
-
-    <main class="main-content">
-
-        <!-- TOPBAR -->
-
-        <header class="topbar">
-
-            <div class="topbar-left">
-
-                <button class="sidebar-toggle" id="sidebarToggle">
-                    <i class="fa-solid fa-bars"></i>
-                </button>
-
-                <div>
-                    <p class="welcome-text">SYSTEM SETTINGS</p>
-                    <h2>Settings</h2>
-                </div>
-
-            </div>
-
-
-            <div class="topbar-right">
-
-
-                <div class="admin-profile">
-
-                    <div class="profile-image">
-                        A
-                    </div>
-
-                    <div class="profile-info">
-                        <h4>Admin</h4>
-                        <p>Administrator</p>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </header>
-
-
-        <!-- PAGE CONTENT -->
-
-        <section class="dashboard-content">
-
-            <div class="menu-page-header">
-
-                <div>
-
-                    <p class="card-label">SETTINGS</p>
-
-                    <h3>System Settings</h3>
-
-                    <p class="menu-description">
-                        Manage Food by K business and system preferences.
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <!-- BUSINESS INFORMATION -->
-
-            <div class="content-card settings-card">
-
-                <div class="settings-header">
-
-                    <div class="settings-icon">
-                        <i class="fa-solid fa-store"></i>
-                    </div>
-
-                    <div>
-
-                        <h3>Business Information</h3>
-
-                        <p>
-                            Update the information displayed for the business.
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <form id="businessSettingsForm">
-
-                    <div class="settings-grid">
-
-                        <div class="form-group">
-
-                            <label for="businessName">
-                                Business Name
-                            </label>
-
-                            <input
-                                type="text"
-                                id="businessName"
-                                value="Food by K"
-                                required
-                            >
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label for="businessPhone">
-                                Contact Number
-                            </label>
-
-                            <input
-                                type="tel"
-                                id="businessPhone"
-                                value="081 447 8395"
-                                required
-                            >
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label for="businessEmail">
-                                Email Address
-                            </label>
-
-                            <input
-                                type="email"
-                                id="businessEmail"
-                                value="info@foodbyk.co.za"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label for="businessAddress">
-                                Business Address
-                            </label>
-
-                            <input
-                                type="text"
-                                id="businessAddress"
-                                value="Lenasia South, Johannesburg"
-                            >
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="settings-actions">
-
-                        <button
-                            type="submit"
-                            class="save-menu-btn"
-                        >
-                            <i class="fa-solid fa-floppy-disk"></i>
-                            Save Changes
-                        </button>
-
-                    </div>
-
-                </form>
-
-            </div>
-
-
-            <!-- BUSINESS HOURS -->
-
-            <div class="content-card settings-card">
-
-                <div class="settings-header">
-
-                    <div class="settings-icon">
-                        <i class="fa-regular fa-clock"></i>
-                    </div>
-
-                    <div>
-
-                        <h3>Business Hours</h3>
-
-                        <p>
-                            Set the operating hours for Food by K.
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div class="hours-list">
-
-
-                    <div class="hours-row">
-
-                        <strong>Monday</strong>
-
-                        <div>
-                            <input type="time" value="11:00">
-                            <span>to</span>
-                            <input type="time" value="18:00">
-                        </div>
-
-                        <label class="switch">
-
-                            <input
-                                type="checkbox"
-                                checked
-                            >
-
-                            <span class="slider"></span>
-
-                        </label>
-
-                    </div>
-
-
-                    <div class="hours-row">
-
-                        <strong>Tuesday</strong>
-
-                        <div>
-                            <input type="time" value="11:00">
-                            <span>to</span>
-                            <input type="time" value="18:00">
-                        </div>
-
-                        <label class="switch">
-
-                            <input
-                                type="checkbox"
-                                checked
-                            >
-
-                            <span class="slider"></span>
-
-                        </label>
-
-                    </div>
-
-
-                    <div class="hours-row">
-
-                        <strong>Wednesday</strong>
-
-                        <div>
-                            <input type="time" value="11:00">
-                            <span>to</span>
-                            <input type="time" value="18:00">
-                        </div>
-
-                        <label class="switch">
-
-                            <input
-                                type="checkbox"
-                                checked
-                            >
-
-                            <span class="slider"></span>
-
-                        </label>
-
-                    </div>
-
-
-                    <div class="hours-row">
-
-                        <strong>Thursday</strong>
-
-                        <div>
-                            <input type="time" value="11:00">
-                            <span>to</span>
-                            <input type="time" value="18:00">
-                        </div>
-
-                        <label class="switch">
-
-                            <input
-                                type="checkbox"
-                                checked
-                            >
-
-                            <span class="slider"></span>
-
-                        </label>
-
-                    </div>
-
-
-                    <div class="hours-row">
-
-                        <strong>Friday</strong>
-
-                        <div>
-                            <input type="time" value="11:00">
-                            <span>to</span>
-                            <input type="time" value="18:00">
-                        </div>
-
-                        <label class="switch">
-
-                            <input
-                                type="checkbox"
-                                checked
-                            >
-
-                            <span class="slider"></span>
-
-                        </label>
-
-                    </div>
-
-
-                    <div class="hours-row">
-
-                        <strong>Saturday</strong>
-
-                        <div>
-                            <input type="time" value="11:00">
-                            <span>to</span>
-                            <input type="time" value="18:00">
-                        </div>
-
-                        <label class="switch">
-
-                            <input
-                                type="checkbox"
-                                checked
-                            >
-
-                            <span class="slider"></span>
-
-                        </label>
-
-                    </div>
-
-
-                    <div class="hours-row closed-day">
-
-                        <strong>Sunday</strong>
-
-                        <span class="closed-label">
-                            Closed
-                        </span>
-
-                        <label class="switch">
-
-                            <input
-                                type="checkbox"
-                            >
-
-                            <span class="slider"></span>
-
-                        </label>
-
-                    </div>
-
-
-                </div>
-
-
-                <div class="settings-actions">
-
-                    <button
-                        type="button"
-                        class="save-menu-btn"
-                        id="saveHoursBtn"
-                    >
-                        <i class="fa-solid fa-floppy-disk"></i>
-                        Save Hours
-                    </button>
-
-                </div>
-
-            </div>
-
-
-            <!-- ORDER SETTINGS -->
-
-            <div class="content-card settings-card">
-
-                <div class="settings-header">
-
-                    <div class="settings-icon">
-                        <i class="fa-solid fa-receipt"></i>
-                    </div>
-
-                    <div>
-
-                        <h3>Order Settings</h3>
-
-                        <p>
-                            Configure how orders are handled.
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div class="setting-option">
-
-                    <div>
-
-                        <strong>Require Staff Confirmation</strong>
-
-                        <p>
-                            Orders must be confirmed by staff before processing.
-                        </p>
-
-                    </div>
-
-                    <label class="switch">
-
-                        <input
-                            type="checkbox"
-                            id="staffConfirmation"
-                            checked
-                        >
-
-                        <span class="slider"></span>
-
-                    </label>
-
-                </div>
-
-
-                <div class="setting-option">
-
-                    <div>
-
-                        <strong>Accept New Orders</strong>
-
-                        <p>
-                            Allow customers to place new orders.
-                        </p>
-
-                    </div>
-
-                    <label class="switch">
-
-                        <input
-                            type="checkbox"
-                            id="acceptOrders"
-                            checked
-                        >
-
-                        <span class="slider"></span>
-
-                    </label>
-
-                </div>
-
-
-                <div class="setting-option">
-
-                    <div>
-
-                        <strong>Order Notifications</strong>
-
-                        <p>
-                            Receive notifications when a new order is placed.
-                        </p>
-
-                    </div>
-
-                    <label class="switch">
-
-                        <input
-                            type="checkbox"
-                            id="orderNotifications"
-                            checked
-                        >
-
-                        <span class="slider"></span>
-
-                    </label>
-
-                </div>
-
-            </div>
-
-
-            <!-- ACCOUNT SETTINGS -->
-
-            <div class="content-card settings-card">
-
-                <div class="settings-header">
-
-                    <div class="settings-icon">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
-
-                    <div>
-
-                        <h3>Account Settings</h3>
-
-                        <p>
-                            Manage the administrator account.
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div class="settings-grid">
-
-                    <div class="form-group">
-
-                        <label for="adminName">
-                            Administrator Name
-                        </label>
-
-                        <input
-                            type="text"
-                            id="adminName"
-                            value="Admin"
-                        >
-
-                    </div>
-
-
-                    <div class="form-group">
-
-                        <label for="adminEmail">
-                            Email Address
-                        </label>
-
-                        <input
-                            type="email"
-                            id="adminEmail"
-                            value="admin@foodbyk.co.za"
-                        >
-
-                    </div>
-
-                </div>
-
-
-                <div class="settings-actions">
-
-                    <button
-                        type="button"
-                        class="save-menu-btn"
-                        id="saveAccountBtn"
-                    >
-                        <i class="fa-solid fa-floppy-disk"></i>
-                        Save Account
-                    </button>
-
-                </div>
-
-            </div>
-
-        </section>
-
-    </main>
-
-
-    <script src="../js/dashboard.js"></script>
-
+    <div class="savebar" id="saveBar" role="region" aria-label="Unsaved changes">
+      <span>You have unsaved changes</span>
+      <button type="button" class="discard" id="discardBtn">Discard</button>
+      <button type="button" class="save" id="saveBtn"><i class="fa-solid fa-floppy-disk"></i> Save changes</button>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"><i class="fa-solid fa-circle-check"></i><span>Settings saved</span></div>
+
+  </main>
+
+  <script src="../js/dashboard.js"></script>
+
+  <script>
+  (function () {
+    var KEY = 'fbk_admin_settings_v1';
+    var DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+    /* ---- tiny builders ---- */
+    var T  = function (k, l, v, h) { return { k: k, l: l, v: v, h: h, t: 'toggle' }; };
+    var I  = function (k, l, v, o) { return Object.assign({ k: k, l: l, v: v, t: 'text' }, o || {}); };
+    var TA = function (k, l, v, h) { return { k: k, l: l, v: v, h: h, t: 'textarea' }; };
+    var SEL = function (k, l, v, o, h) { return { k: k, l: l, v: v, o: o, h: h, t: 'select' }; };
+    var O = function () { return [].slice.call(arguments).map(function (x) { return Array.isArray(x) ? x : [x, x]; }); };
+
+    /* ---- every setting lives here ---- */
+    var S = [
+      { id: 'business', icon: 'fa-store', title: 'Business profile', desc: 'The details customers see on the website and receipts.', fields: [
+        I('name', 'Business name', 'Food by K'),
+        I('phone', 'Contact number', '081 447 8395', { t: 'tel' }),
+        I('email', 'Email address', 'info@foodbyk.co.za', { t: 'email' }),
+        I('whatsapp', 'WhatsApp number', '081 447 8395', { t: 'tel', h: 'Used for customer chat and order alerts' }),
+        I('address', 'Business address', 'Lenasia South, Johannesburg', { w: 1 }),
+        I('vat', 'VAT number', '', { h: 'Shown on receipts. Leave blank if not VAT registered.' }),
+        TA('tagline', 'Short description', 'Fresh, fast and made with love.', 'Appears on the website and in search results'),
+        T('vat_incl', 'Menu prices include VAT', true, 'Show prices as VAT inclusive (15%)')
+      ] },
+      { id: 'hours', icon: 'fa-clock', title: 'Trading hours', desc: 'When customers can order from you.', hours: true, fields: [
+        I('closed_msg', 'Message shown when closed', 'We are currently closed. Please come back during trading hours.', { w: 1 }),
+        T('holidays', 'Close on public holidays', true, 'Automatically pauses ordering on South African public holidays'),
+        T('preorders', 'Allow pre-orders while closed', false, 'Customers can schedule an order for when you reopen')
+      ] },
+      { id: 'ordering', icon: 'fa-bag-shopping', title: 'Order handling', desc: 'Control how orders come in and how busy you let the kitchen get.', fields: [
+        I('prep', 'Average preparation time', 25, { t: 'number', u: 'min' }),
+        I('max_active', 'Max active orders at once', 20, { t: 'number', u: 'orders', h: 'New orders pause when this is reached' }),
+        I('min_order', 'Minimum order amount', 0, { t: 'number', u: 'R' }),
+        I('cutoff', 'Stop taking orders before closing', 30, { t: 'number', u: 'min' }),
+        I('auto_cancel', 'Auto-cancel unpaid orders after', 30, { t: 'number', u: 'min' }),
+        I('prefix', 'Order number prefix', 'FBK', { h: 'Example: FBK-1042' }),
+        T('accept', 'Accept new orders', true, 'Turn off to pause ordering instantly'),
+        T('confirm', 'Require staff confirmation', true, 'Staff must confirm each order before it is prepared'),
+        T('scheduled', 'Allow scheduled orders', true, 'Customers can choose a later time'),
+        T('notes', 'Allow special instructions', true, 'Customers can add notes to items and orders'),
+        T('guest', 'Allow guest checkout', false, 'Order without creating an account')
+      ] },
+      { id: 'delivery', icon: 'fa-truck-fast', title: 'Delivery & collection', desc: 'Extra options on top of your delivery area and fee above.', fields: [
+        I('free_over', 'Free delivery above', 250, { t: 'number', u: 'R', h: 'Set to 0 to turn off' }),
+        I('eta', 'Estimated delivery time', 45, { t: 'number', u: 'min' }),
+        I('pickup_ready', 'Collection ready time', 20, { t: 'number', u: 'min' }),
+        TA('pickup_note', 'Collection instructions', 'Please have your order number ready when you arrive.', 'Shown to customers who choose collection'),
+        T('delivery_on', 'Offer delivery', true),
+        T('collection_on', 'Offer collection', true),
+        T('tips', 'Allow driver tips', true),
+        T('contactless', 'Offer contactless drop-off', true, 'Customers can ask for the order to be left at the door')
+      ] },
+      { id: 'payments', icon: 'fa-credit-card', title: 'Payments', desc: 'Which ways customers can pay.', fields: [
+        I('pay_timeout', 'Online payment window', 15, { t: 'number', u: 'min', h: 'How long a customer has to finish paying' }),
+        I('cod_limit', 'Max cash order value', 1000, { t: 'number', u: 'R', h: 'Larger orders must be paid online. 0 = no limit' }),
+        T('card', 'Card payments (online)', true),
+        T('cod', 'Cash on delivery', true),
+        T('cash_collect', 'Cash on collection', true),
+        T('eft', 'EFT / bank transfer', false, 'Order is held until payment is confirmed'),
+        T('save_cards', 'Let customers save a card for faster checkout', true, 'Stored securely as a reusable token, never as card numbers'),
+        T('receipts', 'Email receipts automatically', true),
+        T('refund_auto', 'Auto-refund paid orders that are cancelled', false)
+      ] },
+      { id: 'notifications', icon: 'fa-bell', title: 'Notifications', desc: 'How you and your customers hear about orders.', fields: [
+        I('alert_email', 'Alert email address', 'info@foodbyk.co.za', { t: 'email' }),
+        SEL('summary_time', 'Daily summary time', '18:30', O('17:00', '18:00', '18:30', '19:00', '20:00', '21:00')),
+        T('sound', 'Play a sound for new orders', true),
+        T('email_alert', 'Email me new orders', true),
+        T('wa_alert', 'WhatsApp me new orders', true),
+        T('sms_alert', 'SMS me new orders', false),
+        T('daily', 'Send a daily sales summary', true),
+        T('cust_status', 'Notify customers when their order status changes', true, 'Confirmed, preparing, out for delivery, ready'),
+        T('cust_marketing', 'Opt customers in to promotions by default', false, 'Recommended off. Customers should choose this themselves')
+      ] },
+      { id: 'loyalty', icon: 'fa-gift', title: 'Loyalty rewards', desc: 'Reward regulars and keep them coming back.', fields: [
+        I('earn', 'Points earned per R10 spent', 1, { t: 'number', u: 'pts' }),
+        I('redeem', 'Value of 100 points', 10, { t: 'number', u: 'R' }),
+        I('expiry', 'Points expire after', 12, { t: 'number', u: 'months', h: '0 = never expire' }),
+        T('on', 'Loyalty rewards active', true),
+        T('stack', 'Allow promotions to stack with rewards', false),
+        T('birthday', 'Birthday reward', true, 'Send a small treat on the customer’s birthday')
+      ] },
+      { id: 'customers', icon: 'fa-headset', title: 'Customers & support', desc: 'Accounts, verification and how support tickets are handled.', fields: [
+        I('support_email', 'Support email', 'info@foodbyk.co.za', { t: 'email' }),
+        SEL('sla', 'Target first reply time', '4h', O(['1h', 'Within 1 hour'], ['4h', 'Within 4 hours'], ['24h', 'Within 24 hours'], ['48h', 'Within 2 days'])),
+        I('autoclose', 'Auto-close resolved tickets after', 14, { t: 'number', u: 'days' }),
+        T('register', 'Allow new registrations', true),
+        T('verify', 'Require email verification', true, 'Customers confirm their email before ordering'),
+        T('reviews', 'Let customers leave reviews', false),
+        T('chat', 'Show the “Ask Food by K” chat helper', true),
+        T('autoreply', 'Auto-reply to new support tickets', true, 'Confirms we received the request')
+      ] },
+      { id: 'storefront', icon: 'fa-display', title: 'Website & menu', desc: 'What customers see while browsing.', fields: [
+        I('banner_text', 'Announcement banner message', '', { w: 1, h: 'Only shown when the banner below is on' }),
+        SEL('sort', 'Default menu order', 'featured', O(['featured', 'Featured first'], ['price_asc', 'Price: low to high'], ['price_desc', 'Price: high to low'], ['name', 'Name A–Z'])),
+        T('banner_on', 'Show announcement banner', false, 'Great for specials, load-shedding delays or holiday hours'),
+        T('hide_unavail', 'Hide unavailable items', false, 'Otherwise they appear as “Sold out”'),
+        T('allergens', 'Show allergen notices', true),
+        T('badges', 'Show “Popular” badges', true),
+        T('photos', 'Show item photos', true)
+      ] },
+      { id: 'security', icon: 'fa-shield-halved', title: 'Security & privacy', desc: 'Keep the admin area and customer data safe.', fields: [
+        SEL('session', 'Sign admins out after inactivity', '60', O(['15', '15 minutes'], ['30', '30 minutes'], ['60', '1 hour'], ['120', '2 hours'], ['240', '4 hours'])),
+        SEL('retention', 'Keep inactive customer data for', '24', O(['12', '12 months'], ['24', '24 months'], ['36', '36 months'], ['60', '5 years'])),
+        I('max_attempts', 'Lock account after failed logins', 5, { t: 'number', u: 'tries' }),
+        I('min_pass', 'Minimum password length', 8, { t: 'number', u: 'chars' }),
+        T('twofa', 'Require two-step sign-in for admins', false, 'An extra code at login. Strongly recommended'),
+        T('lockout', 'Temporarily lock accounts after repeated failures', true),
+        T('audit', 'Keep an activity log of admin actions', true, 'Who changed what, and when'),
+        T('reaccept', 'Ask customers to re-accept updated Terms & Privacy', true)
+      ] },
+      { id: 'system', icon: 'fa-sliders', title: 'System', desc: 'Regional options, maintenance and backups.', actions: true, fields: [
+        I('maint_msg', 'Maintenance message', 'We are making improvements and will be back shortly.', { w: 1 }),
+        SEL('tz', 'Time zone', 'Africa/Johannesburg', O(['Africa/Johannesburg', 'South Africa (SAST)'], ['Africa/Harare', 'Zimbabwe / Zambia (CAT)'], ['Africa/Nairobi', 'East Africa (EAT)'], ['UTC', 'UTC'])),
+        SEL('currency', 'Currency', 'ZAR', O(['ZAR', 'South African Rand (R)'], ['USD', 'US Dollar ($)'])),
+        SEL('datefmt', 'Date format', 'DD/MM/YYYY', O('DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD')),
+        SEL('lang', 'Language', 'en-ZA', O(['en-ZA', 'English (South Africa)'], ['af', 'Afrikaans'], ['zu', 'isiZulu'])),
+        T('maintenance', 'Maintenance mode', false, 'Shows a “back soon” page to customers. Admins can still sign in')
+      ] }
+    ];
+
+    /* ---- state ---- */
+    function defaults() {
+      var o = { hours: DAYS.map(function (d, i) { return { open: '11:00', close: '18:00', on: i < 6 }; }) };
+      S.forEach(function (s) { s.fields.forEach(function (f) { o[s.id + '.' + f.k] = f.v; }); });
+      return o;
+    }
+    function load() {
+      try { var j = JSON.parse(localStorage.getItem(KEY)); if (j) return Object.assign(defaults(), j); } catch (e) {}
+      return defaults();
+    }
+    var state = load();
+    var saved = JSON.stringify(state);
+
+    /* ---- render ---- */
+    var root = document.getElementById('fbkRoot');
+    var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+
+    function field(sid, f) {
+      var k = sid + '.' + f.k, v = state[k], id = 'f_' + sid + '_' + f.k, c;
+      if (f.t === 'toggle') {
+        return '<label class="row"><span class="row-t"><b>' + f.l + '</b>' + (f.h ? '<small>' + f.h + '</small>' : '') + '</span>' +
+          '<span class="sw"><input type="checkbox" data-k="' + k + '"' + (v ? ' checked' : '') + '><i></i></span></label>';
+      }
+      if (f.t === 'select') {
+        c = '<select id="' + id + '" data-k="' + k + '">' + f.o.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (String(v) === String(o[0]) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
+      } else if (f.t === 'textarea') {
+        c = '<textarea id="' + id + '" rows="3" data-k="' + k + '">' + esc(v) + '</textarea>';
+      } else {
+        c = '<div class="inp"><input id="' + id + '" type="' + f.t + '" data-k="' + k + '" value="' + esc(v) + '"' + (f.t === 'number' ? ' min="0" step="any"' : '') + '>' + (f.u ? '<em>' + f.u + '</em>' : '') + '</div>';
+      }
+      return '<div class="fld' + (f.w || f.t === 'textarea' ? ' wide' : '') + '"><label for="' + id + '">' + f.l + '</label>' + c + (f.h ? '<small>' + f.h + '</small>' : '') + '</div>';
+    }
+
+    function hoursHtml() {
+      return '<div class="hours">' + state.hours.map(function (d, i) {
+        return '<div class="hr' + (d.on ? '' : ' off') + '"><b>' + DAYS[i] + '</b>' +
+          '<div class="tm"><input type="time" data-h="' + i + '.open" value="' + d.open + '"' + (d.on ? '' : ' disabled') + '><span>to</span><input type="time" data-h="' + i + '.close" value="' + d.close + '"' + (d.on ? '' : ' disabled') + '></div>' +
+          '<span class="cl">Closed</span><label class="sw"><input type="checkbox" data-h="' + i + '.on"' + (d.on ? ' checked' : '') + ' aria-label="' + DAYS[i] + ' open"><i></i></label></div>';
+      }).join('') + '</div><button type="button" class="ghost" id="copyMon"><i class="fa-regular fa-copy"></i> Copy Monday’s hours to all open days</button>';
+    }
+
+    function render() {
+      var html = '';
+      S.forEach(function (s) {
+        var inputs = s.fields.filter(function (f) { return f.t !== 'toggle'; });
+        var toggles = s.fields.filter(function (f) { return f.t === 'toggle'; });
+        html += '<section class="fbk-card" id="sec-' + s.id + '"><div class="card-h"><span class="ic"><i class="fa-solid ' + s.icon + '"></i></span><div><h4>' + s.title + '</h4><p>' + s.desc + '</p></div></div>' +
+          (s.hours ? hoursHtml() : '') +
+          (inputs.length ? '<div class="grid">' + inputs.map(function (f) { return field(s.id, f); }).join('') + '</div>' : '') +
+          (toggles.length ? '<div class="rows">' + toggles.map(function (f) { return field(s.id, f); }).join('') + '</div>' : '') +
+          (s.actions ? '<div class="btns"><button type="button" class="ghost" id="exportBtn"><i class="fa-solid fa-download"></i> Download settings backup</button><button type="button" class="danger" id="resetBtn"><i class="fa-solid fa-rotate-left"></i> Reset to defaults</button></div>' : '') +
+          '</section>';
+      });
+      // keep the dashboard.js-filled host in place; rebuild only our cards
+      root.querySelectorAll('.fbk-card').forEach(function (n) { n.remove(); });
+      root.insertAdjacentHTML('beforeend', html);
+    }
+
+    /* ---- section nav ---- */
+    function buildNav() {
+      var items = [{ id: 'zones', icon: 'fa-location-dot', title: 'Delivery area & fee' }].concat(S);
+      document.getElementById('fbkNav').innerHTML = items.map(function (s, i) {
+        return '<a href="#sec-' + s.id + '" data-id="sec-' + s.id + '"' + (i === 0 ? ' class="on"' : '') + '><i class="fa-solid ' + s.icon + '"></i>' + s.title + '</a>';
+      }).join('');
+    }
+    function spy() {
+      if (!('IntersectionObserver' in window)) return;
+      var links = document.querySelectorAll('#fbkNav a');
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          links.forEach(function (a) { a.classList.toggle('on', a.dataset.id === e.target.id); });
+        });
+      }, { rootMargin: '-20% 0px -65% 0px' });
+      document.querySelectorAll('#fbkRoot > section').forEach(function (s) { io.observe(s); });
+    }
+
+    /* ---- save bar ---- */
+    var bar = document.getElementById('saveBar');
+    var toastEl = document.getElementById('toast');
+    function flag() { bar.classList.toggle('show', JSON.stringify(state) !== saved); }
+    function toast(msg) {
+      toastEl.querySelector('span').textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toast.t);
+      toast.t = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
+    }
+
+    root.addEventListener('input', function (e) {
+      var t = e.target, ks;
+      if (t.dataset.k) {
+        state[t.dataset.k] = t.type === 'checkbox' ? t.checked : (t.type === 'number' ? (t.value === '' ? '' : Number(t.value)) : t.value);
+      } else if (t.dataset.h) {
+        ks = t.dataset.h.split('.');
+        state.hours[ks[0]][ks[1]] = t.type === 'checkbox' ? t.checked : t.value;
+        if (ks[1] === 'on') {
+          var r = t.closest('.hr');
+          r.classList.toggle('off', !t.checked);
+          r.querySelectorAll('input[type=time]').forEach(function (x) { x.disabled = !t.checked; });
+        }
+      } else { return; }
+      flag();
+    });
+
+    root.addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (!b) return;
+      if (b.id === 'copyMon') {
+        var m = state.hours[0];
+        state.hours.forEach(function (d) { if (d.on) { d.open = m.open; d.close = m.close; } });
+        render(); flag(); toast('Monday’s hours copied');
+      } else if (b.id === 'exportBtn') {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }));
+        a.download = 'food-by-k-settings.json';
+        document.body.appendChild(a); a.click(); a.remove();
+      } else if (b.id === 'resetBtn') {
+        if (confirm('Reset every setting on this page to its default? You can still discard this before saving.')) { state = defaults(); render(); flag(); }
+      }
+    });
+
+    document.getElementById('saveBtn').addEventListener('click', function () {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+      saved = JSON.stringify(state);
+      /* Hook for your backend: listen for this event in dashboard.js and send event.detail to your API. */
+      document.dispatchEvent(new CustomEvent('fbk:settings-save', { detail: JSON.parse(saved) }));
+      flag(); toast('Settings saved');
+    });
+    document.getElementById('discardBtn').addEventListener('click', function () { state = JSON.parse(saved); render(); flag(); toast('Changes discarded'); });
+
+    /* ---- search ---- */
+    document.getElementById('fbkSearch').addEventListener('input', function (e) {
+      var q = e.target.value.trim().toLowerCase(), any = false;
+      root.querySelectorAll('.fbk-card').forEach(function (card) {
+        var head = card.querySelector('.card-h').textContent.toLowerCase().indexOf(q) > -1, hit = !q || head;
+        card.querySelectorAll('.fld, .row, .hr').forEach(function (el) {
+          var m = !q || head || el.textContent.toLowerCase().indexOf(q) > -1;
+          el.hidden = !m; if (m && q) hit = true;
+        });
+        card.hidden = !hit; if (hit) any = true;
+      });
+      var zones = document.getElementById('sec-zones');
+      if (zones && zones.textContent.trim()) { var zm = !q || zones.textContent.toLowerCase().indexOf(q) > -1; zones.hidden = !zm; if (zm) any = true; }
+      document.getElementById('fbkEmpty').style.display = any ? 'none' : 'block';
+    });
+
+    window.addEventListener('beforeunload', function (e) { if (JSON.stringify(state) !== saved) { e.preventDefault(); e.returnValue = ''; } });
+
+    buildNav(); render(); spy();
+  })();
+  </script>
 </body>
-
 </html>
