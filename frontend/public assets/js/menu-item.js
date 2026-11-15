@@ -75,26 +75,58 @@ document.addEventListener("DOMContentLoaded", async () => {
     const description = document.createElement("p");
     description.className = "menu-item-description";
     description.textContent = product.description || "A Food by K favourite, made fresh for you.";
+    const options = Array.isArray(product.options) ? product.options.filter((option) => option.is_available !== false) : [];
+    let optionPicker = null;
+    if (options.length) {
+        optionPicker = document.createElement("fieldset");
+        optionPicker.className = "menu-item-options";
+        const legend = document.createElement("legend");
+        legend.textContent = "Make it yours · optional extras";
+        optionPicker.appendChild(legend);
+        options.forEach((option) => {
+            const label = document.createElement("label");
+            label.className = "menu-item-option";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.value = String(option.id);
+            checkbox.dataset.priceDelta = String(Number(option.price_delta || 0));
+            checkbox.addEventListener("change", updatePrice);
+            const name = document.createElement("span");
+            name.textContent = option.name;
+            const optionPrice = document.createElement("strong");
+            const delta = Number(option.price_delta || 0);
+            optionPrice.textContent = delta > 0 ? `+R${delta.toFixed(2)}` : "Free";
+            label.append(checkbox, name, optionPrice);
+            optionPicker.appendChild(label);
+        });
+    }
     const price = document.createElement("p");
     price.className = "menu-item-price";
     const basePrice = Number(product.price || 0);
     const pricePromotion = eligiblePromotions.find((promotion) => promotion.discount_type === "percentage");
-    if (pricePromotion) {
-        const discount = Math.min(100, Math.max(0, Number(pricePromotion.discount_value || 0)));
+    const discount = pricePromotion ? Math.min(100, Math.max(0, Number(pricePromotion.discount_value || 0))) : 0;
+    function updatePrice() {
+        const selectedOptions = optionPicker ? [...optionPicker.querySelectorAll("input:checked")] : [];
+        const customizationTotal = selectedOptions.reduce((sum, input) => sum + Number(input.dataset.priceDelta || 0), 0);
+        const currentBase = basePrice + customizationTotal;
+        price.replaceChildren();
+        if (pricePromotion) {
         const original = document.createElement("span");
         original.className = "menu-price-original";
-        original.textContent = `Was R${basePrice.toFixed(2)}`;
+        original.textContent = `Was R${currentBase.toFixed(2)}`;
         const current = document.createElement("span");
-        current.textContent = `Now R${(basePrice * (1 - discount / 100)).toFixed(2)}`;
+        current.textContent = `Now R${(currentBase * (1 - discount / 100)).toFixed(2)}`;
         const terms = document.createElement("small");
         terms.className = "menu-price-condition";
         terms.textContent = pricePromotion.code
             ? `Use code ${String(pricePromotion.code).toUpperCase()} at checkout`
             : "Discount applied at checkout";
         price.append(original, current, terms);
-    } else {
-        price.textContent = `R${basePrice.toFixed(2)}`;
+        } else {
+            price.textContent = `R${currentBase.toFixed(2)}`;
+        }
     }
+    updatePrice();
     let promotionList = null;
     if (eligiblePromotions.length) {
         promotionList = document.createElement("div");
@@ -117,7 +149,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     addButton.addEventListener("click", async () => {
         addButton.disabled = true;
         addButton.textContent = "Adding...";
-        const addResult = await apiPost("/cart/items", { product_id: product.id, quantity: 1 });
+        const optionIds = optionPicker ? [...optionPicker.querySelectorAll("input:checked")].map((input) => Number(input.value)) : [];
+        const addResult = await apiPost("/cart/items", { product_id: product.id, quantity: 1, option_ids: optionIds });
         if (addResult?.success) {
             const offer = eligiblePromotions.find((promotion) => promotion.code);
             if (offer) {
@@ -148,7 +181,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
     });
 
-    copy.append(kicker, title, description, price);
+    copy.append(kicker, title, description);
+    if (optionPicker) copy.appendChild(optionPicker);
+    copy.appendChild(price);
     if (promotionList) copy.appendChild(promotionList);
     copy.appendChild(addButton);
     detail.append(media, copy);

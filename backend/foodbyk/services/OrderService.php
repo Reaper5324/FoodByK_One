@@ -355,6 +355,16 @@ class OrderService {
                 throw new \Exception('Cart is empty.');
             }
 
+            $quantitiesByProduct = [];
+            foreach ($cartItems as $cartItem) {
+                $quantitiesByProduct[$cartItem->product_id] = ($quantitiesByProduct[$cartItem->product_id] ?? 0) + $cartItem->quantity;
+            }
+            foreach ($quantitiesByProduct as $quantity) {
+                if ($quantity > CartService::MAX_ITEM_QUANTITY) {
+                    throw new \Exception('A menu item exceeds the limit of 99 across its customizations. Reduce its quantity to continue.');
+                }
+            }
+
             $productsById = Product::findByIds(array_map(
                 fn(CartItem $item) => $item->product_id,
                 $cartItems
@@ -382,7 +392,7 @@ class OrderService {
                 if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
                     throw new \Exception("Item {$cartItem->product_id} is no longer available.");
                 }
-                $subtotal += $product->price * $cartItem->quantity;
+                $subtotal += ($product->price + $cartItem->getCustomizationTotal()) * $cartItem->quantity;
             }
             $order->subtotal = round($subtotal, 2);
 
@@ -409,7 +419,7 @@ class OrderService {
                     array_map(fn(CartItem $item) => [
                         'product_id' => $item->product_id,
                         'quantity' => $item->quantity,
-                    'unit_price' => $productsById[$item->product_id]->price,
+                    'unit_price' => $productsById[$item->product_id]->price + $item->getCustomizationTotal(),
                     ], $cartItems),
                     $order->delivery_fee
                 );
@@ -463,7 +473,8 @@ class OrderService {
                     order_id: $order->id,
                     product_id: $cartItem->product_id,
                     quantity: $cartItem->quantity,
-                    unit_price: $product->price
+                    unit_price: $product->price + $cartItem->getCustomizationTotal(),
+                    customization_json: $cartItem->customization_json
                 );
                 if (!$orderItem->save()) {
                     throw new \Exception('Unable to save order items.');
@@ -568,6 +579,7 @@ class OrderService {
                 return $this->failure('An adjusted order can contain at most 50 menu items.');
             }
             $combinedItems = [];
+            $totalsByProduct = [];
             foreach ($adjustedItems as $item) {
                 if (!is_array($item)) {
                     return $this->failure('Each adjusted item must include a product and quantity.');
@@ -577,15 +589,27 @@ class OrderService {
                 if ($productId === false || $quantity === false) {
                     return $this->failure('Adjusted items need a valid product and a quantity from 1 to 99.');
                 }
-                $combinedItems[$productId] = ($combinedItems[$productId] ?? 0) + $quantity;
-                if ($combinedItems[$productId] > 99) {
+                $totalsByProduct[(int) $productId] = ($totalsByProduct[(int) $productId] ?? 0) + (int) $quantity;
+                if ($totalsByProduct[(int) $productId] > 99) {
+                    return $this->failure('The combined quantity for a menu item cannot exceed 99.');
+                }
+                $optionIds = $item['option_ids'] ?? [];
+                if (!is_array($optionIds)) return $this->failure('Adjusted item customizations are invalid.');
+                $selection = (new ProductOptionService())->resolveSelection((int) $productId, $optionIds);
+                if (!$selection['success']) return $selection;
+                $signature = implode(',', array_column($selection['data'], 'id'));
+                $key = (int) $productId . ':' . $signature;
+                $combinedItems[$key] ??= [
+                    'product_id' => (int) $productId,
+                    'quantity' => 0,
+                    'customizations' => $selection['data'],
+                ];
+                $combinedItems[$key]['quantity'] += $quantity;
+                if ($combinedItems[$key]['quantity'] > 99) {
                     return $this->failure('The quantity for a menu item cannot exceed 99.');
                 }
             }
-            $adjustedItems = [];
-            foreach ($combinedItems as $productId => $quantity) {
-                $adjustedItems[] = ['product_id' => (int) $productId, 'quantity' => $quantity];
-            }
+            $adjustedItems = array_values($combinedItems);
         }
         if (($newWindowStart === null) !== ($newWindowEnd === null)) {
             return $this->failure('Both confirmed window start and end are required.');
@@ -643,17 +667,20 @@ class OrderService {
                         throw new \Exception('Adjusted item quantity must be at least one.');
                     }
                     $quantity = (int) $adj['quantity'];
+                    $customizations = $adj['customizations'] ?? [];
+                    $customizationTotal = array_sum(array_map(static fn(array $option): float => (float) $option['price_delta'], $customizations));
                     $orderItem = new OrderItem(
                         order_id: $order->id,
                         product_id: $product->id,
                         quantity: $quantity,
-                        unit_price: $product->price,
-                        product_name: $product->name
+                        unit_price: $product->price + $customizationTotal,
+                        product_name: $product->name,
+                        customization_json: json_encode($customizations, JSON_UNESCAPED_UNICODE)
                     );
                     if (!$orderItem->save()) {
                         throw new \Exception('Unable to save adjusted items.');
                     }
-                    $newSubtotal += $quantity * $product->price;
+                    $newSubtotal += $quantity * ($product->price + $customizationTotal);
                 }
                 $order->subtotal = round($newSubtotal, 2);
 

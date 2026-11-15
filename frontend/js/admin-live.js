@@ -642,7 +642,15 @@ const initializeAdminLive = async () => {
             if (role === "admin") actions.append(edit);
             actions.append(availability);
             if (role === "admin") actions.append(remove);
-            content.append(category, title, description, price, actions);
+            content.append(category, title, description);
+            const optionNames = (product.options || []).filter((option) => option.is_available).map((option) => option.name);
+            if (optionNames.length) {
+                const extras = document.createElement("p");
+                extras.className = "menu-description menu-option-summary";
+                extras.textContent = `Extras: ${optionNames.join(", ")}`;
+                content.appendChild(extras);
+            }
+            content.append(price, actions);
             card.append(imageContainer, content);
             grid.appendChild(card);
         });
@@ -1126,6 +1134,7 @@ const initializeAdminLive = async () => {
         items.forEach((item) => {
             const row = document.createElement("div"); row.className = "order-item-line";
             row.dataset.productId = String(item.product_id || "");
+            row.dataset.optionIds = JSON.stringify((item.customizations || []).map((option) => Number(option.id)).filter(Number.isInteger));
             let image;
             if (item.image_url) {
                 image = document.createElement("img");
@@ -1147,6 +1156,12 @@ const initializeAdminLive = async () => {
             const details = document.createElement("div"); details.className = "order-item-details";
             const name = document.createElement("div"); name.className = "order-item-name";
             const title = document.createElement("strong"); title.textContent = item.product_name || item.name || `Menu item #${item.product_id || "?"}`; name.appendChild(title);
+            if (Array.isArray(item.customizations) && item.customizations.length) {
+                const extras = document.createElement("span");
+                extras.className = "order-item-customizations";
+                extras.textContent = `Extras: ${item.customizations.map((option) => option.name).join(", ")}`;
+                name.appendChild(extras);
+            }
             const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} Ã— ${money(item.unit_price ?? item.price)}`; name.appendChild(detail);
             if (isProductPromotion && (promoTargets.length === 0 || promoTargets.includes(Number(item.product_id)))) {
                 const promoBadge = document.createElement("span");
@@ -1429,7 +1444,8 @@ const initializeAdminLive = async () => {
             const productId = Number(document.getElementById("addOrderItemSelect")?.value);
             const product = orderEditProducts.find((item) => Number(item.id) === productId);
             if (!product || !Array.isArray(currentReviewData?.items)) return alert("Choose an available menu item first.");
-            const existing = currentReviewData.items.find((item) => Number(item.product_id) === productId);
+            const existing = currentReviewData.items.find((item) => Number(item.product_id) === productId
+                && (!Array.isArray(item.customizations) || item.customizations.length === 0));
             if (existing) {
                 if (Number(existing.quantity) >= 99) return alert("An item quantity cannot exceed 99.");
                 existing.quantity = Number(existing.quantity) + 1;
@@ -1448,7 +1464,9 @@ const initializeAdminLive = async () => {
                 if (!Number.isInteger(productId) || productId < 1 || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
                     return alert("Each item needs a quantity between 1 and 99.");
                 }
-                adjustedItems.push({ product_id: productId, quantity });
+                let optionIds = [];
+                try { optionIds = JSON.parse(row.dataset.optionIds || "[]"); } catch (_) {}
+                adjustedItems.push({ product_id: productId, quantity, option_ids: optionIds });
             }
             if (!adjustedItems.length) return alert("An order must contain at least one menu item.");
             if (!confirm(`Save these item changes and charge the updated total for order #${currentReviewOrderId}?`)) return;
@@ -1505,6 +1523,8 @@ const initializeAdminLive = async () => {
             document.getElementById("itemPrice").value = record.price;
             document.getElementById("itemImage").value = record.image_key || "";
             document.getElementById("itemDescription").value = record.description || "";
+            document.getElementById("itemOptions").value = (record.options || [])
+                .map((option) => `${option.name} | ${Number(option.price_delta || 0).toFixed(2)}`).join("\n");
             openModal("#menuModal");
         } else if (action === "category-delete" && confirm("Delete this category? It must have no products assigned.")) {
             const result = await apiDelete(`/admin/categories/${id}`); if (showResult(result)) await loadCategories();
@@ -1737,7 +1757,16 @@ const initializeAdminLive = async () => {
                 if (!showResult(upload)) return;
                 imageUrl = upload.data.key;
             }
-            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: document.getElementById("itemDescription").value.trim(), price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active" };
+            const options = (document.getElementById("itemOptions").value || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+                const separator = line.lastIndexOf("|");
+                const name = (separator < 0 ? line : line.slice(0, separator)).trim();
+                const priceText = separator < 0 ? "0" : line.slice(separator + 1).trim();
+                return { name, price_delta: Number(priceText) };
+            });
+            if (options.some((option) => !option.name || !Number.isFinite(option.price_delta) || option.price_delta < 0)) {
+                return alert("Enter each extra as Name | price, using a non-negative price.");
+            }
+            const body = { category_id: Number(document.getElementById("itemCategory").value), name: document.getElementById("itemName").value.trim(), description: document.getElementById("itemDescription").value.trim(), price: Number(document.getElementById("itemPrice").value), image_url: imageUrl, is_available: product?.is_available ?? true, status: product?.status || "active", options };
             result = id ? await apiPut(`/admin/products/${id}`, body) : await apiPost("/admin/products", body);
             if (showResult(result)) { closeModal("#menuModal"); await loadProducts(); }
         } else if (form.id === "promotionForm") {

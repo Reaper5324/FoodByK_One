@@ -87,6 +87,8 @@ Promotions can apply to the whole order or to selected menu items. The `promotio
 
 When upgrading an existing database, run [`database/promotion_product_targets.sql`](database/promotion_product_targets.sql) once before deploying the promotion service changes. The main `migration.sql` includes this table for new installations.
 
+Product customizations are optional priced extras. For an existing database, back it up and run [`database/product_options.sql`](database/product_options.sql) once before deploying the updated backend. The main `migration.sql` includes the option table and cart/order snapshot fields for new installations. Product options are validated and priced by the API; the selected names and prices are retained on cart rows and immutable order-item snapshots.
+
 Admin-only `PUT /admin/staff/{id}`, `PUT /admin/products/{id}`, and `PUT /admin/promotions/{id}` routes edit records through their owning services. `DELETE /admin/staff/{id}` deactivates staff accounts, `DELETE /admin/products/{id}` marks products removed, and `DELETE /admin/promotions/{id}` deactivates promotions; these operations preserve historical references rather than deleting database rows. Staff updates accept `full_name`, `email`, `phone`, and optionally `is_active`. Promotion updates accept `code`, `discount_type`, `discount_value`, `start_date`, `end_date`, and `is_active`; send `null` for an optional date to clear it.
 
 ### Orders and Payments

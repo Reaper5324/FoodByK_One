@@ -92,6 +92,7 @@
 .cart-item-info { display: grid; min-width: 0; gap: 5px; }
 .cart-item-name { color: var(--cart-ink); font-size: 15px; font-weight: 950; line-height: 1.3; }
 .cart-item-unit-price { color: #746b61; font-size: 12px; }
+.cart-item-customizations { display: block; color: #746b61; font-size: 11px; line-height: 1.45; }
 .cart-quantity-label { display: grid; gap: 4px; color: #746b61; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .cart-quantity-label > label { color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; }
 .cart-quantity-control { display: flex; align-items: center; gap: 4px; }

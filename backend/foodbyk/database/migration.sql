@@ -72,6 +72,18 @@ CREATE TABLE products (
     FULLTEXT INDEX ft_products_search (name, description)
 ) ENGINE=InnoDB;
 
+CREATE TABLE product_options (
+    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    product_id    INT UNSIGNED NOT NULL,
+    name          VARCHAR(80) NOT NULL,
+    price_delta   DECIMAL(8,2) NOT NULL DEFAULT 0.00,
+    is_available  TINYINT(1) NOT NULL DEFAULT 1,
+    display_order INT UNSIGNED NOT NULL DEFAULT 0,
+    CONSTRAINT fk_product_options_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    CONSTRAINT chk_product_options_price CHECK (price_delta >= 0),
+    INDEX idx_product_options_product (product_id, is_available, display_order)
+) ENGINE=InnoDB;
+
 CREATE TABLE addresses (
     id            INT            UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     customer_id   INT            UNSIGNED NOT NULL,
@@ -97,12 +109,14 @@ CREATE TABLE cart_items (
     product_id    INT       UNSIGNED NOT NULL,
     quantity      INT       UNSIGNED NOT NULL DEFAULT 1,
     unit_price    DECIMAL(8,2) DEFAULT NULL,
+    customization_json LONGTEXT DEFAULT NULL,
+    customization_hash CHAR(64) DEFAULT NULL,
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_cart_quantity_positive CHECK (quantity > 0),
     CONSTRAINT chk_cart_unit_price_nonnegative CHECK (unit_price IS NULL OR unit_price >= 0),
     CONSTRAINT fk_cart_customer FOREIGN KEY (customer_id) REFERENCES users(id)    ON DELETE CASCADE,
     CONSTRAINT fk_cart_product  FOREIGN KEY (product_id)  REFERENCES products(id) ON DELETE CASCADE,
-    UNIQUE KEY uq_cart_item (customer_id, product_id)
+    UNIQUE KEY uq_cart_item (customer_id, product_id, customization_hash)
 ) ENGINE=InnoDB;
 
 CREATE TABLE customer_email_verifications (
@@ -206,6 +220,7 @@ CREATE TABLE order_items (
     product_name  VARCHAR(150)   NOT NULL,
     quantity      INT            UNSIGNED NOT NULL,
     unit_price    DECIMAL(8,2)   NOT NULL,
+    customization_json LONGTEXT DEFAULT NULL,
     CONSTRAINT fk_items_order   FOREIGN KEY (order_id)   REFERENCES orders(id)   ON DELETE CASCADE,
     CONSTRAINT fk_items_product FOREIGN KEY (product_id) REFERENCES products(id),
     CONSTRAINT chk_order_items_quantity_positive CHECK (quantity > 0),

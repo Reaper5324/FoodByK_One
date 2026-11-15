@@ -29,12 +29,12 @@ class CheckoutService {
         $lineItems = [];
         foreach ($cartItems as $cartItem) {
             $product = $productsById[$cartItem->product_id];
-            $lineTotal = $cartItem->quantity * $product->price;
+            $lineTotal = $cartItem->quantity * ($product->price + $cartItem->getCustomizationTotal());
             $subtotal += $lineTotal;
             $lineItems[] = [
                 'product_id' => $cartItem->product_id,
                 'quantity' => $cartItem->quantity,
-                'unit_price' => $product->price,
+                'unit_price' => $product->price + $cartItem->getCustomizationTotal(),
             ];
         }
         $subtotal = round($subtotal, 2);
@@ -123,6 +123,15 @@ class CheckoutService {
             fn(CartItem $item) => $item->product_id,
             $cartItems
         ));
+        $quantitiesByProduct = [];
+        foreach ($cartItems as $item) {
+            $quantitiesByProduct[$item->product_id] = ($quantitiesByProduct[$item->product_id] ?? 0) + $item->quantity;
+        }
+        foreach ($quantitiesByProduct as $quantity) {
+            if ($quantity > CartService::MAX_ITEM_QUANTITY) {
+                return $this->failure('A menu item exceeds the limit of 99 across its customizations. Reduce its quantity to continue.');
+            }
+        }
         foreach ($cartItems as $item) {
             if ($item->quantity > CartService::MAX_ITEM_QUANTITY) {
                 return $this->failure('A menu item quantity exceeds the limit of 99. Reduce the quantity in your cart to continue.');

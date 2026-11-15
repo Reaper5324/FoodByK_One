@@ -4,34 +4,46 @@ class CartService {
 
     public const MAX_ITEM_QUANTITY = 99;
 
-    public function addItem(int $customerId, int $productId, int $quantity = 1): array {
+    public function addItem(int $customerId, int $productId, int $quantity = 1, array $optionIds = []): array {
         if ($customerId <= 0 || $productId <= 0) return $this->failure('Invalid request.');
         if ($quantity <= 0) return $this->failure('Quantity must be at least 1.');
         if ($quantity > self::MAX_ITEM_QUANTITY) return $this->failure('You can add up to 99 of the same menu item.');
 
-        return $this->withCustomerLock($customerId, function (PDO $db) use ($customerId, $productId, $quantity): array {
+        return $this->withCustomerLock($customerId, function (PDO $db) use ($customerId, $productId, $quantity, $optionIds): array {
             $productLock = $db->prepare(
                 'SELECT id FROM products WHERE id = ? AND status = ? AND is_available = 1 FOR UPDATE'
             );
             $productLock->execute([$productId, Product::STATUS_ACTIVE]);
             if (!$productLock->fetchColumn()) return $this->failure('This item is not available.');
 
-            $existingQuery = $db->prepare('SELECT quantity FROM cart_items WHERE customer_id = ? AND product_id = ? FOR UPDATE');
-            $existingQuery->execute([$customerId, $productId]);
-            $existingQuantity = (int) ($existingQuery->fetchColumn() ?: 0);
-            if ($existingQuantity + $quantity > self::MAX_ITEM_QUANTITY) {
-                return $this->failure('You can add up to 99 of the same menu item.');
+            $selectedOptions = (new ProductOptionService())->resolveSelection($productId, $optionIds);
+            if (!$selectedOptions['success']) return $selectedOptions;
+            $customizations = $selectedOptions['data'];
+            $customizationJson = json_encode($customizations, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+            $customizationHash = hash('sha256', json_encode(array_column($customizations, 'id')));
+
+            $productQuantityQuery = $db->prepare('SELECT COALESCE(SUM(quantity), 0) FROM cart_items WHERE customer_id = ? AND product_id = ?');
+            $productQuantityQuery->execute([$customerId, $productId]);
+            $productQuantity = (int) $productQuantityQuery->fetchColumn();
+            if ($productQuantity + $quantity > self::MAX_ITEM_QUANTITY) {
+                return $this->failure('You can add up to 99 of the same menu item across all customizations.');
             }
 
-            $stmt = $db->prepare(
-                'INSERT INTO cart_items (customer_id, product_id, quantity) VALUES (?, ?, ?) '
-                . 'ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)'
-            );
-            if (!$stmt->execute([$customerId, $productId, $quantity])) return $this->failure('Unable to add item to cart.');
-            $item = array_values(array_filter(
-                CartItem::findBy('customer_id', $customerId),
-                fn(CartItem $cartItem) => $cartItem->product_id === $productId
-            ))[0] ?? null;
+            $existingQuery = $db->prepare('SELECT id FROM cart_items WHERE customer_id = ? AND product_id = ? AND customization_hash = ? FOR UPDATE');
+            $existingQuery->execute([$customerId, $productId, $customizationHash]);
+            $existingId = $existingQuery->fetchColumn();
+
+            if ($existingId) {
+                $stmt = $db->prepare('UPDATE cart_items SET quantity = quantity + ?, customization_json = ? WHERE id = ?');
+                if (!$stmt->execute([$quantity, $customizationJson, (int) $existingId])) return $this->failure('Unable to add item to cart.');
+                $item = CartItem::findById((int) $existingId);
+            } else {
+                $stmt = $db->prepare(
+                    'INSERT INTO cart_items (customer_id, product_id, quantity, customization_json, customization_hash) VALUES (?, ?, ?, ?, ?)'
+                );
+                if (!$stmt->execute([$customerId, $productId, $quantity, $customizationJson, $customizationHash])) return $this->failure('Unable to add item to cart.');
+                $item = CartItem::findById((int) $db->lastInsertId());
+            }
             return $item ? $this->success($item) : $this->failure('Unable to load cart item.');
         });
     }
@@ -40,11 +52,17 @@ class CartService {
         if ($cartItemId <= 0) return $this->failure('Cart item not found.');
         if ($quantity > self::MAX_ITEM_QUANTITY) return $this->failure('You can add up to 99 of the same menu item.');
         return $this->withCustomerLock($customerId, function (PDO $db) use ($customerId, $cartItemId, $quantity): array {
-            $lock = $db->prepare('SELECT id FROM cart_items WHERE id = ? AND customer_id = ? FOR UPDATE');
+            $lock = $db->prepare('SELECT id, product_id FROM cart_items WHERE id = ? AND customer_id = ? FOR UPDATE');
             $lock->execute([$cartItemId, $customerId]);
-            if (!$lock->fetchColumn()) return $this->failure('Cart item not found.');
+            $lockedRow = $lock->fetch();
+            if (!$lockedRow) return $this->failure('Cart item not found.');
             $item = CartItem::findById($cartItemId);
             if ($quantity <= 0) return $item->delete() ? $this->success(null) : $this->failure('Unable to remove item.');
+            $otherItems = $db->prepare('SELECT COALESCE(SUM(quantity), 0) FROM cart_items WHERE customer_id = ? AND product_id = ? AND id <> ?');
+            $otherItems->execute([$customerId, (int) $lockedRow['product_id'], $cartItemId]);
+            if ((int) $otherItems->fetchColumn() + $quantity > self::MAX_ITEM_QUANTITY) {
+                return $this->failure('You can add up to 99 of the same menu item across all customizations.');
+            }
             $item->quantity = $quantity;
             return $item->save() ? $this->success($item) : $this->failure('Unable to update cart.');
         });

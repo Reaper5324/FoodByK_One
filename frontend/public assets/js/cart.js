@@ -102,11 +102,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             const name = document.createElement("strong");
             name.className = "cart-item-name";
             name.textContent = product?.name || `Item ${item.product_id}`;
-            const price = Number(product?.price ?? item.unit_price ?? 0);
+            const customizations = Array.isArray(item.customizations) ? item.customizations : [];
+            const customizationTotal = customizations.reduce((sum, option) => sum + Number(option.price_delta || 0), 0);
+            const price = Number(product?.price ?? item.unit_price ?? 0) + customizationTotal;
             const unitPrice = document.createElement("span");
             unitPrice.className = "cart-item-unit-price";
             unitPrice.textContent = `R${price.toFixed(2)} each`;
             itemInfo.append(name, unitPrice);
+            if (customizations.length) {
+                const extras = document.createElement("span");
+                extras.className = "cart-item-customizations";
+                extras.textContent = `Extras: ${customizations.map((option) => option.name).join(", ")}`;
+                itemInfo.appendChild(extras);
+            }
 
             const currentQuantity = Number(item.quantity) || 1;
             const quantity = document.createElement("input");

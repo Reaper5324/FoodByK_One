@@ -143,6 +143,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const name = element("span", "order-item-name", `${item.quantity} × ${item.product_name || "Food by K item"}`);
             const description = element("div", "order-item-description");
             description.append(image, name);
+            if (Array.isArray(item.customizations) && item.customizations.length) {
+                name.appendChild(element("small", "order-item-customizations", `Extras: ${item.customizations.map((option) => option.name).join(", ")}`));
+            }
             row.append(description, element("strong", "", money(Number(item.quantity) * Number(item.unit_price))));
             itemList.appendChild(row);
         });
@@ -282,7 +285,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 confirmed_window_start: order.confirmed_window_start,
                 requested_window_start: order.requested_window_start
             },
-            items: (items || []).map(({ product_name, quantity, unit_price }) => ({ product_name, quantity, unit_price })),
+            items: (items || []).map(({ product_name, quantity, unit_price, customizations }) => ({ product_name, quantity, unit_price, customizations })),
             address: address?.raw_address || null
         });
         if (!forceRender && fingerprint === renderedOrderFingerprint) return;

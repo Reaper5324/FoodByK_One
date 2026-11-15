@@ -213,6 +213,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const description = document.createElement("p");
         description.textContent = product.description || "A Food by K favourite.";
+        const hasOptions = Array.isArray(product.options) && product.options.length > 0;
         const eligiblePromotions = productPromotions(product, promotions);
         const pricePromotion = eligiblePromotions.find((promotion) => promotion.discount_type === "percentage");
         let promotionList = null;
@@ -251,8 +252,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const addButton = document.createElement("button");
         addButton.className = "btn btn-primary add-to-cart";
         addButton.type = "button";
-        addButton.textContent = "Add to cart";
+        addButton.textContent = hasOptions ? "Customize" : "Add to cart";
         addButton.addEventListener("click", async () => {
+            if (hasOptions) {
+                window.location.assign(detailUrl);
+                return;
+            }
             addButton.disabled = true;
             const result = await apiPost("/cart/items", { product_id: product.id, quantity: 1 });
             if (result.success) {
@@ -296,6 +301,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         footer.append(priceWrap, addButton);
         body.append(titleLink, description);
+        if (hasOptions) {
+            const customizeHint = document.createElement("p");
+            customizeHint.className = "menu-item-customize-hint";
+            customizeHint.textContent = "Customizable with optional extras";
+            body.appendChild(customizeHint);
+        }
         if (promotionList) body.appendChild(promotionList);
         body.append(footer, reportLink);
         card.append(imageLink, body);

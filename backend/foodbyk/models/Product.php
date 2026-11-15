@@ -3,6 +3,7 @@
 class Product extends Model {
 
 public ?string $image_key = null;
+public array $options = [];
 
 protected static string $table = 'products';
 

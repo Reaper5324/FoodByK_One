@@ -5,7 +5,14 @@ class CartController extends Controller {
 // Add a product to the signed-in customer's cart.
     public function add(Request $request): Response {
         $customer = $request->user();
-        $result = (new CartService())->addItem($customer->id, (int) $request->input('product_id'), (int) ($request->input('quantity') ?? 1));
+        $optionIds = $request->input('option_ids', []);
+        if (!is_array($optionIds)) return Response::error('Selected customizations are invalid.', 422);
+        $result = (new CartService())->addItem(
+            $customer->id,
+            (int) $request->input('product_id'),
+            (int) ($request->input('quantity') ?? 1),
+            $optionIds
+        );
         return $this->respond($result, 201);
     }
 

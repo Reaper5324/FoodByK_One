@@ -4,13 +4,15 @@ class OrderItem extends Model {
 
 protected static string $table = 'order_items';
 public ?string $image_url = null;
+public array $customizations = [];
 
 public function __construct(
     public string $product_name = '',
     public int   $order_id   = 0,
     public int   $product_id = 0,
     public int   $quantity   = 1,
-    public float $unit_price = 0.0
+    public float $unit_price = 0.0,
+    public ?string $customization_json = null
 ) {}
 
 public function getLineTotal(): float {
@@ -28,6 +30,7 @@ public function getProduct(): ?Product {
             'product_name' => $this->product_name,
             'quantity'     => $this->quantity,
             'unit_price'   => $this->unit_price,
+            'customization_json' => $this->customization_json ?? json_encode($this->customizations, JSON_UNESCAPED_UNICODE),
         ];
     }
 
@@ -39,6 +42,9 @@ public function getProduct(): ?Product {
         $i->product_name = (string) ($row['product_name'] ?? '');
         $i->quantity     = (int)   $row['quantity'];
         $i->unit_price   = (float) $row['unit_price'];
+        $i->customization_json = (string) ($row['customization_json'] ?? '[]');
+        $decoded = json_decode($i->customization_json, true);
+        $i->customizations = is_array($decoded) ? $decoded : [];
         return $i;
     }
 }
