@@ -122,6 +122,35 @@ class Promotion extends Model {
         }));
     }
 
+    /** Names of products in this basket that meet this promotion's targets. */
+    public function eligibleProductNames(array $lineItems): array {
+        $names = [];
+        foreach ($this->eligibleLineItems($lineItems) as $item) {
+            $name = trim((string) ($this->lineItemValue($item, 'product_name') ?? ''));
+            if ($name !== '') $names[$name] = $name;
+        }
+        return array_values($names);
+    }
+
+    /** Names of products receiving a product-level benefit at this basket quantity. */
+    public function appliedProductNames(array $lineItems): array {
+        if ($this->discount_type !== self::TYPE_BUY_ONE_GET_ONE) {
+            return $this->eligibleProductNames($lineItems);
+        }
+        $quantities = [];
+        $names = [];
+        foreach ($this->eligibleLineItems($lineItems) as $item) {
+            $id = (int) $this->lineItemValue($item, 'product_id');
+            $quantities[$id] = ($quantities[$id] ?? 0) + max(0, (int) $this->lineItemValue($item, 'quantity'));
+            $name = trim((string) ($this->lineItemValue($item, 'product_name') ?? ''));
+            if ($name !== '') $names[$id] = $name;
+        }
+        return array_values(array_map(
+            static fn(int $id): string => $names[$id],
+            array_keys(array_filter($quantities, static fn(int $quantity): bool => $quantity >= 2))
+        ));
+    }
+
     public function isValid(): bool {
         if (trim($this->code) === '' || !in_array($this->discount_type, self::SUPPORTED_TYPES, true)) {
             return false;

@@ -50,6 +50,26 @@ expect($bogo->calculateDiscount(90.0, $items) === 35.0, 'BOGO promotion calculat
 $delivery = new Promotion(discount_type: Promotion::TYPE_FREE_DELIVERY);
 expect($delivery->calculateDiscount(100.0, [], 15.0) === 15.0, 'Free-delivery promotion calculation failed.');
 
+$targetedItems = [
+    ['product_id' => 1, 'product_name' => 'Kota', 'quantity' => 2, 'unit_price' => 30.0],
+    ['product_id' => 2, 'product_name' => 'Burger', 'quantity' => 1, 'unit_price' => 20.0],
+];
+$targetedPercentage = new Promotion(discount_type: Promotion::TYPE_PERCENTAGE, discount_value: 50.0);
+$targetedPercentage->target_product_ids = [1];
+expect($targetedPercentage->calculateDiscount(80.0, $targetedItems) === 30.0, 'Targeted percentage must discount only selected products.');
+expect($targetedPercentage->eligibleProductNames($targetedItems) === ['Kota'], 'Promotion checkout targets must reflect eligible basket items.');
+$targetedFixed = new Promotion(discount_type: Promotion::TYPE_FIXED_AMOUNT, discount_value: 50.0);
+$targetedFixed->target_product_ids = [2];
+expect($targetedFixed->calculateDiscount(80.0, $targetedItems) === 20.0, 'Targeted fixed discount must cap at selected product subtotal.');
+$targetedBogo = new Promotion(discount_type: Promotion::TYPE_BUY_ONE_GET_ONE);
+$targetedBogo->target_product_ids = [1];
+expect($targetedBogo->calculateDiscount(80.0, $targetedItems) === 30.0, 'Targeted BOGO must discount pairs only for selected products.');
+expect($targetedBogo->appliedProductNames($targetedItems) === ['Kota'], 'BOGO checkout details must name only products with a qualifying pair.');
+$targetedDelivery = new Promotion(discount_type: Promotion::TYPE_FREE_DELIVERY);
+$targetedDelivery->target_product_ids = [1];
+expect($targetedDelivery->calculateDiscount(80.0, $targetedItems, 18.0) === 18.0, 'Targeted free delivery must apply when an eligible product is present.');
+expect($targetedDelivery->calculateDiscount(80.0, [$targetedItems[1]], 18.0) === 0.0, 'Targeted free delivery must not apply without an eligible product.');
+
 $expired = new Promotion(
     discount_type: Promotion::TYPE_PERCENTAGE,
     discount_value: 10.0,

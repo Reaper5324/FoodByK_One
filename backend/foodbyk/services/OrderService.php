@@ -418,6 +418,7 @@ class OrderService {
                     $subtotal,
                     array_map(fn(CartItem $item) => [
                         'product_id' => $item->product_id,
+                        'product_name' => $productsById[$item->product_id]->name,
                         'quantity' => $item->quantity,
                     'unit_price' => $productsById[$item->product_id]->price + $item->getCustomizationTotal(),
                     ], $cartItems),

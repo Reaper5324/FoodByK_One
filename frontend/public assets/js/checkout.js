@@ -523,11 +523,25 @@
         total.append(totalLabel, totalValue);
         summary.appendChild(total);
 
-        if (data.promotion && Number(data.discount || 0) === 0) {
+        if (data.promotion) {
             const promoNote = document.createElement("p");
             promoNote.className = "checkout-summary-note";
 
-            if (data.promotion.discount_type === "free_delivery" && data.fulfillment_type !== "delivery") {
+            const discountApplied = Number(data.discount || 0) > 0;
+            const appliedNames = Array.isArray(data.promotion.applied_product_names)
+                ? data.promotion.applied_product_names
+                : [];
+            if (discountApplied && data.promotion.discount_type === "free_delivery") {
+                promoNote.textContent = `Free delivery applied with code ${data.promotion.code}.`;
+            } else if (discountApplied && data.promotion.discount_type === "buy_one_get_one") {
+                promoNote.textContent = appliedNames.length
+                    ? `Buy-one-get-one offer applied to: ${appliedNames.join(", ")}.`
+                    : `Buy-one-get-one offer applied with code ${data.promotion.code}.`;
+            } else if (discountApplied && appliedNames.length) {
+                promoNote.textContent = `Promotion applied to: ${appliedNames.join(", ")}.`;
+            } else if (discountApplied) {
+                promoNote.textContent = `Promotion ${data.promotion.code} applied to eligible items.`;
+            } else if (data.promotion.discount_type === "free_delivery" && data.fulfillment_type !== "delivery") {
                 promoNote.textContent = "Free-delivery offers apply to delivery orders only.";
             } else if (data.promotion.discount_type === "buy_one_get_one") {
                 promoNote.textContent = "Buy-one-get-one offers need two of the same eligible menu item.";
