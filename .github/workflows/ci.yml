@@ -213,6 +213,10 @@ jobs:
       - name: Run load test and generate KPI reports
         run: php backend/tests/load_test.php
 
+      - name: Show API server log
+        if: always()
+        run: tail -n 100 /tmp/foodbyk-load-api.log
+
       - name: Add load-test results to job summary
         if: always()
         shell: bash
