@@ -898,8 +898,9 @@ td {
     background: white;
     width: 100%;
     max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
     border-radius: 16px;
-    overflow: hidden;
 }
 
 .modal-header {
