@@ -100,6 +100,10 @@ class DeliveryService {
     public function checkEligibility(string $fulfilmentType, ?Address $address): array {
         $settings = BusinessSettings::current();
 
+        if (!$settings->ordering_enabled) {
+            return ['success' => false, 'error' => 'Online ordering is temporarily paused. Please try again later.'];
+        }
+
         if ($fulfilmentType === Order::TYPE_COLLECTION) {
             if (!$settings->collection_enabled) {
                 return ['success' => false, 'error' => 'Collection is currently unavailable.'];

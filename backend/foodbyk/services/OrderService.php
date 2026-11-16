@@ -401,6 +401,9 @@ class OrderService {
                 $subtotal += ($product->price + $cartItem->getCustomizationTotal()) * $cartItem->quantity;
             }
             $order->subtotal = round($subtotal, 2);
+            if ($order->subtotal < $cartSettings->minimum_order_amount) {
+                throw new \Exception('The minimum order amount is R' . number_format($cartSettings->minimum_order_amount, 2) . '. Add more items to continue.');
+            }
 
             $deliveryService = new DeliveryService();
             $address = $addressId ? Address::findById($addressId) : null;

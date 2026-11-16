@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+    loadBusinessDetails();
     loadHomeMeals();
     loadHomePromotions();
 
@@ -11,6 +12,27 @@ document.addEventListener("DOMContentLoaded", () => {
         modal?.close();
     });
 });
+
+async function loadBusinessDetails() {
+    if (typeof apiGet !== "function") return;
+    const result = await apiGet("/business/settings").catch(() => null);
+    if (!result?.success || !result.data) return;
+    const { business_address: address, business_phone: phone } = result.data;
+    const addressNode = document.getElementById("businessAddress");
+    if (addressNode && address) addressNode.textContent = address;
+    const phoneNode = document.getElementById("businessPhone");
+    const phoneLink = document.getElementById("businessPhoneLink");
+    const whatsappLink = document.getElementById("businessWhatsAppLink");
+    if (phone && phoneNode && phoneLink && whatsappLink) {
+        phoneNode.textContent = phone;
+        const digits = phone.replace(/\D/g, "");
+        const international = digits.startsWith("0") ? `27${digits.slice(1)}` : digits;
+        if (international) {
+            phoneLink.href = `https://wa.me/${international}`;
+            whatsappLink.href = `https://wa.me/${international}`;
+        }
+    }
+}
 
 const localMealImages = {
     "bbl": "../images/menu/BBL.jpeg",

@@ -133,6 +133,9 @@ class CheckoutService {
             $cartItems
         ));
         $settings = BusinessSettings::current();
+        if ($subtotal < $settings->minimum_order_amount) {
+            return $this->failure('The minimum order amount is R' . number_format($settings->minimum_order_amount, 2) . '. Add more items to continue.');
+        }
         $cartQuantity = array_sum(array_map(fn(CartItem $item) => $item->quantity, $cartItems));
         if ($cartQuantity > $settings->max_cart_items) {
             return $this->failure('Your cart can contain up to ' . $settings->max_cart_items . ' items, including quantities. Reduce your cart to continue.');

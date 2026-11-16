@@ -1385,7 +1385,12 @@ const initializeAdminLive = async () => {
         const title = document.createElement("h3");
         title.textContent = "Ordering and Delivery Settings";
         form.appendChild(title);
+        const description = document.createElement("p");
+        description.textContent = "Saved settings apply to customer delivery eligibility, checkout, and cart validation.";
+        form.appendChild(description);
         const fields = [
+            ["business_phone", "Customer contact phone / WhatsApp", "tel", ""],
+            ["business_address", "Public business address", "text", ""],
             ["business_lat", "Business latitude", "number", "0.000001"],
             ["business_long", "Business longitude", "number", "0.000001"],
             ["delivery_radius_km", "Delivery radius (km)", "number", "0.01"],
@@ -1396,7 +1401,8 @@ const initializeAdminLive = async () => {
             ["slot_duration_minutes", "Slot length (minutes)", "number", "1"],
             ["max_orders_per_slot", "Maximum orders per slot", "number", "1"],
             ["max_item_quantity", "Maximum quantity of one menu item", "number", "1"],
-            ["max_cart_items", "Maximum items in a cart (including quantities)", "number", "1"]
+            ["max_cart_items", "Maximum items in a cart (including quantities)", "number", "1"],
+            ["minimum_order_amount", "Minimum order amount (R)", "number", "0.01"]
         ];
         fields.forEach(([name, labelText, type, step]) => {
             const label = document.createElement("label");
@@ -1407,20 +1413,37 @@ const initializeAdminLive = async () => {
             input.type = type;
             if (step) input.step = step;
             input.required = true;
-            if (name === "max_item_quantity") { input.min = "1"; input.max = "99"; }
-            if (name === "max_cart_items") { input.min = "1"; input.max = "500"; }
+            if (name === "business_phone") { input.maxLength = 30; input.autocomplete = "tel"; }
+            if (name === "business_address") { input.maxLength = 255; input.autocomplete = "street-address"; }
+            const bounds = {
+                business_lat: [-90, 90], business_long: [-180, 180],
+                delivery_radius_km: [0, null], collection_radius_km: [0, null], delivery_fee: [0, null],
+                slot_duration_minutes: [5, 240], max_orders_per_slot: [1, null],
+                max_item_quantity: [1, 99], max_cart_items: [1, 500],
+                minimum_order_amount: [0, 100000]
+            }[name];
+            if (bounds) {
+                input.min = String(bounds[0]);
+                if (bounds[1] !== null) input.max = String(bounds[1]);
+            }
             const value = result.data[name];
             input.value = type === "time" ? String(value || "").slice(0, 5) : String(value ?? "");
             label.appendChild(input);
             form.appendChild(label);
         });
-        ["delivery_enabled", "collection_enabled"].forEach((name) => {
+        ["ordering_enabled", "delivery_enabled", "collection_enabled"].forEach((name) => {
             const label = document.createElement("label");
+            label.className = "form-group setting-toggle";
             const input = document.createElement("input");
             input.type = "checkbox";
             input.name = name;
             input.checked = Boolean(Number(result.data[name]));
-            label.append(input, document.createTextNode(name === "delivery_enabled" ? " Delivery enabled" : " Collection enabled"));
+            const labelText = {
+                ordering_enabled: "Accept new orders",
+                delivery_enabled: "Delivery enabled",
+                collection_enabled: "Collection enabled"
+            }[name];
+            label.append(input, document.createTextNode(` ${labelText}`));
             form.appendChild(label);
         });
         const save = document.createElement("button");
@@ -1792,7 +1815,7 @@ const initializeAdminLive = async () => {
                 const input = form.elements.namedItem(key);
                 body[key] = input.type === "checkbox" ? input.checked : input.type === "number" ? Number(value) : value;
             });
-            ["delivery_enabled", "collection_enabled"].forEach((key) => {
+            ["ordering_enabled", "delivery_enabled", "collection_enabled"].forEach((key) => {
                 body[key] = Boolean(form.elements.namedItem(key).checked);
             });
             result = await apiPut("/admin/settings", body);

@@ -56,6 +56,7 @@ These classes are the small HTTP framework used by the project; they replace fra
 
 - `Database.php` creates and reuses the PDO database connection. PDO is PHP's database access interface; prepared statements pass values separately from SQL text and help avoid SQL injection.
 - `migration.sql` is the main schema setup and seed for the platform: users, products, categories, addresses, carts, orders, payments, promotions, settings, and related constraints/indexes.
+- Existing databases should apply `cart_quantity_limits.sql` followed by `order_workflow_settings.sql` to add the admin-managed cart, order, and public contact settings.
 - `loyalty_rewards_migration.sql` adds the loyalty feature's database structures/changes.
 - `add_address_province.sql` adds the address province field for structured delivery details.
 - `harden_existing_schema.sql` adds defensive data constraints to an existing schema.

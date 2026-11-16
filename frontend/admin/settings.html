@@ -221,31 +221,24 @@
       <div class="fbk-head">
         <div>
           <p class="tag">Settings</p>
-          <h3>System settings</h3>
-          <p class="desc">Run Food by K your way. Changes are only applied when you press Save.</p>
+          <h3>Ordering settings</h3>
+          <p class="desc">These controls are loaded from and saved to the Food by K backend. Cart limits and fulfilment settings are enforced at checkout.</p>
         </div>
         <div class="fbk-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="fbkSearch" placeholder="Search settings…" aria-label="Search settings"></div>
       </div>
 
       <div class="fbk-layout">
-        <nav class="fbk-nav" id="fbkNav" aria-label="Settings sections"></nav>
+        <nav class="fbk-nav" aria-label="Settings sections"><a href="#sec-zones" class="on"><i class="fa-solid fa-sliders"></i>Ordering settings</a></nav>
 
         <div class="fbk-stack" id="fbkRoot">
           <!-- Ordering & delivery area (latitude, radius, delivery fee, trading times): filled in by dashboard.js -->
           <section class="dashboard-content fbk-host" id="sec-zones"></section>
-          <!-- all other sections are built by the script below -->
         </div>
       </div>
 
       <div class="empty" id="fbkEmpty"><i class="fa-regular fa-face-meh" style="font-size:1.6rem;margin-bottom:.6rem"></i><p>No settings match your search.</p></div>
     </div>
 
-    <div class="savebar" id="saveBar" role="region" aria-label="Unsaved changes">
-      <span>You have unsaved changes</span>
-      <button type="button" class="discard" id="discardBtn">Discard</button>
-      <button type="button" class="save" id="saveBtn"><i class="fa-solid fa-floppy-disk"></i> Save changes</button>
-    </div>
-    <div class="toast" id="toast" role="status" aria-live="polite"><i class="fa-solid fa-circle-check"></i><span>Settings saved</span></div>
 
   </main>
 
@@ -253,274 +246,26 @@
 
   <script>
   (function () {
-    var KEY = 'fbk_admin_settings_v1';
-    var DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-    /* ---- tiny builders ---- */
-    var T  = function (k, l, v, h) { return { k: k, l: l, v: v, h: h, t: 'toggle' }; };
-    var I  = function (k, l, v, o) { return Object.assign({ k: k, l: l, v: v, t: 'text' }, o || {}); };
-    var TA = function (k, l, v, h) { return { k: k, l: l, v: v, h: h, t: 'textarea' }; };
-    var SEL = function (k, l, v, o, h) { return { k: k, l: l, v: v, o: o, h: h, t: 'select' }; };
-    var O = function () { return [].slice.call(arguments).map(function (x) { return Array.isArray(x) ? x : [x, x]; }); };
-
-    /* ---- every setting lives here ---- */
-    var S = [
-      { id: 'business', icon: 'fa-store', title: 'Business profile', desc: 'The details customers see on the website and receipts.', fields: [
-        I('name', 'Business name', 'Food by K'),
-        I('phone', 'Contact number', '081 447 8395', { t: 'tel' }),
-        I('email', 'Email address', 'info@foodbyk.co.za', { t: 'email' }),
-        I('whatsapp', 'WhatsApp number', '081 447 8395', { t: 'tel', h: 'Used for customer chat and order alerts' }),
-        I('address', 'Business address', 'Lenasia South, Johannesburg', { w: 1 }),
-        I('vat', 'VAT number', '', { h: 'Shown on receipts. Leave blank if not VAT registered.' }),
-        TA('tagline', 'Short description', 'Fresh, fast and made with love.', 'Appears on the website and in search results'),
-        T('vat_incl', 'Menu prices include VAT', true, 'Show prices as VAT inclusive (15%)')
-      ] },
-      { id: 'hours', icon: 'fa-clock', title: 'Trading hours', desc: 'When customers can order from you.', hours: true, fields: [
-        I('closed_msg', 'Message shown when closed', 'We are currently closed. Please come back during trading hours.', { w: 1 }),
-        T('holidays', 'Close on public holidays', true, 'Automatically pauses ordering on South African public holidays'),
-        T('preorders', 'Allow pre-orders while closed', false, 'Customers can schedule an order for when you reopen')
-      ] },
-      { id: 'ordering', icon: 'fa-bag-shopping', title: 'Order handling', desc: 'Control how orders come in and how busy you let the kitchen get.', fields: [
-        I('prep', 'Average preparation time', 25, { t: 'number', u: 'min' }),
-        I('max_active', 'Max active orders at once', 20, { t: 'number', u: 'orders', h: 'New orders pause when this is reached' }),
-        I('min_order', 'Minimum order amount', 0, { t: 'number', u: 'R' }),
-        I('cutoff', 'Stop taking orders before closing', 30, { t: 'number', u: 'min' }),
-        I('auto_cancel', 'Auto-cancel unpaid orders after', 30, { t: 'number', u: 'min' }),
-        I('prefix', 'Order number prefix', 'FBK', { h: 'Example: FBK-1042' }),
-        T('accept', 'Accept new orders', true, 'Turn off to pause ordering instantly'),
-        T('confirm', 'Require staff confirmation', true, 'Staff must confirm each order before it is prepared'),
-        T('scheduled', 'Allow scheduled orders', true, 'Customers can choose a later time'),
-        T('notes', 'Allow special instructions', true, 'Customers can add notes to items and orders'),
-        T('guest', 'Allow guest checkout', false, 'Order without creating an account')
-      ] },
-      { id: 'delivery', icon: 'fa-truck-fast', title: 'Delivery & collection', desc: 'Extra options on top of your delivery area and fee above.', fields: [
-        I('free_over', 'Free delivery above', 250, { t: 'number', u: 'R', h: 'Set to 0 to turn off' }),
-        I('eta', 'Estimated delivery time', 45, { t: 'number', u: 'min' }),
-        I('pickup_ready', 'Collection ready time', 20, { t: 'number', u: 'min' }),
-        TA('pickup_note', 'Collection instructions', 'Please have your order number ready when you arrive.', 'Shown to customers who choose collection'),
-        T('delivery_on', 'Offer delivery', true),
-        T('collection_on', 'Offer collection', true),
-        T('tips', 'Allow driver tips', true),
-        T('contactless', 'Offer contactless drop-off', true, 'Customers can ask for the order to be left at the door')
-      ] },
-      { id: 'payments', icon: 'fa-credit-card', title: 'Payments', desc: 'Which ways customers can pay.', fields: [
-        I('pay_timeout', 'Online payment window', 15, { t: 'number', u: 'min', h: 'How long a customer has to finish paying' }),
-        I('cod_limit', 'Max cash order value', 1000, { t: 'number', u: 'R', h: 'Larger orders must be paid online. 0 = no limit' }),
-        T('card', 'Card payments (online)', true),
-        T('cod', 'Cash on delivery', true),
-        T('cash_collect', 'Cash on collection', true),
-        T('eft', 'EFT / bank transfer', false, 'Order is held until payment is confirmed'),
-        T('save_cards', 'Let customers save a card for faster checkout', true, 'Stored securely as a reusable token, never as card numbers'),
-        T('receipts', 'Email receipts automatically', true),
-        T('refund_auto', 'Auto-refund paid orders that are cancelled', false)
-      ] },
-      { id: 'notifications', icon: 'fa-bell', title: 'Notifications', desc: 'How you and your customers hear about orders.', fields: [
-        I('alert_email', 'Alert email address', 'info@foodbyk.co.za', { t: 'email' }),
-        SEL('summary_time', 'Daily summary time', '18:30', O('17:00', '18:00', '18:30', '19:00', '20:00', '21:00')),
-        T('sound', 'Play a sound for new orders', true),
-        T('email_alert', 'Email me new orders', true),
-        T('wa_alert', 'WhatsApp me new orders', true),
-        T('sms_alert', 'SMS me new orders', false),
-        T('daily', 'Send a daily sales summary', true),
-        T('cust_status', 'Notify customers when their order status changes', true, 'Confirmed, preparing, out for delivery, ready'),
-        T('cust_marketing', 'Opt customers in to promotions by default', false, 'Recommended off. Customers should choose this themselves')
-      ] },
-      { id: 'loyalty', icon: 'fa-gift', title: 'Loyalty rewards', desc: 'Reward regulars and keep them coming back.', fields: [
-        I('earn', 'Points earned per R10 spent', 1, { t: 'number', u: 'pts' }),
-        I('redeem', 'Value of 100 points', 10, { t: 'number', u: 'R' }),
-        I('expiry', 'Points expire after', 12, { t: 'number', u: 'months', h: '0 = never expire' }),
-        T('on', 'Loyalty rewards active', true),
-        T('stack', 'Allow promotions to stack with rewards', false),
-        T('birthday', 'Birthday reward', true, 'Send a small treat on the customer’s birthday')
-      ] },
-      { id: 'customers', icon: 'fa-headset', title: 'Customers & support', desc: 'Accounts, verification and how support tickets are handled.', fields: [
-        I('support_email', 'Support email', 'info@foodbyk.co.za', { t: 'email' }),
-        SEL('sla', 'Target first reply time', '4h', O(['1h', 'Within 1 hour'], ['4h', 'Within 4 hours'], ['24h', 'Within 24 hours'], ['48h', 'Within 2 days'])),
-        I('autoclose', 'Auto-close resolved tickets after', 14, { t: 'number', u: 'days' }),
-        T('register', 'Allow new registrations', true),
-        T('verify', 'Require email verification', true, 'Customers confirm their email before ordering'),
-        T('reviews', 'Let customers leave reviews', false),
-        T('chat', 'Show the “Ask Food by K” chat helper', true),
-        T('autoreply', 'Auto-reply to new support tickets', true, 'Confirms we received the request')
-      ] },
-      { id: 'storefront', icon: 'fa-display', title: 'Website & menu', desc: 'What customers see while browsing.', fields: [
-        I('banner_text', 'Announcement banner message', '', { w: 1, h: 'Only shown when the banner below is on' }),
-        SEL('sort', 'Default menu order', 'featured', O(['featured', 'Featured first'], ['price_asc', 'Price: low to high'], ['price_desc', 'Price: high to low'], ['name', 'Name A–Z'])),
-        T('banner_on', 'Show announcement banner', false, 'Great for specials, load-shedding delays or holiday hours'),
-        T('hide_unavail', 'Hide unavailable items', false, 'Otherwise they appear as “Sold out”'),
-        T('allergens', 'Show allergen notices', true),
-        T('badges', 'Show “Popular” badges', true),
-        T('photos', 'Show item photos', true)
-      ] },
-      { id: 'security', icon: 'fa-shield-halved', title: 'Security & privacy', desc: 'Keep the admin area and customer data safe.', fields: [
-        SEL('session', 'Sign admins out after inactivity', '60', O(['15', '15 minutes'], ['30', '30 minutes'], ['60', '1 hour'], ['120', '2 hours'], ['240', '4 hours'])),
-        SEL('retention', 'Keep inactive customer data for', '24', O(['12', '12 months'], ['24', '24 months'], ['36', '36 months'], ['60', '5 years'])),
-        I('max_attempts', 'Lock account after failed logins', 5, { t: 'number', u: 'tries' }),
-        I('min_pass', 'Minimum password length', 8, { t: 'number', u: 'chars' }),
-        T('twofa', 'Require two-step sign-in for admins', false, 'An extra code at login. Strongly recommended'),
-        T('lockout', 'Temporarily lock accounts after repeated failures', true),
-        T('audit', 'Keep an activity log of admin actions', true, 'Who changed what, and when'),
-        T('reaccept', 'Ask customers to re-accept updated Terms & Privacy', true)
-      ] },
-      { id: 'system', icon: 'fa-sliders', title: 'System', desc: 'Regional options, maintenance and backups.', actions: true, fields: [
-        I('maint_msg', 'Maintenance message', 'We are making improvements and will be back shortly.', { w: 1 }),
-        SEL('tz', 'Time zone', 'Africa/Johannesburg', O(['Africa/Johannesburg', 'South Africa (SAST)'], ['Africa/Harare', 'Zimbabwe / Zambia (CAT)'], ['Africa/Nairobi', 'East Africa (EAT)'], ['UTC', 'UTC'])),
-        SEL('currency', 'Currency', 'ZAR', O(['ZAR', 'South African Rand (R)'], ['USD', 'US Dollar ($)'])),
-        SEL('datefmt', 'Date format', 'DD/MM/YYYY', O('DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD')),
-        SEL('lang', 'Language', 'en-ZA', O(['en-ZA', 'English (South Africa)'], ['af', 'Afrikaans'], ['zu', 'isiZulu'])),
-        T('maintenance', 'Maintenance mode', false, 'Shows a “back soon” page to customers. Admins can still sign in')
-      ] }
-    ];
-
-    /* ---- state ---- */
-    function defaults() {
-      var o = { hours: DAYS.map(function (d, i) { return { open: '11:00', close: '18:00', on: i < 6 }; }) };
-      S.forEach(function (s) { s.fields.forEach(function (f) { o[s.id + '.' + f.k] = f.v; }); });
-      return o;
-    }
-    function load() {
-      try { var j = JSON.parse(localStorage.getItem(KEY)); if (j) return Object.assign(defaults(), j); } catch (e) {}
-      return defaults();
-    }
-    var state = load();
-    var saved = JSON.stringify(state);
-
-    /* ---- render ---- */
+    var search = document.getElementById('fbkSearch');
     var root = document.getElementById('fbkRoot');
-    var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var empty = document.getElementById('fbkEmpty');
 
-    function field(sid, f) {
-      var k = sid + '.' + f.k, v = state[k], id = 'f_' + sid + '_' + f.k, c;
-      if (f.t === 'toggle') {
-        return '<label class="row"><span class="row-t"><b>' + f.l + '</b>' + (f.h ? '<small>' + f.h + '</small>' : '') + '</span>' +
-          '<span class="sw"><input type="checkbox" data-k="' + k + '"' + (v ? ' checked' : '') + '><i></i></span></label>';
-      }
-      if (f.t === 'select') {
-        c = '<select id="' + id + '" data-k="' + k + '">' + f.o.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (String(v) === String(o[0]) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
-      } else if (f.t === 'textarea') {
-        c = '<textarea id="' + id + '" rows="3" data-k="' + k + '">' + esc(v) + '</textarea>';
-      } else {
-        c = '<div class="inp"><input id="' + id + '" type="' + f.t + '" data-k="' + k + '" value="' + esc(v) + '"' + (f.t === 'number' ? ' min="0" step="any"' : '') + '>' + (f.u ? '<em>' + f.u + '</em>' : '') + '</div>';
-      }
-      return '<div class="fld' + (f.w || f.t === 'textarea' ? ' wide' : '') + '"><label for="' + id + '">' + f.l + '</label>' + c + (f.h ? '<small>' + f.h + '</small>' : '') + '</div>';
-    }
-
-    function hoursHtml() {
-      return '<div class="hours">' + state.hours.map(function (d, i) {
-        return '<div class="hr' + (d.on ? '' : ' off') + '"><b>' + DAYS[i] + '</b>' +
-          '<div class="tm"><input type="time" data-h="' + i + '.open" value="' + d.open + '"' + (d.on ? '' : ' disabled') + '><span>to</span><input type="time" data-h="' + i + '.close" value="' + d.close + '"' + (d.on ? '' : ' disabled') + '></div>' +
-          '<span class="cl">Closed</span><label class="sw"><input type="checkbox" data-h="' + i + '.on"' + (d.on ? ' checked' : '') + ' aria-label="' + DAYS[i] + ' open"><i></i></label></div>';
-      }).join('') + '</div><button type="button" class="ghost" id="copyMon"><i class="fa-regular fa-copy"></i> Copy Monday’s hours to all open days</button>';
-    }
-
-    function render() {
-      var html = '';
-      S.forEach(function (s) {
-        var inputs = s.fields.filter(function (f) { return f.t !== 'toggle'; });
-        var toggles = s.fields.filter(function (f) { return f.t === 'toggle'; });
-        html += '<section class="fbk-card" id="sec-' + s.id + '"><div class="card-h"><span class="ic"><i class="fa-solid ' + s.icon + '"></i></span><div><h4>' + s.title + '</h4><p>' + s.desc + '</p></div></div>' +
-          (s.hours ? hoursHtml() : '') +
-          (inputs.length ? '<div class="grid">' + inputs.map(function (f) { return field(s.id, f); }).join('') + '</div>' : '') +
-          (toggles.length ? '<div class="rows">' + toggles.map(function (f) { return field(s.id, f); }).join('') + '</div>' : '') +
-          (s.actions ? '<div class="btns"><button type="button" class="ghost" id="exportBtn"><i class="fa-solid fa-download"></i> Download settings backup</button><button type="button" class="danger" id="resetBtn"><i class="fa-solid fa-rotate-left"></i> Reset to defaults</button></div>' : '') +
-          '</section>';
+    function filterSettings() {
+      var query = search.value.trim().toLowerCase();
+      var form = document.getElementById('adminApiSettingsForm');
+      if (!form) return;
+      var matches = 0;
+      Array.from(form.children).forEach(function (element) {
+        if (element.tagName !== 'LABEL') return;
+        var match = !query || element.textContent.toLowerCase().includes(query);
+        element.hidden = !match;
+        if (match) matches++;
       });
-      // keep the dashboard.js-filled host in place; rebuild only our cards
-      root.querySelectorAll('.fbk-card').forEach(function (n) { n.remove(); });
-      root.insertAdjacentHTML('beforeend', html);
+      empty.style.display = query && matches === 0 ? 'block' : 'none';
     }
 
-    /* ---- section nav ---- */
-    function buildNav() {
-      var items = [{ id: 'zones', icon: 'fa-location-dot', title: 'Delivery area & fee' }].concat(S);
-      document.getElementById('fbkNav').innerHTML = items.map(function (s, i) {
-        return '<a href="#sec-' + s.id + '" data-id="sec-' + s.id + '"' + (i === 0 ? ' class="on"' : '') + '><i class="fa-solid ' + s.icon + '"></i>' + s.title + '</a>';
-      }).join('');
-    }
-    function spy() {
-      if (!('IntersectionObserver' in window)) return;
-      var links = document.querySelectorAll('#fbkNav a');
-      var io = new IntersectionObserver(function (es) {
-        es.forEach(function (e) {
-          if (!e.isIntersecting) return;
-          links.forEach(function (a) { a.classList.toggle('on', a.dataset.id === e.target.id); });
-        });
-      }, { rootMargin: '-20% 0px -65% 0px' });
-      document.querySelectorAll('#fbkRoot > section').forEach(function (s) { io.observe(s); });
-    }
-
-    /* ---- save bar ---- */
-    var bar = document.getElementById('saveBar');
-    var toastEl = document.getElementById('toast');
-    function flag() { bar.classList.toggle('show', JSON.stringify(state) !== saved); }
-    function toast(msg) {
-      toastEl.querySelector('span').textContent = msg;
-      toastEl.classList.add('show');
-      clearTimeout(toast.t);
-      toast.t = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
-    }
-
-    root.addEventListener('input', function (e) {
-      var t = e.target, ks;
-      if (t.dataset.k) {
-        state[t.dataset.k] = t.type === 'checkbox' ? t.checked : (t.type === 'number' ? (t.value === '' ? '' : Number(t.value)) : t.value);
-      } else if (t.dataset.h) {
-        ks = t.dataset.h.split('.');
-        state.hours[ks[0]][ks[1]] = t.type === 'checkbox' ? t.checked : t.value;
-        if (ks[1] === 'on') {
-          var r = t.closest('.hr');
-          r.classList.toggle('off', !t.checked);
-          r.querySelectorAll('input[type=time]').forEach(function (x) { x.disabled = !t.checked; });
-        }
-      } else { return; }
-      flag();
-    });
-
-    root.addEventListener('click', function (e) {
-      var b = e.target.closest('button');
-      if (!b) return;
-      if (b.id === 'copyMon') {
-        var m = state.hours[0];
-        state.hours.forEach(function (d) { if (d.on) { d.open = m.open; d.close = m.close; } });
-        render(); flag(); toast('Monday’s hours copied');
-      } else if (b.id === 'exportBtn') {
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }));
-        a.download = 'food-by-k-settings.json';
-        document.body.appendChild(a); a.click(); a.remove();
-      } else if (b.id === 'resetBtn') {
-        if (confirm('Reset every setting on this page to its default? You can still discard this before saving.')) { state = defaults(); render(); flag(); }
-      }
-    });
-
-    document.getElementById('saveBtn').addEventListener('click', function () {
-      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
-      saved = JSON.stringify(state);
-      /* Hook for your backend: listen for this event in dashboard.js and send event.detail to your API. */
-      document.dispatchEvent(new CustomEvent('fbk:settings-save', { detail: JSON.parse(saved) }));
-      flag(); toast('Settings saved');
-    });
-    document.getElementById('discardBtn').addEventListener('click', function () { state = JSON.parse(saved); render(); flag(); toast('Changes discarded'); });
-
-    /* ---- search ---- */
-    document.getElementById('fbkSearch').addEventListener('input', function (e) {
-      var q = e.target.value.trim().toLowerCase(), any = false;
-      root.querySelectorAll('.fbk-card').forEach(function (card) {
-        var head = card.querySelector('.card-h').textContent.toLowerCase().indexOf(q) > -1, hit = !q || head;
-        card.querySelectorAll('.fld, .row, .hr').forEach(function (el) {
-          var m = !q || head || el.textContent.toLowerCase().indexOf(q) > -1;
-          el.hidden = !m; if (m && q) hit = true;
-        });
-        card.hidden = !hit; if (hit) any = true;
-      });
-      var zones = document.getElementById('sec-zones');
-      if (zones && zones.textContent.trim()) { var zm = !q || zones.textContent.toLowerCase().indexOf(q) > -1; zones.hidden = !zm; if (zm) any = true; }
-      document.getElementById('fbkEmpty').style.display = any ? 'none' : 'block';
-    });
-
-    window.addEventListener('beforeunload', function (e) { if (JSON.stringify(state) !== saved) { e.preventDefault(); e.returnValue = ''; } });
-
-    buildNav(); render(); spy();
+    search.addEventListener('input', filterSettings);
+    new MutationObserver(filterSettings).observe(root, { childList: true, subtree: true });
   })();
   </script>
 </body>

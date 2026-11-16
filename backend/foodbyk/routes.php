@@ -10,6 +10,7 @@ function registerRoutes(Router $router): void {
     
 
     $router->get('/health', [HealthController::class, 'check']);
+    $router->get('/business/settings', [BusinessSettingsController::class, 'publicSettings']);
     $router->get('/products', [ProductController::class, 'index']);
     $router->get('/products/search', [ProductController::class, 'search']);
     $router->get('/products/{id}', [ProductController::class, 'show']);
