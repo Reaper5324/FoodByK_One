@@ -212,6 +212,8 @@ test('admin optional extras editor adds and removes paired name/price rows', asy
 
   await page.route(/^https?:\/\/(?!127\.0\.0\.1|localhost)/, (route) => route.abort());
 
+await page.route(/pwa\.js$/, (route) => route.abort());
+
   await page.route(/\/auth\/me$/, (route) => route.fulfill({
     headers: { 'X-CSRF-Token': 'test-csrf-token' },
     contentType: 'application/json',
