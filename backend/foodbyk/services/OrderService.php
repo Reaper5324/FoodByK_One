@@ -711,13 +711,6 @@ class OrderService {
                             if (!$item->save()) throw new \Exception('Unable to apply the free promotional items.');
                         }
                     }
-                    $freeQuantities = $revalidate['data']['free_quantities_by_product'] ?? [];
-                    if ($freeQuantities !== []) {
-                        foreach ($order->getItems() as $item) {
-                            $item->quantity += (int) ($freeQuantities[$item->product_id] ?? 0);
-                            if (!$item->save()) throw new \Exception('Unable to apply the free promotional items.');
-                        }
-                    }
                 }
 
                 $redemptionRefund = (new LoyaltyService())->refundExcessOrderRedemption($order);
