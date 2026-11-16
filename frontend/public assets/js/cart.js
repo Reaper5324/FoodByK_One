@@ -43,6 +43,79 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
+    const renderRecommendations = (products) => {
+        const section = document.createElement("section");
+        section.className = "cart-recommendations";
+        section.setAttribute("aria-labelledby", "cartRecommendationsHeading");
+        const heading = document.createElement("div");
+        heading.className = "cart-recommendations-heading";
+        const title = document.createElement("h2");
+        title.id = "cartRecommendationsHeading";
+        title.textContent = "Meals you might like";
+        const intro = document.createElement("p");
+        intro.textContent = "Add a favourite to get your order started.";
+        heading.append(title, intro);
+        section.appendChild(heading);
+
+        const grid = document.createElement("div");
+        grid.className = "cart-recommendation-grid";
+        products.slice(0, 3).forEach((product) => {
+            const card = document.createElement("article");
+            card.className = "cart-recommendation-card";
+            const link = document.createElement("a");
+            link.className = "cart-recommendation-link";
+            link.href = `menu-item.html?id=${encodeURIComponent(product.id)}`;
+            const image = document.createElement("img");
+            image.src = product.image_url || "../../images/foodbyk.png";
+            image.alt = product.name ? `${product.name} from Food by K` : "Food by K meal";
+            image.addEventListener("error", () => { image.hidden = true; }, { once: true });
+            const name = document.createElement("strong");
+            name.textContent = product.name || "Menu favourite";
+            const description = document.createElement("span");
+            description.textContent = product.description || "Made fresh and ready to order.";
+            link.append(image, name, description);
+            const footer = document.createElement("div");
+            footer.className = "cart-recommendation-footer";
+            const price = document.createElement("strong");
+            price.textContent = `R${Number(product.price || 0).toFixed(2)}`;
+            const add = document.createElement("button");
+            add.type = "button";
+            add.className = "cart-recommendation-add";
+            add.textContent = "Add to cart";
+            add.addEventListener("click", async () => {
+                add.disabled = true;
+                add.textContent = "Adding…";
+                const result = await apiPost("/cart/items", { product_id: Number(product.id), quantity: 1 });
+                if (result?.success) {
+                    await loadCart();
+                    showMessage(`${product.name || "Meal"} added to your cart.`, false, true);
+                    return;
+                }
+                add.disabled = false;
+                add.textContent = "Add to cart";
+                showMessage(result?.error || "Unable to add this meal to your cart.", true);
+                if (result?.status === 401) {
+                    const login = document.createElement("a");
+                    login.href = "../auth/login.html";
+                    login.textContent = " Log in";
+                    cartMessage.appendChild(login);
+                }
+            });
+            footer.append(price, add);
+            card.append(link, footer);
+            grid.appendChild(card);
+        });
+        if (!products.length) {
+            const browse = document.createElement("a");
+            browse.className = "btn btn-primary";
+            browse.href = "menu.html";
+            browse.textContent = "Browse the menu";
+            grid.appendChild(browse);
+        }
+        section.appendChild(grid);
+        cartItems.appendChild(section);
+    };
+
     const loadCart = async () => {
         showCartSkeletons();
         cartTotal.hidden = true;
@@ -82,6 +155,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             cartItems.replaceChildren();
             cartItems.setAttribute("aria-busy", "false");
             showMessage("Your cart is empty.");
+            renderRecommendations(productResult.data.filter((product) => product.is_available !== false && product.status !== "inactive" && product.status !== "removed"));
             return;
         }
 
