@@ -456,25 +456,24 @@
         summaryHeading.append(summaryKicker, summaryTitle);
         summary.appendChild(summaryHeading);
 
-       // Build the main price breakdown
-       const priceRows = [
-           ["Subtotal", Number(data.subtotal || 0)]
-       ];
+       // Keep delivery waivers attached to the delivery line so the customer
+       // sees the fee they will actually pay.
+       const discount = Number(data.discount || 0);
+       const isFreeDelivery = data.promotion?.discount_type === "free_delivery";
+       const deliveryFee = Number(data.delivery_fee || 0);
+       const deliveryDiscount = isFreeDelivery ? Math.min(deliveryFee, discount) : 0;
+       const itemDiscount = discount - deliveryDiscount;
+       const priceRows = [["Subtotal", Number(data.subtotal || 0)]];
 
-       // Only display a promotion discount when one was actually applied
-       if (Number(data.discount || 0) > 0) {
-           priceRows.push([
-               data.discount_reason || "Promotion discount",
-               -Number(data.discount)
-           ]);
+       if (itemDiscount > 0) {
+           priceRows.push([data.discount_reason || "Promotion discount", -itemDiscount]);
        }
 
-       // Display the appropriate fulfilment fee
        priceRows.push([
            data.fulfillment_type === "delivery"
-               ? "Delivery fee"
+               ? (deliveryDiscount > 0 ? "Delivery fee (free delivery applied)" : "Delivery fee")
                : "Delivery fee (not applicable)",
-           Number(data.delivery_fee || 0)
+           data.fulfillment_type === "delivery" ? deliveryFee - deliveryDiscount : 0
        ]);
 
        priceRows.forEach(([label, amount]) => {

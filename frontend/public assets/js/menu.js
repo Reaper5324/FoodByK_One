@@ -219,7 +219,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         description.textContent = product.description || "A Food by K favourite.";
         const hasOptions = Array.isArray(product.options) && product.options.length > 0;
         const eligiblePromotions = productPromotions(product, promotions);
-        const pricePromotion = eligiblePromotions.find((promotion) => promotion.discount_type === "percentage");
+        const pricePromotion = eligiblePromotions.find((promotion) =>
+            ["percentage", "fixed_amount"].includes(promotion.discount_type));
         let promotionList = null;
         if (eligiblePromotions.length) {
             promotionList = document.createElement("div");
@@ -241,10 +242,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const price = document.createElement("span");
         price.className = "menu-price";
         if (pricePromotion && Number.isFinite(basePrice)) {
+            const discount = pricePromotion.discount_type === "percentage"
+                ? basePrice * Math.min(100, Math.max(0, Number(pricePromotion.discount_value || 0))) / 100
+                : Math.min(basePrice, Math.max(0, Number(pricePromotion.discount_value || 0)));
             const originalPrice = document.createElement("del");
             originalPrice.className = "menu-price-original";
             originalPrice.textContent = `R${basePrice.toFixed(2)}`;
-            price.textContent = `R${(Math.round(basePrice * (1 - Number(pricePromotion.discount_value || 0) / 100) * 100) / 100).toFixed(2)}`;
+            price.textContent = `R${(Math.round((basePrice - discount) * 100) / 100).toFixed(2)}`;
             const condition = document.createElement("span");
             condition.className = "menu-price-condition";
             condition.textContent = `with code ${String(pricePromotion.code || "").toUpperCase()} at checkout`;
