@@ -151,6 +151,22 @@ class Promotion extends Model {
         ));
     }
 
+    /** Returns the number of free units earned for each eligible product. */
+    public function freeQuantitiesByProduct(array $lineItems): array {
+        if ($this->discount_type !== self::TYPE_BUY_ONE_GET_ONE || !$this->isActiveAt()) return [];
+        $quantities = [];
+        foreach ($this->eligibleLineItems($lineItems) as $item) {
+            $id = (int) $this->lineItemValue($item, 'product_id');
+            $quantity = max(0, (int) $this->lineItemValue($item, 'quantity'));
+            if ($id > 0) $quantities[$id] = ($quantities[$id] ?? 0) + $quantity;
+        }
+        $free = [];
+        foreach ($quantities as $id => $quantity) {
+            $free[$id] = intdiv($quantity, 2);
+        }
+        return $free;
+    }
+
     public function isValid(): bool {
         if (trim($this->code) === '' || !in_array($this->discount_type, self::SUPPORTED_TYPES, true)) {
             return false;

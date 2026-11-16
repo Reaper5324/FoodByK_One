@@ -288,6 +288,18 @@
     white-space: nowrap;
 }
 
+.checkout-summary-items-heading {
+    padding-bottom: 3px;
+    color: #fff;
+    font-weight: 800;
+}
+
+.checkout-summary-customization {
+    padding-top: 0;
+    padding-bottom: 5px;
+    padding-left: 34px;
+}
+
 .checkout-summary-total {
     margin-top: 4px;
     padding-block: 17px;

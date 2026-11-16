@@ -32,6 +32,7 @@ class PromotionService {
             'target_product_names' => $promotion->target_product_names,
             'eligible_product_names' => $promotion->eligibleProductNames($lineItems),
             'applied_product_names' => $promotion->appliedProductNames($lineItems),
+            'free_quantities_by_product' => $promotion->freeQuantitiesByProduct($lineItems),
         ]);
     }
 
@@ -56,7 +57,10 @@ class PromotionService {
 
         $discount = $promotion->calculateDiscount($order->subtotal, $lineItems, $order->delivery_fee);
 
-        return $this->success(['discount' => $discount]);
+        return $this->success([
+            'discount' => $discount,
+            'free_quantities_by_product' => $promotion->freeQuantitiesByProduct($lineItems),
+        ]);
     }
 
     private function success(mixed $data): array {

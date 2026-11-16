@@ -501,7 +501,10 @@ const initializeAdminLive = async () => {
         const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
         setText("reportSales", "R" + Number(data.sales || 0).toFixed(2));
         setText("reportOrders", String(Number(data.orders || 0)));
+        setText("reportOrdersCopy", String(Number(data.orders || 0)));
         setText("reportAverage", "R" + Number(data.average_paid_order || 0).toFixed(2));
+        setText("reportPaidOrders", String(Number(data.paid_orders || 0)));
+        setText("reportPeriodRange", `${data.from || ""} – ${data.to || ""}`);
 
         const sales = data.sales_buckets || data.daily_sales || [];
         const chart = document.getElementById("salesChartBars");
@@ -516,6 +519,8 @@ const initializeAdminLive = async () => {
                 const column = document.createElement("div");
                 column.className = "chart-column";
                 column.title = `${bucket}: R${amount.toFixed(2)} sales, ${Number(item.paid_orders || 0)} paid orders`;
+                column.tabIndex = 0;
+                column.setAttribute("aria-label", `${bucket}: R${amount.toFixed(2)} paid revenue from ${Number(item.paid_orders || 0)} successful charges`);
                 const bar = document.createElement("div");
                 bar.className = "chart-bar";
                 bar.style.height = `${peak > 0 ? Math.max(amount > 0 ? 2 : 0, amount / (scale * 4) * 100) : 0}%`;
@@ -544,7 +549,7 @@ const initializeAdminLive = async () => {
             productList.replaceChildren();
             (data.top_products || []).forEach((product, index) => {
                 const item = document.createElement("p");
-                item.textContent = `${index + 1}. ${product.name} - ${product.units} sold (R${Number(product.sales || 0).toFixed(2)})`;
+                item.textContent = `${index + 1}. ${product.name} — ${product.units} units sold · R${Number(product.sales || 0).toFixed(2)} item sales`;
                 productList.appendChild(item);
             });
             if (!(data.top_products || []).length) {
@@ -558,7 +563,7 @@ const initializeAdminLive = async () => {
                 const item = document.createElement("p");
                 const uses = Number(promotion.uses || 0);
                 const saved = Number(promotion.discounts_given || 0);
-                item.textContent = `${index + 1}. ${promotion.code} - ${uses} paid uses · R${saved.toFixed(2)} discounts · R${Number(promotion.sales || 0).toFixed(2)} sales`;
+                item.textContent = `${index + 1}. ${promotion.code} — ${uses} paid uses · R${saved.toFixed(2)} discounts · R${Number(promotion.sales || 0).toFixed(2)} charged`;
                 promotionList.appendChild(item);
             });
             if (!(data.top_promotions || []).length) {
@@ -1381,78 +1386,237 @@ const initializeAdminLive = async () => {
         content.replaceChildren();
         const form = document.createElement("form");
         form.id = "adminApiSettingsForm";
-        form.className = "content-card settings-card";
-        const title = document.createElement("h3");
-        title.textContent = "Ordering and Delivery Settings";
-        form.appendChild(title);
-        const description = document.createElement("p");
-        description.textContent = "Saved settings apply to customer delivery eligibility, checkout, and cart validation.";
-        form.appendChild(description);
-        const fields = [
-            ["business_phone", "Customer contact phone / WhatsApp", "tel", ""],
-            ["business_address", "Public business address", "text", ""],
-            ["business_lat", "Business latitude", "number", "0.000001"],
-            ["business_long", "Business longitude", "number", "0.000001"],
-            ["delivery_radius_km", "Delivery radius (km)", "number", "0.01"],
-            ["collection_radius_km", "Collection radius (km)", "number", "0.01"],
-            ["delivery_fee", "Delivery fee (R)", "number", "0.01"],
-            ["trading_hours_start", "Trading starts", "time", ""],
-            ["trading_hours_end", "Trading ends", "time", ""],
-            ["slot_duration_minutes", "Slot length (minutes)", "number", "1"],
-            ["max_orders_per_slot", "Maximum orders per slot", "number", "1"],
-            ["max_item_quantity", "Maximum quantity of one menu item", "number", "1"],
-            ["max_cart_items", "Maximum items in a cart (including quantities)", "number", "1"],
-            ["minimum_order_amount", "Minimum order amount (R)", "number", "0.01"]
+        form.className = "fbk-settings-form";
+        const settings = result.data;
+        const nav = document.getElementById("fbkNav");
+        const sectionDefinitions = [
+            ["business", "fa-store", "Business contact", "Public address and phone customers use to reach the store."],
+            ["trading", "fa-clock", "Trading hours", "Choose which days you trade and set each day’s opening window."],
+            ["orders", "fa-bag-shopping", "Order handling", "Control order acceptance, minimums, slot capacity, and cart limits."],
+            ["delivery", "fa-truck-fast", "Delivery & collection", "Set service areas, fees, free delivery, and fulfilment availability."]
         ];
-        fields.forEach(([name, labelText, type, step]) => {
+        nav?.replaceChildren();
+        const sections = {};
+        sectionDefinitions.forEach(([id, icon, titleText, descriptionText], index) => {
+            const section = document.createElement("section");
+            section.className = "fbk-card";
+            section.id = `settings-${id}`;
+            const header = document.createElement("div");
+            header.className = "card-h";
+            const iconBox = document.createElement("span");
+            iconBox.className = "ic";
+            const iconNode = document.createElement("i");
+            iconNode.className = `fa-solid ${icon}`;
+            iconNode.setAttribute("aria-hidden", "true");
+            const heading = document.createElement("div");
+            const title = document.createElement("h4");
+            title.textContent = titleText;
+            const description = document.createElement("p");
+            description.textContent = descriptionText;
+            iconBox.appendChild(iconNode);
+            heading.append(title, description);
+            header.append(iconBox, heading);
+            section.appendChild(header);
+            sections[id] = section;
+            form.appendChild(section);
+
+            if (nav) {
+                const link = document.createElement("a");
+                link.href = `#${section.id}`;
+                if (index === 0) link.classList.add("on");
+                const navIcon = document.createElement("i");
+                navIcon.className = `fa-solid ${icon}`;
+                navIcon.setAttribute("aria-hidden", "true");
+                link.append(navIcon, document.createTextNode(titleText));
+                nav.appendChild(link);
+            }
+        });
+
+        const addField = (sectionId, name, labelText, options = {}) => {
+            const field = document.createElement("div");
+            field.className = `fld${options.wide ? " wide" : ""}`;
+            const id = `setting-${name}`;
             const label = document.createElement("label");
-            label.className = "form-group";
+            label.htmlFor = id;
             label.textContent = labelText;
             const input = document.createElement("input");
+            input.id = id;
             input.name = name;
-            input.type = type;
-            if (step) input.step = step;
+            input.type = options.type || "number";
             input.required = true;
-            if (name === "business_phone") { input.maxLength = 30; input.autocomplete = "tel"; }
-            if (name === "business_address") { input.maxLength = 255; input.autocomplete = "street-address"; }
-            const bounds = {
-                business_lat: [-90, 90], business_long: [-180, 180],
-                delivery_radius_km: [0, null], collection_radius_km: [0, null], delivery_fee: [0, null],
-                slot_duration_minutes: [5, 240], max_orders_per_slot: [1, null],
-                max_item_quantity: [1, 99], max_cart_items: [1, 500],
-                minimum_order_amount: [0, 100000]
-            }[name];
-            if (bounds) {
-                input.min = String(bounds[0]);
-                if (bounds[1] !== null) input.max = String(bounds[1]);
+            if (options.step) input.step = options.step;
+            if (options.min !== undefined) input.min = String(options.min);
+            if (options.max !== undefined) input.max = String(options.max);
+            if (options.maxLength) input.maxLength = options.maxLength;
+            if (options.autocomplete) input.autocomplete = options.autocomplete;
+            input.value = String(settings[name] ?? "");
+            const inputWrap = document.createElement("div");
+            inputWrap.className = "inp";
+            inputWrap.appendChild(input);
+            if (options.unit) {
+                const unit = document.createElement("em");
+                unit.textContent = options.unit;
+                inputWrap.appendChild(unit);
             }
-            const value = result.data[name];
-            input.value = type === "time" ? String(value || "").slice(0, 5) : String(value ?? "");
-            label.appendChild(input);
-            form.appendChild(label);
-        });
-        ["ordering_enabled", "delivery_enabled", "collection_enabled"].forEach((name) => {
-            const label = document.createElement("label");
-            label.className = "form-group setting-toggle";
+            field.append(label, inputWrap);
+            if (options.help) {
+                const help = document.createElement("small");
+                help.textContent = options.help;
+                field.appendChild(help);
+            }
+            sections[sectionId].appendChild(field);
+            return input;
+        };
+        const addToggle = (sectionId, name, labelText, helpText) => {
+            const row = document.createElement("label");
+            row.className = "row";
+            const text = document.createElement("span");
+            text.className = "row-t";
+            const title = document.createElement("b");
+            title.textContent = labelText;
+            const help = document.createElement("small");
+            help.textContent = helpText;
+            text.append(title, help);
+            const switchWrap = document.createElement("span");
+            switchWrap.className = "sw";
             const input = document.createElement("input");
             input.type = "checkbox";
             input.name = name;
-            input.checked = Boolean(Number(result.data[name]));
-            const labelText = {
-                ordering_enabled: "Accept new orders",
-                delivery_enabled: "Delivery enabled",
-                collection_enabled: "Collection enabled"
-            }[name];
-            label.append(input, document.createTextNode(` ${labelText}`));
-            form.appendChild(label);
+            input.checked = Boolean(Number(settings[name]));
+            input.setAttribute("aria-label", labelText);
+            const track = document.createElement("i");
+            switchWrap.append(input, track);
+            row.append(text, switchWrap);
+            sections[sectionId].appendChild(row);
+        };
+        const addGrid = (sectionId, fields) => {
+            const grid = document.createElement("div");
+            grid.className = "grid";
+            sections[sectionId].appendChild(grid);
+            fields.forEach(([name, label, options]) => {
+                addField(sectionId, name, label, options);
+                grid.appendChild(sections[sectionId].lastElementChild);
+            });
+        };
+
+        addGrid("business", [
+            ["business_phone", "Customer contact phone / WhatsApp", { type: "tel", maxLength: 30, autocomplete: "tel", help: "Shown on the customer home page." }],
+            ["business_address", "Public business address", { type: "text", maxLength: 255, autocomplete: "street-address", help: "Shown in the customer contact section." }]
+        ]);
+
+        const schedule = Array.isArray(settings.trading_hours) ? settings.trading_hours : [];
+        const hoursByDay = new Map(schedule.map((hours) => [Number(hours.weekday), hours]));
+        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+        const hoursRoot = document.createElement("div");
+        hoursRoot.className = "hours";
+        sections.trading.appendChild(hoursRoot);
+        days.forEach((dayName, index) => {
+            const weekday = index + 1;
+            const day = hoursByDay.get(weekday) || { is_open: weekday < 7, open_time: "11:00", close_time: "18:00" };
+            const row = document.createElement("div");
+            row.className = `hr${day.is_open ? "" : " off"}`;
+            const dayLabel = document.createElement("b");
+            dayLabel.textContent = dayName;
+            const times = document.createElement("div");
+            times.className = "tm";
+            const open = document.createElement("input");
+            open.type = "time";
+            open.value = String(day.open_time || "11:00").slice(0, 5);
+            open.dataset.weekday = String(weekday);
+            open.dataset.hourField = "open_time";
+            open.disabled = !day.is_open;
+            open.required = Boolean(day.is_open);
+            open.setAttribute("aria-label", `${dayName} opening time`);
+            const to = document.createElement("span");
+            to.textContent = "to";
+            const close = document.createElement("input");
+            close.type = "time";
+            close.value = String(day.close_time || "18:00").slice(0, 5);
+            close.dataset.weekday = String(weekday);
+            close.dataset.hourField = "close_time";
+            close.disabled = !day.is_open;
+            close.required = Boolean(day.is_open);
+            close.setAttribute("aria-label", `${dayName} closing time`);
+            times.append(open, to, close);
+            const closed = document.createElement("span");
+            closed.className = "cl";
+            closed.textContent = "Closed";
+            const switchWrap = document.createElement("span");
+            switchWrap.className = "sw";
+            const toggle = document.createElement("input");
+            toggle.type = "checkbox";
+            toggle.checked = Boolean(day.is_open);
+            toggle.dataset.openWeekday = String(weekday);
+            toggle.setAttribute("aria-label", `${dayName} open for ordering`);
+            const track = document.createElement("i");
+            switchWrap.append(toggle, track);
+            toggle.addEventListener("change", () => {
+                row.classList.toggle("off", !toggle.checked);
+                open.disabled = close.disabled = !toggle.checked;
+                open.required = close.required = toggle.checked;
+            });
+            row.append(dayLabel, times, closed, switchWrap);
+            hoursRoot.appendChild(row);
         });
-        const save = document.createElement("button");
-        save.type = "submit";
-        save.className = "save-menu-btn";
-        save.textContent = "Save settings";
-        form.appendChild(save);
+
+        addGrid("orders", [
+            ["minimum_order_amount", "Minimum order amount", { min: 0, max: 100000, step: "0.01", unit: "R" }],
+            ["slot_duration_minutes", "Slot length", { min: 5, max: 240, step: "1", unit: "min" }],
+            ["max_orders_per_slot", "Maximum orders per time slot", { min: 1, step: "1", unit: "orders" }],
+            ["max_item_quantity", "Maximum quantity of one menu item", { min: 1, max: 99, step: "1", unit: "items" }],
+            ["max_cart_items", "Maximum cart quantity, including item quantities", { min: 1, max: 500, step: "1", unit: "items" }]
+        ]);
+        addToggle("orders", "ordering_enabled", "Accept new orders", "Pause checkout for both delivery and collection.");
+
+        addGrid("delivery", [
+            ["business_lat", "Business latitude", { min: -90, max: 90, step: "0.000001" }],
+            ["business_long", "Business longitude", { min: -180, max: 180, step: "0.000001" }],
+            ["delivery_radius_km", "Delivery radius", { min: 0, step: "0.01", unit: "km" }],
+            ["collection_radius_km", "Collection radius", { min: 0, step: "0.01", unit: "km" }],
+            ["delivery_fee", "Delivery fee", { min: 0, step: "0.01", unit: "R" }],
+            ["free_delivery_threshold", "Free delivery above", { min: 0, step: "0.01", unit: "R", help: "Set to R0 to disable the threshold." }]
+        ]);
+        addToggle("delivery", "delivery_enabled", "Offer delivery", "Customers can choose delivery at checkout.");
+        addToggle("delivery", "collection_enabled", "Offer collection", "Customers can collect orders from the store.");
+
+        const getCurrentState = () => {
+            const state = {};
+            new FormData(form).forEach((value, key) => { state[key] = value; });
+            ["ordering_enabled", "delivery_enabled", "collection_enabled"].forEach((key) => {
+                state[key] = Boolean(form.elements.namedItem(key).checked);
+            });
+            state.trading_hours = [...form.querySelectorAll(".hr")].map((row, index) => ({
+                weekday: index + 1,
+                is_open: row.querySelector("[data-open-weekday]").checked,
+                open_time: row.querySelector('[data-hour-field="open_time"]').value,
+                close_time: row.querySelector('[data-hour-field="close_time"]').value
+            }));
+            return JSON.stringify(state);
+        };
+        const originalState = getCurrentState();
+        const saveBar = document.getElementById("saveBar");
+        const updateDirtyState = () => saveBar?.classList.toggle("show", getCurrentState() !== originalState);
+        form.addEventListener("input", updateDirtyState);
+        form.addEventListener("change", updateDirtyState);
+        form.querySelectorAll(".hr [data-open-weekday]").forEach((toggle) => {
+            toggle.addEventListener("change", updateDirtyState);
+        });
         content.appendChild(form);
+        saveBar?.classList.remove("show");
     };
+
+    document.getElementById("saveBtn")?.addEventListener("click", () => {
+        document.getElementById("adminApiSettingsForm")?.requestSubmit();
+    });
+    document.getElementById("discardBtn")?.addEventListener("click", async () => {
+        await loadSettings();
+        const toast = document.getElementById("toast");
+        if (toast) {
+            toast.querySelector("span").textContent = "Changes discarded";
+            toast.classList.add("show");
+            window.setTimeout(() => toast.classList.remove("show"), 2500);
+        }
+    });
 
     const pageLoaders = {
         "dashboard.html": loadDashboard,
@@ -1818,8 +1982,22 @@ const initializeAdminLive = async () => {
             ["ordering_enabled", "delivery_enabled", "collection_enabled"].forEach((key) => {
                 body[key] = Boolean(form.elements.namedItem(key).checked);
             });
+            body.trading_hours = [...form.querySelectorAll(".hr")].map((row, index) => ({
+                weekday: index + 1,
+                is_open: row.querySelector("[data-open-weekday]").checked,
+                open_time: row.querySelector('[data-hour-field="open_time"]').value,
+                close_time: row.querySelector('[data-hour-field="close_time"]').value
+            }));
             result = await apiPut("/admin/settings", body);
-            if (showResult(result)) alert("Ordering and delivery settings saved.");
+            if (showResult(result)) {
+                await loadSettings();
+                const toast = document.getElementById("toast");
+                if (toast) {
+                    toast.querySelector("span").textContent = "Settings saved";
+                    toast.classList.add("show");
+                    window.setTimeout(() => toast.classList.remove("show"), 2500);
+                }
+            }
         } else if (form.id === "categoryForm") {
             event.preventDefault(); event.stopImmediatePropagation();
             const category = window.adminCategories?.find((item) => Number(item.id) === Number(id));

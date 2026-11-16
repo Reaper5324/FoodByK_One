@@ -120,6 +120,8 @@
 
     /* delivery-area card (filled in by dashboard.js) – restyle whatever it renders */
     .fbk-settings .fbk-host { padding: 0 !important; margin: 0 !important; background: none !important; }
+    .fbk-settings .dashboard-content { padding: 0; margin: 0; background: transparent; }
+    .fbk-settings .dashboard-content { padding: 0; margin: 0; background: transparent; }
     .fbk-settings .fbk-host:empty { display: none; }
     .fbk-host :is(.content-card, .dashboard-card, .settings-card) { background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 8px 26px rgba(20, 15, 10, .05); }
     .fbk-host :is(h2, h3) { margin: 0 0 .5rem; font-weight: 700; color: var(--ink); }
@@ -228,16 +230,22 @@
       </div>
 
       <div class="fbk-layout">
-        <nav class="fbk-nav" aria-label="Settings sections"><a href="#sec-zones" class="on"><i class="fa-solid fa-sliders"></i>Ordering settings</a></nav>
+        <nav class="fbk-nav" id="fbkNav" aria-label="Settings sections"></nav>
 
         <div class="fbk-stack" id="fbkRoot">
-          <!-- Ordering & delivery area (latitude, radius, delivery fee, trading times): filled in by dashboard.js -->
-          <section class="dashboard-content fbk-host" id="sec-zones"></section>
+          <section class="dashboard-content" id="sec-zones" aria-live="polite"></section>
         </div>
       </div>
 
       <div class="empty" id="fbkEmpty"><i class="fa-regular fa-face-meh" style="font-size:1.6rem;margin-bottom:.6rem"></i><p>No settings match your search.</p></div>
     </div>
+
+    <div class="savebar" id="saveBar" role="region" aria-label="Unsaved changes">
+      <span>You have unsaved changes</span>
+      <button type="button" class="discard" id="discardBtn">Discard</button>
+      <button type="button" class="save" id="saveBtn"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save changes</button>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Settings saved</span></div>
 
 
   </main>
@@ -255,11 +263,18 @@
       var form = document.getElementById('adminApiSettingsForm');
       if (!form) return;
       var matches = 0;
-      Array.from(form.children).forEach(function (element) {
-        if (element.tagName !== 'LABEL') return;
-        var match = !query || element.textContent.toLowerCase().includes(query);
-        element.hidden = !match;
-        if (match) matches++;
+      form.querySelectorAll('.fbk-card').forEach(function (card) {
+        var heading = card.querySelector('.card-h')?.textContent.toLowerCase() || '';
+        var headingMatch = query && heading.includes(query);
+        var cardMatches = !query || Boolean(headingMatch);
+        card.querySelectorAll('.fld, .row, .hr').forEach(function (field) {
+          var match = !query || Boolean(headingMatch) || field.textContent.toLowerCase().includes(query);
+          field.hidden = !match;
+          if (match) cardMatches = true;
+        });
+        card.hidden = !cardMatches;
+        if (cardMatches) matches++;
+        document.querySelector('#fbkNav a[href="#' + card.id + '"]')?.toggleAttribute('hidden', !cardMatches);
       });
       empty.style.display = query && matches === 0 ? 'block' : 'none';
     }

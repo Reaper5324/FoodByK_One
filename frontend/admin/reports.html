@@ -192,10 +192,10 @@
 
                     <p class="card-label">REPORTS</p>
 
-                    <h3>Business Reports</h3>
+                    <h3>Business performance</h3>
 
                     <p class="menu-description">
-                        View sales, orders and customer performance.
+                        Track paid revenue, customer behaviour, fulfilment mix and menu demand for the selected period.
                     </p>
 
                 </div>
@@ -264,7 +264,7 @@
                     </div>
 
                     <div>
-                        <p>Total Sales</p>
+                        <p>Paid revenue</p>
                         <h3 id="reportSales">—</h3>
                     </div>
 
@@ -278,7 +278,7 @@
                     </div>
 
                     <div>
-                        <p>Orders Placed</p>
+                        <p>Orders placed</p>
                         <h3 id="reportOrders">—</h3>
                     </div>
 
@@ -292,13 +292,20 @@
                     </div>
 
                     <div>
-                        <p>Average Paid Order</p>
+                        <p>Average paid order</p>
                         <h3 id="reportAverage">—</h3>
                     </div>
 
                 </div>
 
             </div>
+
+            <div class="content-card report-section">
+                <div class="report-section-header"><div><p class="card-label">PAYMENT CONVERSION</p><h3>Order payment completion</h3></div></div>
+                <p><strong id="reportPaidOrders">—</strong> successfully paid orders out of <strong id="reportOrdersCopy">—</strong> placed in this period.</p>
+            </div>
+
+            <p class="cust-note" id="reportPeriodRange" aria-live="polite"></p>
 
 
             <!-- SALES SUMMARY -->
@@ -313,7 +320,8 @@
                             SALES PERFORMANCE
                         </p>
 
-                        <h3>Sales Summary</h3>
+                        <h3>Paid revenue over time</h3>
+                        <p class="cust-note">Revenue includes successful charges only. Hover or focus a bar for the bucket total.</p>
 
                     </div>
 
@@ -383,14 +391,14 @@
 
             <!-- TOP SELLING ITEMS (rebuilt with live data by admin-live.js) -->
 
-            <div class="report-two-column">
+            <div class="live-grid">
 
                 <div class="content-card report-section">
 
                     <div class="report-section-header">
                         <div>
                             <p class="card-label">MENU PERFORMANCE</p>
-                            <h3>Top Selling Items</h3>
+                            <h3>Most ordered menu items</h3>
                         </div>
                     </div>
 
@@ -398,6 +406,10 @@
 
                 </div>
 
+                <div class="content-card report-section">
+                    <div class="report-section-header"><div><p class="card-label">PROMOTION PERFORMANCE</p><h3>Promotion return</h3></div></div>
+                    <div id="topPromotionsList" aria-live="polite"><p>Loading paid promotion results…</p></div>
+                </div>
             </div>
 
 
@@ -437,8 +449,8 @@
 
                 <div class="report-section-header">
                     <div>
-                        <p class="card-label">CUSTOMER TRACKING</p>
-                        <h3 id="custChartTitle">Customers Per Day</h3>
+                        <p class="card-label">CUSTOMER DEMAND</p>
+                        <h3 id="custChartTitle">Paid customers over time</h3>
                     </div>
                 </div>
 
@@ -449,7 +461,7 @@
 
                 <div class="cust-chart" id="custChart"></div>
 
-                <p class="cust-note">Counts are unique customers with paid orders. A customer who used both delivery and collection in a period is counted in each.</p>
+                <p class="cust-note">Counts are unique customers with successful payments. Customers using both fulfilment types appear in both series.</p>
 
             </div>
 
@@ -460,7 +472,7 @@
                     <div class="report-section-header">
                         <div>
                             <p class="card-label">ORDER ANALYSIS</p>
-                            <h3>Order Status</h3>
+                            <h3>Order pipeline</h3>
                         </div>
                     </div>
                     <div id="statusReport"></div>
@@ -472,7 +484,7 @@
                         <div class="report-section-header">
                             <div>
                                 <p class="card-label">ORDER TYPE</p>
-                                <h3>Delivery vs Collection</h3>
+                                <h3>Fulfilment demand</h3>
                             </div>
                         </div>
 
@@ -491,7 +503,7 @@
                         <div class="report-section-header">
                             <div>
                                 <p class="card-label">CUSTOMER LOYALTY</p>
-                                <h3>New vs Returning</h3>
+                                <h3>Customer retention</h3>
                             </div>
                         </div>
 
@@ -519,7 +531,7 @@
         <div class="report-section-header">
             <div>
                 <p class="card-label">FULFILMENT ANALYSIS</p>
-                <h3>Collection vs Delivery</h3>
+                <h3>Fulfilment orders and sales</h3>
             </div>
         </div>
 
@@ -531,7 +543,7 @@
         <div class="report-section-header">
             <div>
                 <p class="card-label">ORDER ACTIVITY</p>
-                <h3>Busiest Times</h3>
+                <h3>Peak order hours</h3>
             </div>
         </div>
 
@@ -543,22 +555,11 @@
         <div class="report-section-header">
             <div>
                 <p class="card-label">CUSTOMER ANALYSIS</p>
-                <h3>Customer Insights</h3>
+                <h3>Customer acquisition</h3>
             </div>
         </div>
 
         <div id="customerAnalytics"></div>
-    </div>
-
-    <!-- PROMOTION PERFORMANCE -->
-    <div class="content-card report-section">
-        <div class="report-section-header">
-            <div>
-                <p class="card-label">PROMOTION PERFORMANCE</p>
-                <h3>Top Promotions</h3>
-            </div>
-        </div>
-        <div id="topPromotionsList" aria-live="polite"></div>
     </div>
 
 </div>

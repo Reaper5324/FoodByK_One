@@ -17,9 +17,17 @@ async function loadBusinessDetails() {
     if (typeof apiGet !== "function") return;
     const result = await apiGet("/business/settings").catch(() => null);
     if (!result?.success || !result.data) return;
-    const { business_address: address, business_phone: phone } = result.data;
+    const { business_address: address, business_phone: phone, trading_hours: schedule } = result.data;
     const addressNode = document.getElementById("businessAddress");
     if (addressNode && address) addressNode.textContent = address;
+    const hoursNode = document.getElementById("businessHours");
+    if (hoursNode && Array.isArray(schedule) && schedule.length) {
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        hoursNode.textContent = schedule.map((day) => {
+            const label = days[Number(day.weekday) - 1];
+            return label ? `${label}: ${day.is_open ? `${String(day.open_time).slice(0, 5)}–${String(day.close_time).slice(0, 5)}` : "Closed"}` : null;
+        }).filter(Boolean).join(" · ");
+    }
     const phoneNode = document.getElementById("businessPhone");
     const phoneLink = document.getElementById("businessPhoneLink");
     const whatsappLink = document.getElementById("businessWhatsAppLink");

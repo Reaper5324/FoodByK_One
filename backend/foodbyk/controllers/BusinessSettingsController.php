@@ -8,6 +8,7 @@ class BusinessSettingsController extends Controller {
             'data' => [
                 'business_phone' => $settings->business_phone,
                 'business_address' => $settings->business_address,
+                'trading_hours' => BusinessSettings::tradingSchedule(),
             ],
             'error' => null,
         ]);

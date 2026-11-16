@@ -75,6 +75,7 @@ CREATE TABLE `business_settings` (
   `delivery_radius_km` decimal(6,2) NOT NULL DEFAULT '5.00',
   `collection_radius_km` decimal(6,2) NOT NULL DEFAULT '15.00',
   `delivery_fee` decimal(8,2) NOT NULL DEFAULT '0.00',
+  `free_delivery_threshold` decimal(10,2) NOT NULL DEFAULT '0.00',
   `trading_hours_start` time NOT NULL DEFAULT '09:00:00',
   `trading_hours_end` time NOT NULL DEFAULT '20:00:00',
   `delivery_enabled` tinyint(1) NOT NULL DEFAULT '1',
@@ -99,9 +100,28 @@ CREATE TABLE `business_settings` (
 
 LOCK TABLES `business_settings` WRITE;
 /*!40000 ALTER TABLE `business_settings` DISABLE KEYS */;
-INSERT INTO `business_settings` VALUES (1,-26.398000,27.854700,30.00,50.00,20.00,'11:00:00','18:00:00',1,1,30,10,6,10,0.00,1,'081 447 8365','8513 Goshawk Street, Lenasia South, Gauteng','2026-10-08 16:03:22');
+INSERT INTO `business_settings` VALUES (1,-26.398000,27.854700,30.00,50.00,20.00,0.00,'11:00:00','18:00:00',1,1,30,10,6,10,0.00,1,'081 447 8365','8513 Goshawk Street, Lenasia South, Gauteng','2026-10-08 16:03:22');
 /*!40000 ALTER TABLE `business_settings` ENABLE KEYS */;
 UNLOCK TABLES;
+
+DROP TABLE IF EXISTS `business_trading_hours`;
+CREATE TABLE `business_trading_hours` (
+  `weekday` tinyint unsigned NOT NULL,
+  `is_open` tinyint(1) NOT NULL DEFAULT '1',
+  `open_time` time NOT NULL DEFAULT '11:00:00',
+  `close_time` time NOT NULL DEFAULT '18:00:00',
+  PRIMARY KEY (`weekday`),
+  CONSTRAINT `chk_trading_hours_weekday` CHECK (`weekday` between 1 and 7),
+  CONSTRAINT `chk_trading_hours_order` CHECK (`close_time` > `open_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO `business_trading_hours` VALUES
+  (1,1,'11:00:00','18:00:00'),
+  (2,1,'11:00:00','18:00:00'),
+  (3,1,'11:00:00','18:00:00'),
+  (4,1,'11:00:00','18:00:00'),
+  (5,1,'11:00:00','18:00:00'),
+  (6,1,'11:00:00','18:00:00'),
+  (7,0,'11:00:00','18:00:00');
 
 --
 -- Table structure for table `cart_items`

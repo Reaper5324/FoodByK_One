@@ -418,9 +418,13 @@ class OrderService {
             if ($fulfilmentType === Order::TYPE_DELIVERY) {
                 $order->distance_km = $eligibility['data']['distance_km'];
                 $order->delivery_fee = $eligibility['data']['fee'];
+                if ($cartSettings->free_delivery_threshold > 0 && $subtotal >= $cartSettings->free_delivery_threshold) {
+                    $order->delivery_fee = 0.0;
+                }
             }
 
             // Price delivery first so a free-delivery promotion uses the real fee.
+            $freeQuantitiesByProduct = [];
             if ($promotionCode) {
                 $promoResult = (new PromotionService())->validateAndCalculate(
                     $promotionCode,
@@ -438,6 +442,7 @@ class OrderService {
                 }
                 $order->locked_discount = $promoResult['data']['discount'];
                 $order->promotion_id = $promoResult['data']['promotion_id'];
+                $freeQuantitiesByProduct = $promoResult['data']['free_quantities_by_product'] ?? [];
             }
 
             $loyaltyService = new LoyaltyService();
@@ -482,7 +487,7 @@ class OrderService {
                     product_name: $product->name,
                     order_id: $order->id,
                     product_id: $cartItem->product_id,
-                    quantity: $cartItem->quantity,
+                    quantity: $cartItem->quantity + (int) ($freeQuantitiesByProduct[$cartItem->product_id] ?? 0),
                     unit_price: $product->price + $cartItem->getCustomizationTotal(),
                     customization_json: $cartItem->customization_json
                 );
@@ -699,6 +704,20 @@ class OrderService {
                     $revalidate = $promotionService->revalidateForOrder($order);
                     if (!$revalidate['success']) throw new \Exception($revalidate['error']);
                     $order->locked_discount = (float) ($revalidate['data']['discount'] ?? 0);
+                    $freeQuantities = $revalidate['data']['free_quantities_by_product'] ?? [];
+                    if ($freeQuantities !== []) {
+                        foreach ($order->getItems() as $item) {
+                            $item->quantity += (int) ($freeQuantities[$item->product_id] ?? 0);
+                            if (!$item->save()) throw new \Exception('Unable to apply the free promotional items.');
+                        }
+                    }
+                    $freeQuantities = $revalidate['data']['free_quantities_by_product'] ?? [];
+                    if ($freeQuantities !== []) {
+                        foreach ($order->getItems() as $item) {
+                            $item->quantity += (int) ($freeQuantities[$item->product_id] ?? 0);
+                            if (!$item->save()) throw new \Exception('Unable to apply the free promotional items.');
+                        }
+                    }
                 }
 
                 $redemptionRefund = (new LoyaltyService())->refundExcessOrderRedemption($order);

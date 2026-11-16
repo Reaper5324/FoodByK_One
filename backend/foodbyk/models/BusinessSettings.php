@@ -10,6 +10,7 @@ public function __construct(
     public float   $delivery_radius_km    = 5.0,
     public float   $collection_radius_km  = 15.0,
     public float   $delivery_fee          = 0.0,
+    public float   $free_delivery_threshold = 0.0,
     public string  $trading_hours_start   = '09:00:00',
     public string  $trading_hours_end     = '20:00:00',
     public bool    $delivery_enabled      = true,
@@ -22,6 +23,7 @@ public function __construct(
     public bool    $ordering_enabled      = true,
     public string  $business_phone       = '081 447 8365',
     public string  $business_address     = '8513 Goshawk Street, Lenasia South, Gauteng',
+    public array   $trading_hours        = [],
     public ?string $updated_at            = null
 ) {}
 
@@ -30,8 +32,50 @@ public static function current(): static {
 }
 
 public function isWithinTradingHours(\DateTimeImmutable $when): bool {
-    $time = $when->format('H:i:s');
-    return $time >= $this->trading_hours_start && $time <= $this->trading_hours_end;
+    $hours = $this->tradingHoursForDay((int) $when->format('N'));
+    if (!$hours || !$hours['is_open']) return false;
+    $time = $when->format('H:i');
+    return $time >= $hours['open_time'] && $time <= $hours['close_time'];
+}
+
+public function tradingHoursForDay(int $weekday): ?array {
+    $schedule = $this->trading_hours !== [] ? $this->trading_hours : self::tradingSchedule();
+    foreach ($schedule as $hours) {
+        if ((int) ($hours['weekday'] ?? 0) === $weekday) return $hours;
+    }
+    return null;
+}
+
+public static function tradingSchedule(): array {
+    try {
+        $rows = Database::getConnection()->query(
+            "SELECT weekday, is_open, TIME_FORMAT(open_time, '%H:%i') AS open_time,
+                    TIME_FORMAT(close_time, '%H:%i') AS close_time
+             FROM business_trading_hours ORDER BY weekday"
+        )->fetchAll();
+        if (count($rows) === 7) {
+            return array_map(static fn(array $row): array => [
+                'weekday' => (int) $row['weekday'],
+                'is_open' => (bool) $row['is_open'],
+                'open_time' => $row['open_time'],
+                'close_time' => $row['close_time'],
+            ], $rows);
+        }
+    } catch (Throwable) {
+        // Existing installs can still load settings until the schedule migration runs.
+    }
+
+    $settings = static::findById(1) ?? new static();
+    $schedule = [];
+    for ($weekday = 1; $weekday <= 7; $weekday++) {
+        $schedule[] = [
+            'weekday' => $weekday,
+            'is_open' => $weekday < 7,
+            'open_time' => substr($settings->trading_hours_start, 0, 5),
+            'close_time' => substr($settings->trading_hours_end, 0, 5),
+        ];
+    }
+    return $schedule;
 }
 
 protected function toArray(): array {
@@ -41,6 +85,7 @@ protected function toArray(): array {
         'delivery_radius_km'    => $this->delivery_radius_km,
         'collection_radius_km'  => $this->collection_radius_km,
         'delivery_fee'          => $this->delivery_fee,
+        'free_delivery_threshold' => $this->free_delivery_threshold,
         'trading_hours_start'   => $this->trading_hours_start,
         'trading_hours_end'     => $this->trading_hours_end,
         'delivery_enabled'      => (int) $this->delivery_enabled,
@@ -64,6 +109,7 @@ protected static function fromRow(array $row): static {
     $s->delivery_radius_km    = (float) $row['delivery_radius_km'];
     $s->collection_radius_km  = (float) $row['collection_radius_km'];
     $s->delivery_fee          = (float) $row['delivery_fee'];
+    $s->free_delivery_threshold = (float) ($row['free_delivery_threshold'] ?? 0);
     $s->trading_hours_start   =         $row['trading_hours_start'];
     $s->trading_hours_end     =         $row['trading_hours_end'];
     $s->delivery_enabled      = (bool)  $row['delivery_enabled'];

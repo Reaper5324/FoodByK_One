@@ -5,7 +5,7 @@ class AdminSettingsService {
     // Only these settings may be changed through this endpoint.
     private const ALLOWED_FIELDS = [
         'business_lat', 'business_long', 'delivery_radius_km', 'collection_radius_km',
-        'delivery_fee', 'trading_hours_start', 'trading_hours_end',
+        'delivery_fee', 'free_delivery_threshold', 'trading_hours_start', 'trading_hours_end',
         'delivery_enabled', 'collection_enabled', 'slot_duration_minutes', 'max_orders_per_slot',
         'max_item_quantity', 'max_cart_items', 'minimum_order_amount', 'ordering_enabled',
         'business_phone', 'business_address',
@@ -13,6 +13,13 @@ class AdminSettingsService {
 
     public function updateSettings(array $input): array {
         $settings = BusinessSettings::current();
+        $schedule = null;
+
+        if (array_key_exists('trading_hours', $input)) {
+            $scheduleResult = $this->normalizeTradingHours($input['trading_hours']);
+            if (!$scheduleResult['success']) return $this->failure($scheduleResult['error']);
+            $schedule = $scheduleResult['data'];
+        }
 
         foreach (self::ALLOWED_FIELDS as $field) {
             if (!array_key_exists($field, $input)) continue;
@@ -26,11 +33,60 @@ class AdminSettingsService {
             $settings->$field = $this->castField($field, $value);
         }
 
-        return $settings->save() ? $this->success($settings) : $this->failure('Unable to update settings.');
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            if (!$settings->save()) throw new RuntimeException('Unable to save business settings.');
+            if ($schedule !== null) {
+                $db->exec('DELETE FROM business_trading_hours');
+                $insert = $db->prepare('INSERT INTO business_trading_hours (weekday, is_open, open_time, close_time) VALUES (?, ?, ?, ?)');
+                foreach ($schedule as $day) {
+                    $insert->execute([$day['weekday'], (int) $day['is_open'], $day['open_time'], $day['close_time']]);
+                }
+                $settings->trading_hours = $schedule;
+            }
+            $db->commit();
+            return $this->success($settings);
+        } catch (Throwable $error) {
+            if ($db->inTransaction()) $db->rollBack();
+            error_log('Admin settings update failed: ' . $error->getMessage());
+            return $this->failure('Unable to update settings. Please try again.');
+        }
     }
 
     public function getSettings(): array {
-        return $this->success(BusinessSettings::current());
+        $settings = BusinessSettings::current();
+        $settings->trading_hours = BusinessSettings::tradingSchedule();
+        return $this->success($settings);
+    }
+
+    private function normalizeTradingHours(mixed $hours): array {
+        if (!is_array($hours) || count($hours) !== 7) {
+            return $this->failure('Set trading hours for all seven days.');
+        }
+        $normalized = [];
+        foreach ($hours as $day) {
+            if (!is_array($day)) return $this->failure('Trading hours are invalid.');
+            $weekday = filter_var($day['weekday'] ?? null, FILTER_VALIDATE_INT);
+            $isOpen = filter_var($day['is_open'] ?? null, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            $open = $day['open_time'] ?? null;
+            $close = $day['close_time'] ?? null;
+            if ($weekday === false || $weekday === null || $weekday < 1 || $weekday > 7 || $isOpen === null
+                || !is_string($open) || !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D', $open)
+                || !is_string($close) || !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D', $close)
+                || ($isOpen && $close <= $open) || isset($normalized[$weekday])) {
+                return $this->failure('Each open day needs valid opening and closing times, and days cannot repeat.');
+            }
+            $normalized[$weekday] = [
+                'weekday' => $weekday,
+                'is_open' => $isOpen,
+                'open_time' => $open . ':00',
+                'close_time' => $close . ':00',
+            ];
+        }
+        ksort($normalized);
+        if (array_keys($normalized) !== range(1, 7)) return $this->failure('Set trading hours for every day of the week.');
+        return ['success' => true, 'data' => array_values($normalized), 'error' => null];
     }
 
     public function listPromotions(): array {
@@ -213,7 +269,7 @@ class AdminSettingsService {
         return match ($field) {
             'business_lat'          => (is_numeric($value) && $value >= -90 && $value <= 90) ? null : 'Invalid latitude.',
             'business_long'         => (is_numeric($value) && $value >= -180 && $value <= 180) ? null : 'Invalid longitude.',
-            'delivery_radius_km', 'collection_radius_km', 'delivery_fee' =>
+            'delivery_radius_km', 'collection_radius_km', 'delivery_fee', 'free_delivery_threshold' =>
                 (is_numeric($value) && $value >= 0) ? null : "Invalid value for {$field}.",
             'slot_duration_minutes' => (filter_var($value, FILTER_VALIDATE_INT) !== false && $value >= 5 && $value <= 240) ? null : 'Slot duration must be a whole number between 5 and 240 minutes.',
             'max_orders_per_slot'   => (filter_var($value, FILTER_VALIDATE_INT) !== false && $value >= 1) ? null : 'Max orders per slot must be a whole number of at least 1.',

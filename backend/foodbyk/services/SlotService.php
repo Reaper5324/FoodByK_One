@@ -23,26 +23,21 @@ class SlotService {
             return ['success' => false, 'data' => null, 'error' => 'Past dates cannot be scheduled.'];
         }
         (new OrderService())->expireAbandonedPaymentSetups();
-        if ($date->format('N') === '7') {
-            return ['success' => true, 'data' => [], 'error' => null];
-        }
-
         return $this->getAvailableSlots($date);
     }
 
     public function getAvailableSlots(\DateTimeImmutable $date): array {
-        if ($date->format('N') === '7') {
-            return ['success' => true, 'data' => [], 'error' => null];
-        }
         $settings = BusinessSettings::current();
+        $hours = $settings->tradingHoursForDay((int) $date->format('N'));
+        if (!$hours || !$hours['is_open']) return ['success' => true, 'data' => [], 'error' => null];
         $duration = $settings->slot_duration_minutes;
         $interval = new \DateInterval("PT{$duration}M");
 
-        [$startH, $startM, $startS] = array_map('intval', explode(':', $settings->trading_hours_start));
-        [$endH, $endM, $endS]       = array_map('intval', explode(':', $settings->trading_hours_end));
+        [$startH, $startM] = array_map('intval', explode(':', $hours['open_time']));
+        [$endH, $endM] = array_map('intval', explode(':', $hours['close_time']));
 
-        $slotStart = $date->setTime($startH, $startM, $startS);
-        $dayEnd    = $date->setTime($endH, $endM, $endS);
+        $slotStart = $date->setTime($startH, $startM);
+        $dayEnd    = $date->setTime($endH, $endM);
         $now = new \DateTimeImmutable('now', $date->getTimezone());
 
         $slots = [];
@@ -87,19 +82,18 @@ class SlotService {
         if ($start <= new \DateTimeImmutable('now', $start->getTimezone())) {
             return ['success' => false, 'error' => 'Selected slot is in the past.'];
         }
-        if ($start->format('N') === '7') {
-            return ['success' => false, 'error' => 'Orders cannot be scheduled on Sundays.'];
-        }
-
         if ($end->getTimestamp() - $start->getTimestamp() !== $duration * 60) {
             return ['success' => false, 'error' => 'Selected window does not match a valid slot length.'];
         }
-        if (!$settings->isWithinTradingHours($start) || !$settings->isWithinTradingHours($end)) {
+        $hours = $settings->tradingHoursForDay((int) $start->format('N'));
+        if (!$hours || !$hours['is_open'] || !$settings->isWithinTradingHours($start)
+            || $end->format('Y-m-d') !== $start->format('Y-m-d')
+            || $end->format('H:i') > $hours['close_time']) {
             return ['success' => false, 'error' => 'Selected slot is outside trading hours.'];
         }
 
-        [$startH, $startM, $startS] = array_map('intval', explode(':', $settings->trading_hours_start));
-        $gridStart = $start->setTime($startH, $startM, $startS);
+        [$startH, $startM] = array_map('intval', explode(':', $hours['open_time']));
+        $gridStart = $start->setTime($startH, $startM);
         $minutesSinceOpen = ($start->getTimestamp() - $gridStart->getTimestamp()) / 60;
         if ($minutesSinceOpen < 0 || fmod($minutesSinceOpen, $duration) !== 0.0) {
             return ['success' => false, 'error' => 'Selected time does not align to an available slot.'];

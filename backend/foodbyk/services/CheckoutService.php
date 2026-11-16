@@ -36,6 +36,8 @@ class CheckoutService {
                 'product_name' => $product->name,
                 'quantity' => $cartItem->quantity,
                 'unit_price' => $product->price + $cartItem->getCustomizationTotal(),
+                'line_total' => $lineTotal,
+                'customizations' => $cartItem->customizations,
             ];
         }
         $subtotal = round($subtotal, 2);
@@ -51,10 +53,16 @@ class CheckoutService {
         }
 
         $deliveryFee = 0.0;
+        $freeDeliveryApplied = false;
         $distanceKm = 0.0;
         if ($fulfilmentType === Order::TYPE_DELIVERY) {
             $deliveryFee = $eligibility['data']['fee'];
             $distanceKm = $eligibility['data']['distance_km'];
+            $settings = BusinessSettings::current();
+            if ($settings->free_delivery_threshold > 0 && $subtotal >= $settings->free_delivery_threshold) {
+                $deliveryFee = 0.0;
+                $freeDeliveryApplied = true;
+            }
         }
 
         $discount = 0.0;
@@ -81,6 +89,7 @@ class CheckoutService {
                 'target_product_names' => $promoResult['data']['target_product_names'],
                 'eligible_product_names' => $promoResult['data']['eligible_product_names'],
                 'applied_product_names' => $promoResult['data']['applied_product_names'],
+                'free_quantities_by_product' => $promoResult['data']['free_quantities_by_product'],
             ];
         }
 
@@ -96,6 +105,14 @@ class CheckoutService {
 
         return $this->success([
             'items_count' => count($cartItems),
+            'items' => array_map(static fn(array $item): array => [
+                'product_id' => $item['product_id'],
+                'name' => $item['product_name'],
+                'quantity' => $item['quantity'],
+                'unit_price' => round($item['unit_price'], 2),
+                'line_total' => round($item['line_total'], 2),
+                'customizations' => $item['customizations'],
+            ], $lineItems),
             'subtotal' => $subtotal,
             'discount' => $discount,
             'discount_reason' => $promotionDetails
@@ -110,6 +127,7 @@ class CheckoutService {
                 }
                 : null,
             'promotion' => $promotionDetails,
+            'free_delivery_applied' => $freeDeliveryApplied,
             'loyalty_points_redeemed' => $redemption['data']['points_to_redeem'],
             'loyalty_discount' => $loyaltyDiscount,
             'loyalty_points_balance' => $redemption['data']['available_points'],

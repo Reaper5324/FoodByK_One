@@ -456,6 +456,30 @@
         summaryHeading.append(summaryKicker, summaryTitle);
         summary.appendChild(summaryHeading);
 
+        if (Array.isArray(data.items) && data.items.length) {
+            const itemsHeading = document.createElement("p");
+            itemsHeading.className = "checkout-summary-row checkout-summary-items-heading";
+            itemsHeading.textContent = "Items in your order";
+            summary.appendChild(itemsHeading);
+            data.items.forEach((item) => {
+                const row = document.createElement("p");
+                row.className = "checkout-summary-row";
+                const details = document.createElement("span");
+                const freeQuantity = Number(data.promotion?.free_quantities_by_product?.[item.product_id] || 0);
+                details.textContent = `${item.name} × ${item.quantity}${freeQuantity ? ` + ${freeQuantity} free` : ""}`;
+                const price = document.createElement("strong");
+                price.textContent = `R${Number(item.line_total || 0).toFixed(2)}`;
+                row.append(details, price);
+                summary.appendChild(row);
+                (item.customizations || []).forEach((customization) => {
+                    const option = document.createElement("p");
+                    option.className = "checkout-summary-note checkout-summary-customization";
+                    option.textContent = `↳ ${customization.name || customization.option_name || "Extra"}`;
+                    summary.appendChild(option);
+                });
+            });
+        }
+
        // Keep delivery waivers attached to the delivery line so the customer
        // sees the fee they will actually pay.
        const discount = Number(data.discount || 0);
@@ -471,7 +495,7 @@
 
        priceRows.push([
            data.fulfillment_type === "delivery"
-               ? (deliveryDiscount > 0 ? "Delivery fee (free delivery applied)" : "Delivery fee")
+               ? (deliveryDiscount > 0 || data.free_delivery_applied ? "Delivery fee (free delivery applied)" : "Delivery fee")
                : "Delivery fee (not applicable)",
            data.fulfillment_type === "delivery" ? deliveryFee - deliveryDiscount : 0
        ]);
