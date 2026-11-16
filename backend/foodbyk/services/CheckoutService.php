@@ -32,6 +32,7 @@ class CheckoutService {
             $lineTotal = $cartItem->quantity * ($product->price + $cartItem->getCustomizationTotal());
             $subtotal += $lineTotal;
             $lineItems[] = [
+                'cart_item_id' => $cartItem->id,
                 'product_id' => $cartItem->product_id,
                 'product_name' => $product->name,
                 'quantity' => $cartItem->quantity,
@@ -68,6 +69,7 @@ class CheckoutService {
         $discount = 0.0;
         $promotionId = null;
         $promotionDetails = null;
+        $freeQuantitiesByCartItem = [];
         if ($promotionCode) {
             $promotionService = new PromotionService();
             $promoResult = $promotionService->validateAndCalculate(
@@ -89,33 +91,40 @@ class CheckoutService {
                 'target_product_names' => $promoResult['data']['target_product_names'],
                 'eligible_product_names' => $promoResult['data']['eligible_product_names'],
                 'applied_product_names' => $promoResult['data']['applied_product_names'],
-                'free_quantities_by_product' => $promoResult['data']['free_quantities_by_product'],
             ];
+            $freeQuantitiesByCartItem = $promoResult['data']['free_quantities_by_cart_item'] ?? [];
         }
+
+        $fulfillmentSubtotal = $subtotal;
+        foreach ($lineItems as $item) {
+            $freeQuantity = (int) ($freeQuantitiesByCartItem[$item['cart_item_id']] ?? 0);
+            $fulfillmentSubtotal += $freeQuantity * $item['unit_price'];
+        }
+        $fulfillmentSubtotal = round($fulfillmentSubtotal, 2);
 
         $redemption = (new LoyaltyService())->previewRedemption(
             $customerId,
             $loyaltyPointsToRedeem,
-            max(0.0, $subtotal + $deliveryFee - $discount)
+            max(0.0, $fulfillmentSubtotal + $deliveryFee - $discount)
         );
         if (!$redemption['success']) return $redemption;
 
         $loyaltyDiscount = $redemption['data']['discount'];
-        $total = round(max(0.0, $subtotal + $deliveryFee - $discount - $loyaltyDiscount), 2);
+        $total = round(max(0.0, $fulfillmentSubtotal + $deliveryFee - $discount - $loyaltyDiscount), 2);
 
         return $this->success([
             'items_count' => count($cartItems),
             'items' => array_map(static fn(array $item): array => [
                 'product_id' => $item['product_id'],
                 'name' => $item['product_name'],
-                'quantity' => $item['quantity'] + (int) ($promotionDetails['free_quantities_by_product'][$item['product_id']] ?? 0),
+                'quantity' => $item['quantity'] + (int) ($freeQuantitiesByCartItem[$item['cart_item_id']] ?? 0),
                 'paid_quantity' => $item['quantity'],
-                'free_quantity' => (int) ($promotionDetails['free_quantities_by_product'][$item['product_id']] ?? 0),
+                'free_quantity' => (int) ($freeQuantitiesByCartItem[$item['cart_item_id']] ?? 0),
                 'unit_price' => round($item['unit_price'], 2),
-                'line_total' => round($item['line_total'], 2),
+                'line_total' => round($item['line_total'] + ($freeQuantitiesByCartItem[$item['cart_item_id']] ?? 0) * $item['unit_price'], 2),
                 'customizations' => $item['customizations'],
             ], $lineItems),
-            'subtotal' => $subtotal,
+            'subtotal' => $fulfillmentSubtotal,
             'discount' => $discount,
             'discount_reason' => $promotionDetails
                 ? match ($promotionDetails['discount_type']) {

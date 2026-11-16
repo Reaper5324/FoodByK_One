@@ -424,12 +424,13 @@ class OrderService {
             }
 
             // Price delivery first so a free-delivery promotion uses the real fee.
-            $freeQuantitiesByProduct = [];
+            $freeQuantitiesByCartItem = [];
             if ($promotionCode) {
                 $promoResult = (new PromotionService())->validateAndCalculate(
                     $promotionCode,
                     $subtotal,
                     array_map(fn(CartItem $item) => [
+                        'cart_item_id' => $item->id,
                         'product_id' => $item->product_id,
                         'product_name' => $productsById[$item->product_id]->name,
                         'quantity' => $item->quantity,
@@ -442,7 +443,14 @@ class OrderService {
                 }
                 $order->locked_discount = $promoResult['data']['discount'];
                 $order->promotion_id = $promoResult['data']['promotion_id'];
-                $freeQuantitiesByProduct = $promoResult['data']['free_quantities_by_product'] ?? [];
+                $freeQuantitiesByCartItem = $promoResult['data']['free_quantities_by_cart_item'] ?? [];
+                foreach ($cartItems as $cartItem) {
+                    $freeQuantity = (int) ($freeQuantitiesByCartItem[$cartItem->id] ?? 0);
+                    if ($freeQuantity > 0) {
+                        $unitPrice = $productsById[$cartItem->product_id]->price + $cartItem->getCustomizationTotal();
+                        $order->subtotal += $freeQuantity * $unitPrice;
+                    }
+                }
             }
 
             $loyaltyService = new LoyaltyService();
@@ -487,7 +495,7 @@ class OrderService {
                     product_name: $product->name,
                     order_id: $order->id,
                     product_id: $cartItem->product_id,
-                    quantity: $cartItem->quantity + (int) ($freeQuantitiesByProduct[$cartItem->product_id] ?? 0),
+                    quantity: $cartItem->quantity + (int) ($freeQuantitiesByCartItem[$cartItem->id] ?? 0),
                     unit_price: $product->price + $cartItem->getCustomizationTotal(),
                     customization_json: $cartItem->customization_json
                 );
@@ -533,19 +541,8 @@ class OrderService {
 
         $items = $order->getItems();
         $promotion = $order->promotion_id ? Promotion::findById($order->promotion_id) : null;
-        if ($promotion && $promotion->discount_type === Promotion::TYPE_BUY_ONE_GET_ONE) {
-            // Historical orders may have been saved before free BOGO units were
-            // added to order_items. Derive and expose their fulfilled quantities.
-            $lineItems = array_map(static fn(OrderItem $item): array => [
-                'product_id' => $item->product_id,
-                'quantity' => $item->quantity,
-                'unit_price' => $item->unit_price,
-            ], $items);
-            $freeQuantities = $promotion->freeQuantitiesByProduct($lineItems);
-            foreach ($items as $item) {
-                $item->quantity += (int) ($freeQuantities[$item->product_id] ?? 0);
-            }
-        }
+        // BOGO fulfillment quantities are persisted in order_items at checkout.
+        // Do not append a second free unit while serializing the customer's order.
         $this->attachCurrentProductImages($items);
         if ($promotion) Promotion::attachTargets([$promotion]);
 

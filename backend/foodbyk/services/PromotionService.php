@@ -4,7 +4,12 @@ class PromotionService {
 
     public function listActive(): array {
         $promotions = array_values(array_filter(Promotion::findAll(), fn(Promotion $promotion) => $promotion->isActiveAt()));
-        return $this->success(Promotion::attachTargets($promotions));
+        Promotion::attachTargets($promotions);
+        $promotions = array_values(array_filter($promotions, static fn(Promotion $promotion) =>
+            $promotion->discount_type !== Promotion::TYPE_BUY_ONE_GET_ONE
+            || count($promotion->target_product_ids) === 1
+        ));
+        return $this->success($promotions);
     }
 
     // Pass the calculated discount to the order so its submitted price is retained.
@@ -19,6 +24,10 @@ class PromotionService {
         }
 
         Promotion::attachTargets([$promotion]);
+        if ($promotion->discount_type === Promotion::TYPE_BUY_ONE_GET_ONE
+            && count($promotion->target_product_ids) !== 1) {
+            return $this->failure('This buy-one-get-one offer is not set up for one menu item. Please contact the business before applying it.');
+        }
 
         $discount = $promotion->calculateDiscount($subtotal, $lineItems, $deliveryFee);
 
@@ -32,7 +41,7 @@ class PromotionService {
             'target_product_names' => $promotion->target_product_names,
             'eligible_product_names' => $promotion->eligibleProductNames($lineItems),
             'applied_product_names' => $promotion->appliedProductNames($lineItems),
-            'free_quantities_by_product' => $promotion->freeQuantitiesByProduct($lineItems),
+            'free_quantities_by_cart_item' => $promotion->freeQuantitiesByCartItem($lineItems),
         ]);
     }
 
@@ -48,6 +57,10 @@ class PromotionService {
             return $this->success(['discount' => 0.0, 'note' => 'Promotion expired before confirmation.']);
         }
         Promotion::attachTargets([$promotion]);
+        if ($promotion->discount_type === Promotion::TYPE_BUY_ONE_GET_ONE
+            && count($promotion->target_product_ids) !== 1) {
+            return $this->failure('This buy-one-get-one offer must target exactly one menu item before the order can be adjusted.');
+        }
 
         $lineItems = array_map(fn(OrderItem $item) => [
             'product_id' => $item->product_id,
@@ -55,11 +68,22 @@ class PromotionService {
             'unit_price' => $item->unit_price,
         ], $order->getItems());
 
+        // Persisted order-item quantities include any BOGO free unit. An
+        // adjusted order only earns BOGO when at least two units of its one
+        // target product will be fulfilled.
+        if ($promotion->discount_type === Promotion::TYPE_BUY_ONE_GET_ONE) {
+            $targetId = (int) $promotion->target_product_ids[0];
+            $fulfilledQuantity = array_sum(array_map(
+                static fn(array $item): int => $item['product_id'] === $targetId ? $item['quantity'] : 0,
+                $lineItems
+            ));
+            if ($fulfilledQuantity < 2) $lineItems = [];
+        }
+
         $discount = $promotion->calculateDiscount($order->subtotal, $lineItems, $order->delivery_fee);
 
         return $this->success([
             'discount' => $discount,
-            'free_quantities_by_product' => $promotion->freeQuantitiesByProduct($lineItems),
         ]);
     }
 

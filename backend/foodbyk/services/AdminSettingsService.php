@@ -114,6 +114,9 @@ class AdminSettingsService {
         if (!in_array($type, [Promotion::TYPE_PERCENTAGE, Promotion::TYPE_FIXED_AMOUNT, Promotion::TYPE_BUY_ONE_GET_ONE, Promotion::TYPE_FREE_DELIVERY], true)) {
             return $this->failure('Invalid discount type.');
         }
+        if ($type === Promotion::TYPE_BUY_ONE_GET_ONE && count($targetIds) !== 1) {
+            return $this->failure('A buy-one-get-one promotion must target exactly one menu item.');
+        }
         if (!is_numeric($value) || (float) $value < 0 || ($type === Promotion::TYPE_PERCENTAGE && (float) $value > 100)) {
             return $this->failure('Invalid discount value.');
         }
@@ -179,6 +182,9 @@ class AdminSettingsService {
         }
         if (!in_array($type, Promotion::SUPPORTED_TYPES, true)) {
             return $this->failure('Invalid discount type.');
+        }
+        if ($type === Promotion::TYPE_BUY_ONE_GET_ONE && count($targetIds) !== 1) {
+            return $this->failure('A buy-one-get-one promotion must target exactly one menu item.');
         }
         if (!is_numeric($value) || (float) $value < 0 || ($type === Promotion::TYPE_PERCENTAGE && (float) $value > 100)) {
             return $this->failure('Invalid discount value.');

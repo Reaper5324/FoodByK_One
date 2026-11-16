@@ -81,8 +81,8 @@ class Promotion extends Model {
     /**
      * Calculates the discount from immutable line-item prices. Each line item
      * must expose product_id, quantity, and unit_price as array keys or public
-     * properties. BOGO applies to matching product lines and makes the cheaper
-     * one free unit per eligible product, once per order.
+     * properties. BOGO requires one targeted product and grants one free unit
+     * of that product per order when at least one paid unit is present.
      */
     public function calculateDiscount(
         float $subtotal,
@@ -137,6 +137,7 @@ class Promotion extends Model {
         if ($this->discount_type !== self::TYPE_BUY_ONE_GET_ONE) {
             return $this->eligibleProductNames($lineItems);
         }
+        if (count($this->target_product_ids) !== 1) return [];
         $quantities = [];
         $names = [];
         foreach ($this->eligibleLineItems($lineItems) as $item) {
@@ -151,20 +152,25 @@ class Promotion extends Model {
         ));
     }
 
-    /** Returns the number of free units earned for each eligible product. */
-    public function freeQuantitiesByProduct(array $lineItems): array {
-        if ($this->discount_type !== self::TYPE_BUY_ONE_GET_ONE || !$this->isActiveAt()) return [];
-        $quantities = [];
-        foreach ($this->eligibleLineItems($lineItems) as $item) {
+    /** Returns one free unit against exactly one cart line for this BOGO. */
+    public function freeQuantitiesByCartItem(array $lineItems): array {
+        if ($this->discount_type !== self::TYPE_BUY_ONE_GET_ONE || !$this->isActiveAt()
+            || count($this->target_product_ids) !== 1) return [];
+        $targetId = (int) $this->target_product_ids[0];
+        if ($targetId < 1) return [];
+        $selectedLineId = null;
+        $freeUnitPrice = null;
+        foreach ($lineItems as $index => $item) {
             $id = (int) $this->lineItemValue($item, 'product_id');
             $quantity = max(0, (int) $this->lineItemValue($item, 'quantity'));
-            if ($id > 0) $quantities[$id] = ($quantities[$id] ?? 0) + $quantity;
+            $unitPrice = (float) $this->lineItemValue($item, 'unit_price');
+            if ($id !== $targetId || $quantity < 1 || $unitPrice < 0.0) continue;
+            if ($freeUnitPrice === null || $unitPrice < $freeUnitPrice) {
+                $freeUnitPrice = $unitPrice;
+                $selectedLineId = $this->lineItemValue($item, 'cart_item_id') ?? $index;
+            }
         }
-        $free = [];
-        foreach ($quantities as $id => $quantity) {
-            $free[$id] = $quantity > 0 ? 1 : 0;
-        }
-        return $free;
+        return $selectedLineId === null ? [] : [$selectedLineId => 1];
     }
 
     public function isValid(): bool {
@@ -213,26 +219,25 @@ class Promotion extends Model {
     }
 
     private function calculateBuyOneGetOneDiscount(array $lineItems): float {
-        $itemsByProduct = [];
+        // A BOGO offer must point to one specific product. Failing closed here
+        // prevents a legacy whole-order BOGO from discounting every cart item.
+        if (count($this->target_product_ids) !== 1) return 0.0;
 
+        $targetId = (int) $this->target_product_ids[0];
+        $freeUnitPrice = null;
         foreach ($lineItems as $lineItem) {
-            $productId = $this->lineItemValue($lineItem, 'product_id');
+            $productId = (int) ($this->lineItemValue($lineItem, 'product_id') ?? 0);
             $quantity = (int) $this->lineItemValue($lineItem, 'quantity');
             $unitPrice = (float) $this->lineItemValue($lineItem, 'unit_price');
 
-            if ($productId === null || $quantity <= 0 || $unitPrice < 0.0) {
+            if ($productId !== $targetId || $quantity <= 0 || $unitPrice < 0.0) {
                 continue;
             }
 
-            $itemsByProduct[(string) $productId][] = $unitPrice;
+            $freeUnitPrice = $freeUnitPrice === null ? $unitPrice : min($freeUnitPrice, $unitPrice);
         }
 
-        $discount = 0.0;
-        foreach ($itemsByProduct as $productPrices) {
-            if ($productPrices !== []) $discount += min($productPrices);
-        }
-
-        return $discount;
+        return $freeUnitPrice ?? 0.0;
     }
 
     private function lineItemValue(array|object $lineItem, string $field): mixed {

@@ -597,7 +597,7 @@
             } else if (data.promotion.discount_type === "free_delivery" && data.fulfillment_type !== "delivery") {
                 promoNote.textContent = "Free-delivery offers apply to delivery orders only.";
             } else if (data.promotion.discount_type === "buy_one_get_one") {
-                promoNote.textContent = "Add an eligible menu item to receive one additional free unit. The offer applies once per item per order.";
+                promoNote.textContent = "Add the eligible menu item to receive one additional free unit of that same item. Only that one unit is free; all other items remain charged.";
             } else if (data.promotion.target_product_names?.length) {
                 promoNote.textContent =
                     `This offer applies to ${data.promotion.target_product_names.join(", ")}. Check that your basket meets the offer conditions.`;
