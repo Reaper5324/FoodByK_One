@@ -41,6 +41,12 @@ $timeoutSeconds = max(
     min(30, (int) environmentValue('LOAD_TEST_TIMEOUT', 10))
 );
 
+// Maximum requests per second across all workers. 0 = unlimited.
+$maxRps = max(
+    0,
+    (float) environmentValue('LOAD_TEST_MAX_RPS', 0)
+);
+
 $p95LimitMs = max(
     1,
     (float) environmentValue('LOAD_TEST_P95_LIMIT_MS', 1500)
@@ -166,6 +172,7 @@ function summarizeEndpoint(array $samples): array
 /**
  * Executes one bounded batch of concurrent requests.
  * Warm-up samples are deliberately not included in the measured results.
+ * When $maxRps > 0, new requests are started no faster than that rate.
  */
 function runBatch(
     string $baseUrl,
@@ -173,19 +180,25 @@ function runBatch(
     int $concurrency,
     int $timeoutSeconds,
     float $deadline,
-    array &$samples
+    array &$samples,
+    float $maxRps = 0
 ): void {
     $multiHandle = curl_multi_init();
     $activeHandles = [];
     $nextEndpoint = 0;
+    $minInterval = $maxRps > 0 ? 1 / $maxRps : 0.0;
+    $lastStart = 0.0;
 
     try {
         do {
-            // Fill the concurrency slots.
+            // Fill the concurrency slots (respecting the optional rate cap).
             while (
                 count($activeHandles) < $concurrency
                 && monotonicSeconds() < $deadline
+                && (monotonicSeconds() - $lastStart) >= $minInterval
             ) {
+                $lastStart = monotonicSeconds();
+
                 $endpoint = $endpoints[
                     $nextEndpoint % count($endpoints)
                 ];
@@ -276,11 +289,17 @@ function runBatch(
             }
 
             if ($activeHandles !== []) {
-                $selected = curl_multi_select($multiHandle, 0.2);
+                $selectTimeout = $minInterval > 0
+                    ? max(0.001, min(0.2, $minInterval))
+                    : 0.2;
+                $selected = curl_multi_select($multiHandle, $selectTimeout);
 
                 if ($selected === -1) {
                     usleep(10_000);
                 }
+            } else {
+                // Nothing in flight: avoid a busy loop while waiting for the next slot.
+                usleep(1_000);
             }
         } while (
             $activeHandles !== []
@@ -303,7 +322,8 @@ function runBatch(
 echo "FoodbyK HTTP load test\n";
 echo "Target: {$baseUrl}\n";
 echo "Warm-up: {$warmupSeconds}s | Measured: {$durationSeconds}s";
-echo " | Concurrency: {$concurrency}\n\n";
+echo " | Concurrency: {$concurrency}";
+echo $maxRps > 0 ? " | Max rate: {$maxRps} req/s\n\n" : " | Max rate: unlimited\n\n";
 
 $warmupSamples = [];
 
@@ -316,7 +336,8 @@ if ($warmupSeconds > 0) {
         $concurrency,
         $timeoutSeconds,
         monotonicSeconds() + $warmupSeconds,
-        $warmupSamples
+        $warmupSamples,
+        $maxRps
     );
 }
 
@@ -330,7 +351,8 @@ runBatch(
     $concurrency,
     $timeoutSeconds,
     $startTime + $durationSeconds,
-    $samples
+    $samples,
+    $maxRps
 );
 
 $elapsedSeconds = monotonicSeconds() - $startTime;
@@ -382,6 +404,7 @@ $report = [
         'actual_duration_seconds' => round($elapsedSeconds, 2),
         'concurrency' => $concurrency,
         'timeout_seconds' => $timeoutSeconds,
+        'max_requests_per_second' => $maxRps > 0 ? $maxRps : 'unlimited',
     ],
     'thresholds' => [
         'minimum_samples' => $minimumSamples,
@@ -420,6 +443,7 @@ $markdown .= "- Generated (UTC): {$report['generated_at_utc']}\n";
 $markdown .= "- Target: `{$baseUrl}`\n";
 $markdown .= "- Actual measured duration: {$format($report['configuration']['actual_duration_seconds'])} seconds\n";
 $markdown .= "- Concurrency: {$concurrency}\n";
+$markdown .= "- Max request rate: " . ($maxRps > 0 ? "{$maxRps} requests/second" : 'unlimited') . "\n";
 $markdown .= "- Minimum samples per endpoint: {$endpointMinimumSamples}\n";
 $markdown .= "- Overall result: **{$report['result']}**\n\n";
 
@@ -438,16 +462,20 @@ $markdown .= "| p50 latency | {$format($overall['latency_ms']['p50'])} ms |\n";
 $markdown .= "| p95 latency | {$format($overall['latency_ms']['p95'])} ms |\n";
 $markdown .= "| p99 latency | {$format($overall['latency_ms']['p99'])} ms |\n\n";
 
+$overallStatuses = json_encode($overall['http_statuses'], JSON_UNESCAPED_SLASHES);
+$markdown .= "HTTP status counts (overall): `{$overallStatuses}`\n\n";
+
 $markdown .= "## Endpoint breakdown\n\n";
-$markdown .= "| Endpoint | Requests | Failures | Error rate | Mean ms | p95 ms | Max ms |\n";
-$markdown .= "|---|---:|---:|---:|---:|---:|---:|\n";
+$markdown .= "| Endpoint | Requests | Failures | Error rate | Mean ms | p95 ms | Max ms | Statuses |\n";
+$markdown .= "|---|---:|---:|---:|---:|---:|---:|---|\n";
 
 foreach ($endpointResults as $endpoint => $result) {
+    $statusText = json_encode($result['http_statuses'], JSON_UNESCAPED_SLASHES);
     $markdown .= "| `{$endpoint}` | {$result['requests']} | {$result['failures']} | ";
     $markdown .= "{$format($result['error_rate_percent'])}% | ";
     $markdown .= "{$format($result['latency_ms']['mean'])} | ";
     $markdown .= "{$format($result['latency_ms']['p95'])} | ";
-    $markdown .= "{$format($result['latency_ms']['max'])} |\n";
+    $markdown .= "{$format($result['latency_ms']['max'])} | `{$statusText}` |\n";
 }
 
 $markdown .= "\nEach endpoint is checked independently for minimum samples, p95 latency, and error rate so aggregate health cannot hide a catalogue or promotion endpoint regression.\n";
