@@ -81,6 +81,8 @@ CREATE TABLE `business_settings` (
   `collection_enabled` tinyint(1) NOT NULL DEFAULT '1',
   `slot_duration_minutes` int unsigned NOT NULL DEFAULT '30',
   `max_orders_per_slot` int unsigned NOT NULL DEFAULT '10',
+  `max_item_quantity` int unsigned NOT NULL DEFAULT '6',
+  `max_cart_items` int unsigned NOT NULL DEFAULT '10',
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   CONSTRAINT `chk_settings_singleton` CHECK ((`id` = 1))
@@ -93,7 +95,7 @@ CREATE TABLE `business_settings` (
 
 LOCK TABLES `business_settings` WRITE;
 /*!40000 ALTER TABLE `business_settings` DISABLE KEYS */;
-INSERT INTO `business_settings` VALUES (1,-26.398000,27.854700,30.00,50.00,20.00,'11:00:00','18:00:00',1,1,30,10,'2026-10-08 16:03:22');
+INSERT INTO `business_settings` VALUES (1,-26.398000,27.854700,30.00,50.00,20.00,'11:00:00','18:00:00',1,1,30,10,6,10,'2026-10-08 16:03:22');
 /*!40000 ALTER TABLE `business_settings` ENABLE KEYS */;
 UNLOCK TABLES;
 

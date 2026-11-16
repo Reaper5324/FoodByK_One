@@ -41,6 +41,8 @@ CREATE TABLE business_settings (
     collection_enabled     TINYINT(1)    NOT NULL DEFAULT 1,
     slot_duration_minutes  INT UNSIGNED  NOT NULL DEFAULT 30,
     max_orders_per_slot    INT UNSIGNED  NOT NULL DEFAULT 10,
+    max_item_quantity      INT UNSIGNED  NOT NULL DEFAULT 6,
+    max_cart_items         INT UNSIGNED  NOT NULL DEFAULT 10,
     updated_at             TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT chk_settings_singleton CHECK (id = 1)
 ) ENGINE=InnoDB;

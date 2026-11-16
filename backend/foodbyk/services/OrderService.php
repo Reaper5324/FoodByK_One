@@ -355,13 +355,19 @@ class OrderService {
                 throw new \Exception('Cart is empty.');
             }
 
+            $cartSettings = BusinessSettings::current();
+            $cartQuantity = array_sum(array_map(fn(CartItem $item) => $item->quantity, $cartItems));
+            if ($cartQuantity > $cartSettings->max_cart_items) {
+                throw new \Exception('Your cart can contain up to ' . $cartSettings->max_cart_items . ' items, including quantities. Reduce your cart to continue.');
+            }
+
             $quantitiesByProduct = [];
             foreach ($cartItems as $cartItem) {
                 $quantitiesByProduct[$cartItem->product_id] = ($quantitiesByProduct[$cartItem->product_id] ?? 0) + $cartItem->quantity;
             }
             foreach ($quantitiesByProduct as $quantity) {
-                if ($quantity > CartService::MAX_ITEM_QUANTITY) {
-                    throw new \Exception('A menu item exceeds the limit of 99 across its customizations. Reduce its quantity to continue.');
+                if ($quantity > $cartSettings->max_item_quantity) {
+                    throw new \Exception('A menu item exceeds the limit of ' . $cartSettings->max_item_quantity . ' across its customizations. Reduce its quantity to continue.');
                 }
             }
 
@@ -385,8 +391,8 @@ class OrderService {
 
             $subtotal = 0.0;
             foreach ($cartItems as $cartItem) {
-                if ($cartItem->quantity > CartService::MAX_ITEM_QUANTITY) {
-                    throw new \Exception('A menu item quantity exceeds the limit of 99. Reduce the quantity in your cart to continue.');
+                if ($cartItem->quantity > $cartSettings->max_item_quantity) {
+                    throw new \Exception('A menu item quantity exceeds the limit of ' . $cartSettings->max_item_quantity . '. Reduce the quantity in your cart to continue.');
                 }
                 $product = $productsById[$cartItem->product_id] ?? null;
                 if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {

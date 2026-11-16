@@ -73,6 +73,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const products = new Map(productResult.data.map((product) => [Number(product.id), product]));
         const items = cartResult.data.items || [];
+        const limits = cartResult.data.limits || { max_item_quantity: 6, max_cart_items: 10 };
+        const maxItemQuantity = Number(limits.max_item_quantity) || 6;
+        const maxCartItems = Number(limits.max_cart_items) || 10;
+        const cartQuantity = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
 
         if (items.length === 0) {
             cartItems.replaceChildren();
@@ -84,6 +88,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         cartMessage.hidden = true;
         cartItems.replaceChildren();
         cartItems.setAttribute("aria-busy", "false");
+        const cartLimitNote = document.createElement("p");
+        cartLimitNote.className = "cart-limit-note";
+        cartLimitNote.textContent = `${cartQuantity} of ${maxCartItems} items · Up to ${maxItemQuantity} of each menu item, including customizations.`;
+        cartItems.appendChild(cartLimitNote);
         let total = 0;
 
         items.forEach((item) => {
@@ -117,10 +125,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             const currentQuantity = Number(item.quantity) || 1;
+            const sameProductQuantity = items
+                .filter((other) => Number(other.product_id) === Number(item.product_id))
+                .reduce((sum, other) => sum + Number(other.quantity || 0), 0);
+            const otherProductQuantity = sameProductQuantity - currentQuantity;
+            const otherCartQuantity = cartQuantity - currentQuantity;
+            const rowMaximum = Math.max(1, Math.min(
+                maxItemQuantity - otherProductQuantity,
+                maxCartItems - otherCartQuantity
+            ));
             const quantity = document.createElement("input");
             quantity.type = "number";
             quantity.min = "1";
-            quantity.max = String(Math.max(99, currentQuantity));
+            quantity.max = String(Math.max(currentQuantity, rowMaximum));
             quantity.step = "1";
             quantity.inputMode = "numeric";
             quantity.value = String(currentQuantity);
@@ -139,7 +156,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             increase.className = "cart-quantity-button";
             increase.textContent = "+";
             increase.setAttribute("aria-label", `Increase ${name.textContent} quantity`);
-            increase.disabled = currentQuantity >= 99;
+            increase.disabled = currentQuantity >= rowMaximum;
             quantityControl.append(decrease, quantity, increase);
             const quantityLabel = document.createElement("div");
             quantityLabel.className = "cart-quantity-label";
@@ -172,9 +189,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             const updateQuantity = async (newQuantity) => {
-                if (!Number.isInteger(newQuantity) || newQuantity < 1 || newQuantity > 99) {
+                if (!Number.isInteger(newQuantity) || newQuantity < 1 || newQuantity > rowMaximum) {
                     quantity.value = String(item.quantity);
-                    if (newQuantity > 99) showMessage("You can add up to 99 of the same menu item.", true);
+                    if (newQuantity > rowMaximum) showMessage(`This change exceeds your cart limit of ${maxCartItems} items or the per-item limit of ${maxItemQuantity}.`, true);
                     return;
                 }
                 decrease.disabled = true;
@@ -188,7 +205,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 else {
                     quantity.disabled = false;
                     decrease.disabled = newQuantity <= 1;
-                    increase.disabled = newQuantity >= 99;
+                    increase.disabled = newQuantity >= rowMaximum;
                     quantity.value = String(item.quantity);
                     showMessage(result.error || "Unable to update the quantity.", true);
                 }

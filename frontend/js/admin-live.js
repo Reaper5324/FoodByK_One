@@ -1394,7 +1394,9 @@ const initializeAdminLive = async () => {
             ["trading_hours_start", "Trading starts", "time", ""],
             ["trading_hours_end", "Trading ends", "time", ""],
             ["slot_duration_minutes", "Slot length (minutes)", "number", "1"],
-            ["max_orders_per_slot", "Maximum orders per slot", "number", "1"]
+            ["max_orders_per_slot", "Maximum orders per slot", "number", "1"],
+            ["max_item_quantity", "Maximum quantity of one menu item", "number", "1"],
+            ["max_cart_items", "Maximum items in a cart (including quantities)", "number", "1"]
         ];
         fields.forEach(([name, labelText, type, step]) => {
             const label = document.createElement("label");
@@ -1405,6 +1407,8 @@ const initializeAdminLive = async () => {
             input.type = type;
             if (step) input.step = step;
             input.required = true;
+            if (name === "max_item_quantity") { input.min = "1"; input.max = "99"; }
+            if (name === "max_cart_items") { input.min = "1"; input.max = "500"; }
             const value = result.data[name];
             input.value = type === "time" ? String(value || "").slice(0, 5) : String(value ?? "");
             label.appendChild(input);

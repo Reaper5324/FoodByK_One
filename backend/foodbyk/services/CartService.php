@@ -2,14 +2,14 @@
 
 class CartService {
 
-    public const MAX_ITEM_QUANTITY = 99;
-
     public function addItem(int $customerId, int $productId, int $quantity = 1, array $optionIds = []): array {
         if ($customerId <= 0 || $productId <= 0) return $this->failure('Invalid request.');
         if ($quantity <= 0) return $this->failure('Quantity must be at least 1.');
-        if ($quantity > self::MAX_ITEM_QUANTITY) return $this->failure('You can add up to 99 of the same menu item.');
+        $settings = BusinessSettings::current();
+        if ($quantity > $settings->max_item_quantity) return $this->failure('You can add up to ' . $settings->max_item_quantity . ' of the same menu item.');
 
         return $this->withCustomerLock($customerId, function (PDO $db) use ($customerId, $productId, $quantity, $optionIds): array {
+            $settings = BusinessSettings::current();
             $productLock = $db->prepare(
                 'SELECT id FROM products WHERE id = ? AND status = ? AND is_available = 1 FOR UPDATE'
             );
@@ -25,8 +25,13 @@ class CartService {
             $productQuantityQuery = $db->prepare('SELECT COALESCE(SUM(quantity), 0) FROM cart_items WHERE customer_id = ? AND product_id = ?');
             $productQuantityQuery->execute([$customerId, $productId]);
             $productQuantity = (int) $productQuantityQuery->fetchColumn();
-            if ($productQuantity + $quantity > self::MAX_ITEM_QUANTITY) {
-                return $this->failure('You can add up to 99 of the same menu item across all customizations.');
+            if ($productQuantity + $quantity > $settings->max_item_quantity) {
+                return $this->failure('You can add up to ' . $settings->max_item_quantity . ' of the same menu item across all customizations.');
+            }
+            $cartQuantityQuery = $db->prepare('SELECT COALESCE(SUM(quantity), 0) FROM cart_items WHERE customer_id = ?');
+            $cartQuantityQuery->execute([$customerId]);
+            if ((int) $cartQuantityQuery->fetchColumn() + $quantity > $settings->max_cart_items) {
+                return $this->failure('Your cart can contain up to ' . $settings->max_cart_items . ' items, including quantities.');
             }
 
             $existingQuery = $db->prepare('SELECT id FROM cart_items WHERE customer_id = ? AND product_id = ? AND customization_hash = ? FOR UPDATE');
@@ -50,8 +55,10 @@ class CartService {
 
     public function updateQuantity(int $customerId, int $cartItemId, int $quantity): array {
         if ($cartItemId <= 0) return $this->failure('Cart item not found.');
-        if ($quantity > self::MAX_ITEM_QUANTITY) return $this->failure('You can add up to 99 of the same menu item.');
+        $settings = BusinessSettings::current();
+        if ($quantity > $settings->max_item_quantity) return $this->failure('You can add up to ' . $settings->max_item_quantity . ' of the same menu item.');
         return $this->withCustomerLock($customerId, function (PDO $db) use ($customerId, $cartItemId, $quantity): array {
+            $settings = BusinessSettings::current();
             $lock = $db->prepare('SELECT id, product_id FROM cart_items WHERE id = ? AND customer_id = ? FOR UPDATE');
             $lock->execute([$cartItemId, $customerId]);
             $lockedRow = $lock->fetch();
@@ -60,8 +67,13 @@ class CartService {
             if ($quantity <= 0) return $item->delete() ? $this->success(null) : $this->failure('Unable to remove item.');
             $otherItems = $db->prepare('SELECT COALESCE(SUM(quantity), 0) FROM cart_items WHERE customer_id = ? AND product_id = ? AND id <> ?');
             $otherItems->execute([$customerId, (int) $lockedRow['product_id'], $cartItemId]);
-            if ((int) $otherItems->fetchColumn() + $quantity > self::MAX_ITEM_QUANTITY) {
-                return $this->failure('You can add up to 99 of the same menu item across all customizations.');
+            if ((int) $otherItems->fetchColumn() + $quantity > $settings->max_item_quantity) {
+                return $this->failure('You can add up to ' . $settings->max_item_quantity . ' of the same menu item across all customizations.');
+            }
+            $otherCartItems = $db->prepare('SELECT COALESCE(SUM(quantity), 0) FROM cart_items WHERE customer_id = ? AND id <> ?');
+            $otherCartItems->execute([$customerId, $cartItemId]);
+            if ((int) $otherCartItems->fetchColumn() + $quantity > $settings->max_cart_items) {
+                return $this->failure('Your cart can contain up to ' . $settings->max_cart_items . ' items, including quantities.');
             }
             $item->quantity = $quantity;
             return $item->save() ? $this->success($item) : $this->failure('Unable to update cart.');
@@ -84,6 +96,11 @@ class CartService {
         return $this->success([
             'items' => $items,
             'total' => $this->getCartTotal($customerId),
+            'item_count' => array_sum(array_map(fn(CartItem $item) => $item->quantity, $items)),
+            'limits' => [
+                'max_item_quantity' => BusinessSettings::current()->max_item_quantity,
+                'max_cart_items' => BusinessSettings::current()->max_cart_items,
+            ],
         ]);
     }
 

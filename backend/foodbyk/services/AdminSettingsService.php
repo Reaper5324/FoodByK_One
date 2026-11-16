@@ -7,6 +7,7 @@ class AdminSettingsService {
         'business_lat', 'business_long', 'delivery_radius_km', 'collection_radius_km',
         'delivery_fee', 'trading_hours_start', 'trading_hours_end',
         'delivery_enabled', 'collection_enabled', 'slot_duration_minutes', 'max_orders_per_slot',
+        'max_item_quantity', 'max_cart_items',
     ];
 
     public function updateSettings(array $input): array {
@@ -215,6 +216,8 @@ class AdminSettingsService {
                 (is_numeric($value) && $value >= 0) ? null : "Invalid value for {$field}.",
             'slot_duration_minutes' => (is_numeric($value) && $value >= 5 && $value <= 240) ? null : 'Slot duration must be between 5 and 240 minutes.',
             'max_orders_per_slot'   => (is_numeric($value) && $value >= 1) ? null : 'Max orders per slot must be at least 1.',
+            'max_item_quantity'     => (filter_var($value, FILTER_VALIDATE_INT) !== false && $value >= 1 && $value <= 99) ? null : 'Maximum quantity per menu item must be between 1 and 99.',
+            'max_cart_items'        => (filter_var($value, FILTER_VALIDATE_INT) !== false && $value >= 1 && $value <= 500) ? null : 'Maximum cart quantity must be between 1 and 500.',
             'trading_hours_start', 'trading_hours_end' =>
                 (preg_match('/^\d{2}:\d{2}(:\d{2})?$/', (string) $value) === 1) ? null : "Invalid time format for {$field}.",
             'delivery_enabled', 'collection_enabled' => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== null
@@ -226,7 +229,7 @@ class AdminSettingsService {
     private function castField(string $field, mixed $value): mixed {
         return match ($field) {
             'delivery_enabled', 'collection_enabled' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
-            'slot_duration_minutes', 'max_orders_per_slot' => (int) $value,
+            'slot_duration_minutes', 'max_orders_per_slot', 'max_item_quantity', 'max_cart_items' => (int) $value,
             'trading_hours_start', 'trading_hours_end' => (string) $value,
             default => (float) $value,
         };

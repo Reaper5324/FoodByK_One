@@ -132,18 +132,23 @@ class CheckoutService {
             fn(CartItem $item) => $item->product_id,
             $cartItems
         ));
+        $settings = BusinessSettings::current();
+        $cartQuantity = array_sum(array_map(fn(CartItem $item) => $item->quantity, $cartItems));
+        if ($cartQuantity > $settings->max_cart_items) {
+            return $this->failure('Your cart can contain up to ' . $settings->max_cart_items . ' items, including quantities. Reduce your cart to continue.');
+        }
         $quantitiesByProduct = [];
         foreach ($cartItems as $item) {
             $quantitiesByProduct[$item->product_id] = ($quantitiesByProduct[$item->product_id] ?? 0) + $item->quantity;
         }
         foreach ($quantitiesByProduct as $quantity) {
-            if ($quantity > CartService::MAX_ITEM_QUANTITY) {
-                return $this->failure('A menu item exceeds the limit of 99 across its customizations. Reduce its quantity to continue.');
+            if ($quantity > $settings->max_item_quantity) {
+                return $this->failure('A menu item exceeds the limit of ' . $settings->max_item_quantity . ' across its customizations. Reduce its quantity to continue.');
             }
         }
         foreach ($cartItems as $item) {
-            if ($item->quantity > CartService::MAX_ITEM_QUANTITY) {
-                return $this->failure('A menu item quantity exceeds the limit of 99. Reduce the quantity in your cart to continue.');
+            if ($item->quantity > $settings->max_item_quantity) {
+                return $this->failure('A menu item quantity exceeds the limit of ' . $settings->max_item_quantity . '. Reduce the quantity in your cart to continue.');
             }
             $product = $productsById[$item->product_id] ?? null;
             if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
