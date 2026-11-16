@@ -532,8 +532,21 @@ class OrderService {
         }
 
         $items = $order->getItems();
-        $this->attachCurrentProductImages($items);
         $promotion = $order->promotion_id ? Promotion::findById($order->promotion_id) : null;
+        if ($promotion && $promotion->discount_type === Promotion::TYPE_BUY_ONE_GET_ONE) {
+            // Historical orders may have been saved before free BOGO units were
+            // added to order_items. Derive and expose their fulfilled quantities.
+            $lineItems = array_map(static fn(OrderItem $item): array => [
+                'product_id' => $item->product_id,
+                'quantity' => $item->quantity,
+                'unit_price' => $item->unit_price,
+            ], $items);
+            $freeQuantities = $promotion->freeQuantitiesByProduct($lineItems);
+            foreach ($items as $item) {
+                $item->quantity += (int) ($freeQuantities[$item->product_id] ?? 0);
+            }
+        }
+        $this->attachCurrentProductImages($items);
         if ($promotion) Promotion::attachTargets([$promotion]);
 
         return $this->success([

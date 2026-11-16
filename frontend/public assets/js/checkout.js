@@ -465,8 +465,8 @@
                 const row = document.createElement("p");
                 row.className = "checkout-summary-row";
                 const details = document.createElement("span");
-                const freeQuantity = Number(data.promotion?.free_quantities_by_product?.[item.product_id] || 0);
-                details.textContent = `${item.name} × ${item.quantity}${freeQuantity ? ` + ${freeQuantity} free` : ""}`;
+                const freeQuantity = Number(item.free_quantity || 0);
+                details.textContent = `${item.name} × ${item.quantity}${freeQuantity ? ` (${freeQuantity} free)` : ""}`;
                 const price = document.createElement("strong");
                 price.textContent = `R${Number(item.line_total || 0).toFixed(2)}`;
                 row.append(details, price);

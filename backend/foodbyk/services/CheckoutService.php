@@ -108,7 +108,9 @@ class CheckoutService {
             'items' => array_map(static fn(array $item): array => [
                 'product_id' => $item['product_id'],
                 'name' => $item['product_name'],
-                'quantity' => $item['quantity'],
+                'quantity' => $item['quantity'] + (int) ($promotionDetails['free_quantities_by_product'][$item['product_id']] ?? 0),
+                'paid_quantity' => $item['quantity'],
+                'free_quantity' => (int) ($promotionDetails['free_quantities_by_product'][$item['product_id']] ?? 0),
                 'unit_price' => round($item['unit_price'], 2),
                 'line_total' => round($item['line_total'], 2),
                 'customizations' => $item['customizations'],
