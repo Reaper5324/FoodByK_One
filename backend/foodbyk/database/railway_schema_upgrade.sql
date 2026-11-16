@@ -4,34 +4,18 @@
 -- MANUAL ONE-TIME MIGRATION: this file uses ordinary SQL only. It contains no
 -- prepared statements, dynamic SQL, procedures, or DELIMITER commands.
 --
--- Before running: check business_settings columns with
--- business_settings_schema_check.sql. If a column below is already PRESENT,
--- comment out that column's entire ALTER TABLE statement before execution.
--- Also check order_items.free_quantity and the named CHECK constraint; remove
--- the corresponding ALTER statement if that structure already exists.
--- CREATE TABLE IF NOT EXISTS and INSERT IGNORE preserve existing tables/data.
+-- This version assumes the earlier business-settings and weekly-hours schema
+-- has already been applied. It adds only the newer minimum-enforcement flag.
+-- Before running: if enforce_minimum_order is already in business_settings,
+-- comment out its ALTER TABLE statement. Also check order_items.free_quantity
+-- and its named CHECK constraint and skip those statements if already present.
+-- CREATE TABLE IF NOT EXISTS and INSERT IGNORE preserve existing data.
 
--- Business settings for ordering, fulfilment, cart limits, and contact details.
-ALTER TABLE business_settings
-    ADD COLUMN free_delivery_threshold DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER delivery_fee;
-ALTER TABLE business_settings
-    ADD COLUMN max_item_quantity INT UNSIGNED NOT NULL DEFAULT 6 AFTER max_orders_per_slot;
-ALTER TABLE business_settings
-    ADD COLUMN max_cart_items INT UNSIGNED NOT NULL DEFAULT 10 AFTER max_item_quantity;
-ALTER TABLE business_settings
-    ADD COLUMN minimum_order_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER max_cart_items;
 ALTER TABLE business_settings
     ADD COLUMN enforce_minimum_order TINYINT(1) NOT NULL DEFAULT 0 AFTER minimum_order_amount;
-ALTER TABLE business_settings
-    ADD COLUMN ordering_enabled TINYINT(1) NOT NULL DEFAULT 1 AFTER enforce_minimum_order;
-ALTER TABLE business_settings
-    ADD COLUMN business_phone VARCHAR(30) NOT NULL DEFAULT '081 447 8365' AFTER ordering_enabled;
-ALTER TABLE business_settings
-    ADD COLUMN business_address VARCHAR(255) NOT NULL DEFAULT '8513 Goshawk Street, Lenasia South, Gauteng' AFTER business_phone;
 
-INSERT IGNORE INTO business_settings (id) VALUES (1);
-
--- Weekly trading hours. Existing days are preserved by INSERT IGNORE.
+-- Ensure the already-installed hours table has all weekday rows. Existing
+-- schedules are preserved by INSERT IGNORE.
 CREATE TABLE IF NOT EXISTS business_trading_hours (
     weekday    TINYINT UNSIGNED PRIMARY KEY,
     is_open    TINYINT(1) NOT NULL DEFAULT 1,
@@ -94,17 +78,13 @@ WHERE ranked.item_rank = 1
 
 DROP TEMPORARY TABLE foodbyk_legacy_bogo_free_units;
 
--- Verification: expect eight settings columns, both tables, free_quantity,
+-- Verification: expect enforce_minimum_order, both tables, free_quantity,
 -- and seven trading-hour rows.
 SELECT COLUMN_NAME
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = 'business_settings'
-  AND COLUMN_NAME IN (
-      'free_delivery_threshold', 'max_item_quantity', 'max_cart_items',
-      'minimum_order_amount', 'enforce_minimum_order', 'ordering_enabled',
-      'business_phone', 'business_address'
-  )
+  AND COLUMN_NAME = 'enforce_minimum_order'
 ORDER BY COLUMN_NAME;
 
 SELECT TABLE_NAME
