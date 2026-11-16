@@ -120,8 +120,15 @@
         cartPreviewItems.forEach((item) => {
             const row = document.createElement("p");
             row.className = "checkout-summary-row";
-            row.textContent = `${item.name || item.product_name || "Menu item"} × ${Number(item.quantity || 1)}`;
+            const name = item.name || item.product_name || `Menu item ${item.product_id || ""}`;
+            row.textContent = `${name} × ${Number(item.quantity || 1)} · R${Number(item.line_total || 0).toFixed(2)}`;
             host.appendChild(row);
+            (item.customizations || []).forEach((option) => {
+                const extra = document.createElement("p");
+                extra.className = "checkout-summary-note checkout-summary-customization";
+                extra.textContent = `Extras: ${option.name || "Selected extra"}`;
+                host.appendChild(extra);
+            });
         });
         if (!cartPreviewItems.length) {
             const empty = document.createElement("p");
@@ -132,8 +139,13 @@
     };
 
     const loadCartPreview = async () => {
+        const host = document.getElementById("checkoutCartPreview");
+        if (host && cartPreviewItems.length === 0) host.textContent = "Loading your cart items…";
         const result = await apiGet("/cart").catch(() => null);
-        if (!result?.success || !Array.isArray(result.data?.items)) return;
+        if (!result?.success || !Array.isArray(result.data?.items)) {
+            if (host) host.textContent = result?.error || "Could not load your cart. Refresh the page to try again.";
+            return;
+        }
         cartPreviewItems = result.data.items;
         renderCartPreview();
     };
@@ -395,8 +407,8 @@
         }
 
         if (!slotSelect.value) {
-            explain("Choose an available fulfilment time to calculate your total.", false);
-            return;
+            // Price totals do not depend on the selected time. Preview anyway;
+            // the submit action remains gated on a valid slot.
         }
 
         if (fulfilment.value === "delivery" && !addressSelect.value) {
@@ -585,7 +597,7 @@
             } else if (data.promotion.discount_type === "free_delivery" && data.fulfillment_type !== "delivery") {
                 promoNote.textContent = "Free-delivery offers apply to delivery orders only.";
             } else if (data.promotion.discount_type === "buy_one_get_one") {
-                promoNote.textContent = "Buy-one-get-one offers need two of the same eligible menu item.";
+                promoNote.textContent = "Add an eligible menu item to receive one additional free unit. The offer applies once per item per order.";
             } else if (data.promotion.target_product_names?.length) {
                 promoNote.textContent =
                     `This offer applies to ${data.promotion.target_product_names.join(", ")}. Check that your basket meets the offer conditions.`;
@@ -604,7 +616,7 @@
         summary.appendChild(summaryNote);
 
         summary.hidden = false;
-        submitButton.hidden = false;
+        submitButton.hidden = !slotSelect.value;
         previewReady = true;
 
         if (!silent) showMessage("Total updated. Check the breakdown before continuing.");
@@ -634,6 +646,10 @@
             input.addEventListener("change", () => { clearPreview(); schedulePreview(); });
             input.addEventListener("input", () => { clearPreview(); schedulePreview(); });
         });
+
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) loadCartPreview();
+    });
 
     promotionInput.addEventListener("input", () => {
         try {

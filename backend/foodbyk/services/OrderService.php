@@ -717,13 +717,9 @@ class OrderService {
                     $revalidate = $promotionService->revalidateForOrder($order);
                     if (!$revalidate['success']) throw new \Exception($revalidate['error']);
                     $order->locked_discount = (float) ($revalidate['data']['discount'] ?? 0);
-                    $freeQuantities = $revalidate['data']['free_quantities_by_product'] ?? [];
-                    if ($freeQuantities !== []) {
-                        foreach ($order->getItems() as $item) {
-                            $item->quantity += (int) ($freeQuantities[$item->product_id] ?? 0);
-                            if (!$item->save()) throw new \Exception('Unable to apply the free promotional items.');
-                        }
-                    }
+                    // The adjusted quantities are the staff-approved fulfillment
+                    // quantities. Revalidation recalculates the discount only;
+                    // never append free units again to these quantities.
                 }
 
                 $redemptionRefund = (new LoyaltyService())->refundExcessOrderRedemption($order);

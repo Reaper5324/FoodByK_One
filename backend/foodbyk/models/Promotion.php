@@ -82,7 +82,7 @@ class Promotion extends Model {
      * Calculates the discount from immutable line-item prices. Each line item
      * must expose product_id, quantity, and unit_price as array keys or public
      * properties. BOGO applies to matching product lines and makes the cheaper
-     * item in every pair free.
+     * one free unit per eligible product, once per order.
      */
     public function calculateDiscount(
         float $subtotal,
@@ -147,7 +147,7 @@ class Promotion extends Model {
         }
         return array_values(array_map(
             static fn(int $id): string => $names[$id],
-            array_keys(array_filter($quantities, static fn(int $quantity): bool => $quantity >= 2))
+            array_keys(array_filter($quantities, static fn(int $quantity): bool => $quantity >= 1))
         ));
     }
 
@@ -162,7 +162,7 @@ class Promotion extends Model {
         }
         $free = [];
         foreach ($quantities as $id => $quantity) {
-            $free[$id] = intdiv($quantity, 2);
+            $free[$id] = $quantity > 0 ? 1 : 0;
         }
         return $free;
     }
@@ -224,24 +224,12 @@ class Promotion extends Model {
                 continue;
             }
 
-            $itemsByProduct[(string) $productId][] = [
-                'quantity' => $quantity,
-                'unit_price' => $unitPrice,
-            ];
+            $itemsByProduct[(string) $productId][] = $unitPrice;
         }
 
         $discount = 0.0;
-        foreach ($itemsByProduct as $productItems) {
-            $quantities = 0;
-            $prices = [];
-            foreach ($productItems as $item) {
-                $quantities += $item['quantity'];
-                $prices = array_merge($prices, array_fill(0, $item['quantity'], $item['unit_price']));
-            }
-
-            sort($prices, SORT_NUMERIC);
-            $freeItems = intdiv($quantities, 2);
-            $discount += array_sum(array_slice($prices, 0, $freeItems));
+        foreach ($itemsByProduct as $productPrices) {
+            if ($productPrices !== []) $discount += min($productPrices);
         }
 
         return $discount;

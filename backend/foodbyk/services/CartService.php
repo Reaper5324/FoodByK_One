@@ -93,10 +93,23 @@ class CartService {
 
     public function view(int $customerId): array {
         $items = CartItem::findBy('customer_id', $customerId);
+        $products = Product::findByIds(array_map(static fn(CartItem $item): int => $item->product_id, $items));
+        $items = array_map(static function (CartItem $item) use ($products): array {
+            $product = $products[$item->product_id] ?? null;
+            return [
+                'id' => $item->id,
+                'product_id' => $item->product_id,
+                'name' => $product?->name ?? 'Unavailable menu item',
+                'quantity' => $item->quantity,
+                'unit_price' => $product ? $product->price + $item->getCustomizationTotal() : $item->unit_price,
+                'line_total' => $item->getLineTotal(),
+                'customizations' => $item->customizations,
+            ];
+        }, $items);
         return $this->success([
             'items' => $items,
             'total' => $this->getCartTotal($customerId),
-            'item_count' => array_sum(array_map(fn(CartItem $item) => $item->quantity, $items)),
+            'item_count' => array_sum(array_map(static fn(array $item): int => $item['quantity'], $items)),
             'limits' => [
                 'max_item_quantity' => BusinessSettings::current()->max_item_quantity,
                 'max_cart_items' => BusinessSettings::current()->max_cart_items,

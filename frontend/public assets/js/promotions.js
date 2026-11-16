@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const targets = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
         const appliesTo = targets.length ? `Applies to: ${targets.join(", ")}. ` : "Applies across eligible orders. ";
         const terms = promotion.discount_type === "buy_one_get_one"
-            ? "Buy two of the same eligible item; the lower-priced one is free."
+            ? "Add one eligible item and get one more of that item free. The offer applies once per item per order."
             : promotion.discount_type === "free_delivery"
                 ? "For delivery orders only."
                 : "Discount is calculated at checkout.";
