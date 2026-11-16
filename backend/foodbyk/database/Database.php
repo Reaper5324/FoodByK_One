@@ -54,6 +54,10 @@ class Database {
                     }
                 }
 
+                if (getenv('DB_PERSISTENT') === '1') {
+                    $options[PDO::ATTR_PERSISTENT] = true;
+                }
+
                 self::$instance = new PDO($dsn, DB_USER, DB_PASS, $options);
             } catch (PDOException $e) {
                 error_log(sprintf(
