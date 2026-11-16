@@ -141,7 +141,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             badge.className = "menu-promotion-badge";
             const value = Number(promotion.discount_value || 0);
             const label = promotion.discount_type === "percentage" ? `${value}% off`
-                : promotion.discount_type === "buy_one_get_one" ? "Buy one, get one free"
+                : promotion.discount_type === "buy_one_get_one" ? "Buy one, get one free per paid item"
                     : `R${value.toFixed(2)} off eligible items`;
             badge.textContent = promotion.code ? `${label} · code ${String(promotion.code).toUpperCase()}` : label;
             promotionList.appendChild(badge);

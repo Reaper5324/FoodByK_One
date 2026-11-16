@@ -177,7 +177,7 @@ function showLatestPromotion(promotion) {
     let title = "Food by K special";
     if (type === "percentage" && Number.isFinite(value)) title = `${value}% off`;
     else if (type === "fixed_amount" && Number.isFinite(value)) title = `R${value.toFixed(2).replace(/\.00$/, "")} off`;
-    else if (type === "buy_one_get_one") title = "Buy one, get one free";
+    else if (type === "buy_one_get_one") title = "Buy one, get one free per paid item";
     else if (type === "free_delivery") title = "Free delivery";
 
     document.getElementById("promotionModalTitle").textContent = title;
@@ -220,7 +220,7 @@ function createPromotionCard(promotion) {
     const type = promotion.discount_type;
     if (type === "percentage") title.textContent = `${value}% off`;
     else if (type === "fixed_amount") title.textContent = `R${value.toFixed(2).replace(/\.00$/, "")} off`;
-    else if (type === "buy_one_get_one") title.textContent = "Buy one, get one free";
+    else if (type === "buy_one_get_one") title.textContent = "Buy one, get one free per paid item";
     else if (type === "free_delivery") title.textContent = "Free delivery";
     else title.textContent = "Food by K special";
 
@@ -245,7 +245,7 @@ function promotionEligibilityText(promotion) {
     const targets = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
     const appliesTo = targets.length ? `Applies to ${targets.join(", ")}. ` : "Applies across eligible orders. ";
     const terms = promotion.discount_type === "buy_one_get_one"
-        ? "Add one eligible item and get one more of that item free. The offer applies once per item per order."
+        ? "Get one matching free item for every paid eligible item. One promotion code may be used per order."
         : promotion.discount_type === "free_delivery"
             ? "For delivery orders only."
             : "Discount is calculated at checkout.";

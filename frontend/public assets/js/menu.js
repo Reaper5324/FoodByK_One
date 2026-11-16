@@ -1,11 +1,20 @@
 document.addEventListener("DOMContentLoaded", async () => {
     const thanksModal = document.getElementById("orderThanksModal");
     const menuQuery = new URLSearchParams(window.location.search);
-    const completedOrderId = sessionStorage.getItem("foodByKCompletedOrder");
+    let completedOrderId = null;
+    try {
+        completedOrderId = sessionStorage.getItem("foodByKCompletedOrder");
+    } catch (error) {
+        // The menu remains usable when browser storage is restricted.
+    }
     if (thanksModal && menuQuery.get("order_complete") === "1"
         && completedOrderId && completedOrderId === menuQuery.get("order_id")) {
-        sessionStorage.removeItem("foodByKCompletedOrder");
-        sessionStorage.setItem("foodByKThankedOrder", completedOrderId);
+        try {
+            sessionStorage.removeItem("foodByKCompletedOrder");
+            sessionStorage.setItem("foodByKThankedOrder", completedOrderId);
+        } catch (error) {
+            // Showing the one-time modal is still safe when storage is unavailable.
+        }
         if (typeof thanksModal.showModal === "function") thanksModal.showModal();
         else thanksModal.setAttribute("open", "");
         document.getElementById("closeOrderThanks")?.addEventListener("click", () => thanksModal.close());
@@ -56,7 +65,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const value = Number(promotion.discount_value || 0);
         if (promotion.discount_type === "percentage") return `${value}% off`;
         if (promotion.discount_type === "fixed_amount") return `R${value.toFixed(2)} off eligible items`;
-        if (promotion.discount_type === "buy_one_get_one") return "Buy one, get one free";
+        if (promotion.discount_type === "buy_one_get_one") return "Buy one, get one free per paid item";
         if (promotion.discount_type === "free_delivery") return "Free delivery";
         return "Special offer";
     };

@@ -728,7 +728,7 @@ const initializeAdminLive = async () => {
             const value = Number(promo.discount_value || 0);
             const offer = promo.discount_type === "percentage" ? `${value}% off`
                 : promo.discount_type === "fixed_amount" ? `${money(value)} off`
-                : promo.discount_type === "buy_one_get_one" ? "Buy one, get one free"
+                : promo.discount_type === "buy_one_get_one" ? "Buy one, get one free per paid item"
                 : promo.discount_type === "free_delivery" ? "Free delivery" : promo.discount_type;
             makeCell(row, offer);
             makeCell(row, promo.target_product_names?.length ? promo.target_product_names.join(", ") : "Whole order");
@@ -1210,7 +1210,8 @@ const initializeAdminLive = async () => {
                 extras.textContent = `Extras: ${item.customizations.map((option) => option.name).join(", ")}`;
                 name.appendChild(extras);
             }
-            const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} Ã— ${money(item.unit_price ?? item.price)}`; name.appendChild(detail);
+            const freeQuantity = Math.max(0, Number(item.free_quantity || 0));
+            const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} Ã— ${money(item.unit_price ?? item.price)}${freeQuantity ? ` (${freeQuantity} free)` : ""}`; name.appendChild(detail);
             if (isProductPromotion && (promoTargets.length === 0 || promoTargets.includes(Number(item.product_id)))) {
                 const promoBadge = document.createElement("span");
                 promoBadge.className = "order-promo-eligible";
@@ -1248,7 +1249,7 @@ const initializeAdminLive = async () => {
         const value = Number(promotion.discount_value || 0);
         const label = promotion.discount_type === "percentage" ? `${value}% off`
             : promotion.discount_type === "fixed_amount" ? `${money(value)} off`
-                : promotion.discount_type === "buy_one_get_one" ? "Buy one, get one free"
+                : promotion.discount_type === "buy_one_get_one" ? "Buy one, get one free per paid item"
                     : promotion.discount_type === "free_delivery" ? "Free delivery"
                         : "Promotion";
         setText("modalPromotionName", `${promotion.code || "Promotion"} - ${label}`);

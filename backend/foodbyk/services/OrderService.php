@@ -577,6 +577,7 @@ class OrderService {
                     order_id: $order->id,
                     product_id: $cartItem->product_id,
                     quantity: $cartItem->quantity + (int) ($freeQuantitiesByCartItem[$cartItem->id] ?? 0),
+                    free_quantity: (int) ($freeQuantitiesByCartItem[$cartItem->id] ?? 0),
                     unit_price: $product->price + $cartItem->getCustomizationTotal(),
                     customization_json: $cartItem->customization_json
                 );
@@ -791,6 +792,8 @@ class OrderService {
                 }
 
                 $newSubtotal = 0.0;
+                $bogoPromotion = $order->promotion_id ? Promotion::findById($order->promotion_id) : null;
+                if ($bogoPromotion) Promotion::attachTargets([$bogoPromotion]);
                 foreach ($adjustedItems as $adj) {
                     $productId = filter_var($adj['product_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
                     $product = $productId === false ? null : ($adjustedProductsById[(int) $productId] ?? null);
@@ -804,10 +807,17 @@ class OrderService {
                     $quantity = (int) $adj['quantity'];
                     $customizations = $adj['customizations'] ?? [];
                     $customizationTotal = array_sum(array_map(static fn(array $option): float => (float) $option['price_delta'], $customizations));
+                    $freeQuantity = $bogoPromotion
+                        && $bogoPromotion->discount_type === Promotion::TYPE_BUY_ONE_GET_ONE
+                        && count($bogoPromotion->target_product_ids) === 1
+                        && (int) $bogoPromotion->target_product_ids[0] === $product->id
+                            ? intdiv($quantity, 2)
+                            : 0;
                     $orderItem = new OrderItem(
                         order_id: $order->id,
                         product_id: $product->id,
                         quantity: $quantity,
+                        free_quantity: $freeQuantity,
                         unit_price: $product->price + $customizationTotal,
                         product_name: $product->name,
                         customization_json: json_encode($customizations, JSON_UNESCAPED_UNICODE)

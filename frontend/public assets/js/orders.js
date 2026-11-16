@@ -143,7 +143,9 @@ document.addEventListener("DOMContentLoaded", () => {
             image.alt = item.product_name || "Food by K menu item";
             image.loading = "lazy";
             image.addEventListener("error", () => { image.hidden = true; }, { once: true });
-            const name = element("span", "order-item-name", `${item.quantity} × ${item.product_name || "Food by K item"}`);
+            const freeQuantity = Math.max(0, Number(item.free_quantity || 0));
+            const itemLabel = `${item.quantity} × ${item.product_name || "Food by K item"}${freeQuantity ? ` (${freeQuantity} free)` : ""}`;
+            const name = element("span", "order-item-name", itemLabel);
             const description = element("div", "order-item-description");
             description.append(image, name);
             if (Array.isArray(item.customizations) && item.customizations.length) {

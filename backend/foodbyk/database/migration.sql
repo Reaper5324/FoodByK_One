@@ -243,11 +243,13 @@ CREATE TABLE order_items (
     product_id    INT            UNSIGNED NOT NULL,
     product_name  VARCHAR(150)   NOT NULL,
     quantity      INT            UNSIGNED NOT NULL,
+    free_quantity INT            UNSIGNED NOT NULL DEFAULT 0,
     unit_price    DECIMAL(8,2)   NOT NULL,
     customization_json LONGTEXT DEFAULT NULL,
     CONSTRAINT fk_items_order   FOREIGN KEY (order_id)   REFERENCES orders(id)   ON DELETE CASCADE,
     CONSTRAINT fk_items_product FOREIGN KEY (product_id) REFERENCES products(id),
     CONSTRAINT chk_order_items_quantity_positive CHECK (quantity > 0),
+    CONSTRAINT chk_order_items_free_quantity CHECK (free_quantity <= quantity),
     CONSTRAINT chk_order_items_price_nonnegative CHECK (unit_price >= 0),
     INDEX idx_items_order (order_id)
 ) ENGINE=InnoDB;

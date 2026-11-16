@@ -44,6 +44,19 @@ class PromotionService {
             return $this->failure('This promotion overlaps another active offer on a menu item. Please contact the business before applying it.');
         }
 
+        $eligibleNames = $promotion->eligibleProductNames($lineItems);
+        $targetIds = array_map('intval', $promotion->target_product_ids);
+        $hasEligibleItem = $targetIds === [] || count(array_filter($lineItems, static fn(array $item) =>
+            in_array((int) ($item['product_id'] ?? 0), $targetIds, true)
+        )) > 0;
+        if (!$hasEligibleItem) {
+            return $this->failure('This promotion does not apply to any menu items in your cart.');
+        }
+        if ($promotion->discount_type === Promotion::TYPE_BUY_ONE_GET_ONE
+            && $promotion->freeQuantitiesByCartItem($lineItems) === []) {
+            return $this->failure('Add the eligible menu item to your cart to use this buy-one-get-one offer.');
+        }
+
         $discount = $promotion->calculateDiscount($subtotal, $lineItems, $deliveryFee);
 
         return $this->success([
@@ -54,7 +67,7 @@ class PromotionService {
             'discount_value' => $promotion->discount_value,
             'target_product_ids' => $promotion->target_product_ids,
             'target_product_names' => $promotion->target_product_names,
-            'eligible_product_names' => $promotion->eligibleProductNames($lineItems),
+            'eligible_product_names' => $eligibleNames,
             'applied_product_names' => $promotion->appliedProductNames($lineItems),
             'free_quantities_by_cart_item' => $promotion->freeQuantitiesByCartItem($lineItems),
         ]);
@@ -80,17 +93,17 @@ class PromotionService {
         $lineItems = array_map(fn(OrderItem $item) => [
             'product_id' => $item->product_id,
             'quantity'   => $item->quantity,
+            'free_quantity' => $item->free_quantity,
             'unit_price' => $item->unit_price,
         ], $order->getItems());
 
-        // Checkout snapshots contain paid and free units together. On staff
-        // adjustment, each complete paid/free pair remains a qualifying pair;
-        // an unmatched odd unit is charged at full price.
+        // Use the explicit free-unit snapshot. This keeps legacy BOGO orders
+        // stable and avoids guessing from the total fulfilled quantity.
         if ($promotion->discount_type === Promotion::TYPE_BUY_ONE_GET_ONE) {
             $targetId = (int) $promotion->target_product_ids[0];
             $lineItems = array_map(static function (array $item) use ($targetId): array {
-                if ($item['product_id'] === $targetId) $item['quantity'] = intdiv(max(0, $item['quantity']), 2);
-                else $item['quantity'] = 0;
+                $item['quantity'] = $item['product_id'] === $targetId ? $item['free_quantity'] : 0;
+                unset($item['free_quantity']);
                 return $item;
             }, $lineItems);
         }

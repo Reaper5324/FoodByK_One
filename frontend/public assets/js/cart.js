@@ -301,6 +301,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             cartItems.appendChild(row);
         });
 
+        try {
+            const selectedPromotion = String(sessionStorage.getItem("foodbykSelectedPromotion") || "").trim().toUpperCase();
+            if (selectedPromotion) {
+                const promotionNote = document.createElement("p");
+                promotionNote.className = "cart-promotion-note";
+                promotionNote.textContent = `Promotion ${selectedPromotion} is saved for checkout. Checkout will confirm which items qualify, any BOGO free quantities, and the exact discount. Only one promotion code can be used per order.`;
+                cartItems.appendChild(promotionNote);
+            }
+        } catch (error) {
+            // Cart contents remain usable when browser storage is unavailable.
+        }
+
         cartTotal.replaceChildren();
         const totalLabel = document.createElement("span");
         totalLabel.textContent = "Order total";

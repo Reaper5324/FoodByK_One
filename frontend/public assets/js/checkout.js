@@ -29,11 +29,16 @@
 
     const selectedPromotionKey = "foodbykSelectedPromotion";
     let cartPreviewItems = [];
+    let productImagesById = new Map();
+    let productCatalogPromise = null;
+    let pricedItemsActive = false;
+    let cartFingerprint = "";
 
     let previewReady = false;
     let addressesLoaded = false;
     let previewRequestId = 0;
     let previewTimer = null;
+    let slotRequestId = 0;
 
     const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, {
         minimumFractionDigits: 2,
@@ -100,12 +105,14 @@
     const clearPreview = (prompt = "Update the checkout details to see your latest total.") => {
         previewRequestId++;
         previewReady = false;
+        pricedItemsActive = false;
         previewButton.disabled = false;
         previewButton.innerHTML = 'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
         submitButton.hidden = true;
         message.hidden = true;
         showDeliveryMessage("");
         showSummaryMessage(prompt);
+        renderCartPreview();
     };
 
     const schedulePreview = () => {
@@ -118,10 +125,31 @@
         if (!host) return;
         host.replaceChildren();
         cartPreviewItems.forEach((item) => {
-            const row = document.createElement("p");
-            row.className = "checkout-summary-row";
+            const row = document.createElement("article");
+            row.className = "checkout-item-card";
             const name = item.name || item.product_name || `Menu item ${item.product_id || ""}`;
-            row.textContent = `${name} × ${Number(item.quantity || 1)} · R${Number(item.line_total || 0).toFixed(2)}`;
+            const image = document.createElement("img");
+            image.className = "checkout-item-image";
+            image.src = productImagesById.get(Number(item.product_id)) || "../../images/foodbyk.png";
+            image.alt = `${name} from Food by K`;
+            image.loading = "lazy";
+            image.addEventListener("error", () => { image.hidden = true; }, { once: true });
+            const details = document.createElement("div");
+            details.className = "checkout-item-details";
+            const title = document.createElement("strong");
+            title.className = "checkout-item-name";
+            title.textContent = name;
+            const quantity = Number(item.quantity || 0);
+            const unitPrice = Number(item.unit_price || 0);
+            const lineTotal = Number(item.line_total || 0);
+            const price = document.createElement("span");
+            price.className = "checkout-item-price";
+            price.textContent = `${quantity} × R${unitPrice.toFixed(2)}${Number(item.free_quantity || 0) ? ` · ${item.paid_quantity} paid + ${item.free_quantity} free` : ""}`;
+            const line = document.createElement("strong");
+            line.className = "checkout-item-line-total";
+            line.textContent = `R${lineTotal.toFixed(2)}`;
+            details.append(title, price);
+            row.append(image, details, line);
             host.appendChild(row);
             (item.customizations || []).forEach((option) => {
                 const extra = document.createElement("p");
@@ -138,16 +166,39 @@
         }
     };
 
+    const renderPricedItems = (items) => {
+        const previous = cartPreviewItems;
+        cartPreviewItems = Array.isArray(items) ? items : [];
+        pricedItemsActive = true;
+        renderCartPreview();
+        cartPreviewItems = previous;
+    };
+
     const loadCartPreview = async () => {
         const host = document.getElementById("checkoutCartPreview");
         if (host && cartPreviewItems.length === 0) host.textContent = "Loading your cart items…";
-        const result = await apiGet("/cart").catch(() => null);
+        if (!productCatalogPromise) {
+            productCatalogPromise = apiGet("/products").then((result) => {
+                if (result?.success && Array.isArray(result.data)) {
+                    productImagesById = new Map(result.data.map((product) => [Number(product.id), product.image_url || ""]));
+                }
+            }).catch(() => {});
+        }
+        const [, result] = await Promise.all([productCatalogPromise, apiGet("/cart").catch(() => null)]);
         if (!result?.success || !Array.isArray(result.data?.items)) {
             if (host) host.textContent = result?.error || "Could not load your cart. Refresh the page to try again.";
             return;
         }
+        const nextFingerprint = JSON.stringify(result.data.items);
+        if (cartFingerprint && nextFingerprint !== cartFingerprint) {
+            pricedItemsActive = false;
+            previewReady = false;
+            submitButton.hidden = true;
+            showSummaryMessage("Your cart changed. Review the latest total before placing your order.");
+        }
+        cartFingerprint = nextFingerprint;
         cartPreviewItems = result.data.items;
-        renderCartPreview();
+        if (!pricedItemsActive) renderCartPreview();
     };
 
     // Show the new address form
@@ -276,7 +327,7 @@
 
         const result = await apiGet("/addresses");
 
-        if (!result.success) {
+        if (!result?.success || !result.data) {
             addressSelect.replaceChildren(
                 new Option("Unable to load addresses", "")
             );
@@ -327,6 +378,7 @@
 
     const loadSlots = async () => {
         const date = dateInput.value;
+        const requestId = ++slotRequestId;
 
         slotSelect.replaceChildren();
 
@@ -337,21 +389,20 @@
         slotSelect.appendChild(placeholder);
         slotSelect.setAttribute("aria-busy", "true");
 
-        const result = await apiGet(
-            `/checkout/slots?date=${encodeURIComponent(date)}`
-        );
+        const result = await apiGet(`/checkout/slots?date=${encodeURIComponent(date)}`).catch(() => null);
+        if (requestId !== slotRequestId || date !== dateInput.value) return;
 
         slotSelect.replaceChildren();
         slotSelect.setAttribute("aria-busy", "false");
 
-        if (!result.success) {
+        if (!result?.success || !Array.isArray(result.data)) {
             const failed = document.createElement("option");
             failed.value = "";
             failed.textContent = "Unable to load times";
 
             slotSelect.appendChild(failed);
 
-            showMessage(result.error || "Unable to load available times.", true);
+            showMessage(result?.error || "Unable to load available times.", true);
             return;
         }
 
@@ -442,7 +493,9 @@
         previewButton.innerHTML =
             'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
 
-        if (!result.success) {
+        if (!result?.success || !result.data) {
+            pricedItemsActive = false;
+            renderCartPreview();
             summary.setAttribute("aria-busy", "false");
 
             const deliveryErrors = [
@@ -453,7 +506,7 @@
                 "Delivery address not found."
             ];
 
-            const errorMessage = result.error || "Unable to review this order.";
+            const errorMessage = result?.error || "Unable to review this order.";
 
             if (
                 fulfilment.value === "delivery" &&
@@ -470,6 +523,11 @@
         }
 
         const data = result.data;
+        if (!Array.isArray(data.items) || data.items.length === 0) {
+            explain("Your cart is empty. Add menu items before continuing.");
+            return;
+        }
+        renderPricedItems(data.items);
 
         summary.replaceChildren();
         summary.setAttribute("aria-busy", "false");
@@ -588,8 +646,8 @@
                 promoNote.textContent = `Free delivery applied with code ${data.promotion.code}.`;
             } else if (discountApplied && data.promotion.discount_type === "buy_one_get_one") {
                 promoNote.textContent = appliedNames.length
-                    ? `Buy-one-get-one offer applied to: ${appliedNames.join(", ")}.`
-                    : `Buy-one-get-one offer applied with code ${data.promotion.code}.`;
+                    ? `Buy-one-get-one applied to ${appliedNames.join(", ")}: each paid eligible item has one matching free item.`
+                    : `Buy-one-get-one applied with code ${data.promotion.code}: each paid eligible item has one matching free item.`;
             } else if (discountApplied && appliedNames.length) {
                 promoNote.textContent = `Promotion applied to: ${appliedNames.join(", ")}.`;
             } else if (discountApplied) {
@@ -597,7 +655,7 @@
             } else if (data.promotion.discount_type === "free_delivery" && data.fulfillment_type !== "delivery") {
                 promoNote.textContent = "Free-delivery offers apply to delivery orders only.";
             } else if (data.promotion.discount_type === "buy_one_get_one") {
-                promoNote.textContent = "Add the eligible menu item to receive one additional free unit of that same item. Only that one unit is free; all other items remain charged.";
+                promoNote.textContent = "Add eligible items to receive one matching free unit for each paid eligible unit. Other menu items remain charged.";
             } else if (data.promotion.target_product_names?.length) {
                 promoNote.textContent =
                     `This offer applies to ${data.promotion.target_product_names.join(", ")}. Check that your basket meets the offer conditions.`;

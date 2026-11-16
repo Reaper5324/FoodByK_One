@@ -73,6 +73,7 @@
 .cart-message.is-error::before { content: "!"; color: white; background: var(--food-red); }
 .cart-message[hidden], .cart-actions [hidden], .cart-total[hidden] { display: none !important; }
 .cart-message a { color: var(--food-red-dark); font-weight: 900; text-decoration: underline; }
+.cart-promotion-note { margin: 0; padding: 12px 14px; border-left: 4px solid var(--food-yellow); color: #514a42; background: #fff; font-size: 13px; line-height: 1.55; }
 
 #cartItems { display: grid; gap: 12px; }
 

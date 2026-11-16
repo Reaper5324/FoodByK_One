@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             case "fixed_amount":
                 return `R${value.toFixed(2)} off`;
             case "buy_one_get_one":
-                return "Buy one, get one free";
+                return "Buy one, get one free per paid item";
             case "free_delivery":
                 return "Free delivery";
             default:
@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const targets = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
         const appliesTo = targets.length ? `Applies to: ${targets.join(", ")}. ` : "Applies across eligible orders. ";
         const terms = promotion.discount_type === "buy_one_get_one"
-            ? "Add one eligible item and get one more of that item free. The offer applies once per item per order."
+            ? "Get one matching free item for every paid eligible item. One promotion code may be used per order."
             : promotion.discount_type === "free_delivery"
                 ? "For delivery orders only."
                 : "Discount is calculated at checkout.";
