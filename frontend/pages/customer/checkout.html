@@ -144,7 +144,6 @@
             aria-live="assertive"
             hidden
     ></div>
-    <button id="previewButton" class="btn btn-secondary checkout-review-button" type="button">Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
     <section id="checkoutSummary" class="checkout-summary" aria-live="polite">
       <div class="checkout-summary-heading">
         <p>Live price breakdown</p>
@@ -152,6 +151,11 @@
       </div>
       <p class="checkout-summary-note" id="checkoutSummaryMessage">Choose collection or delivery, a time, and any offer or rewards to see your total.</p>
     </section>
+    <section class="checkout-cart-preview" aria-label="Cart item summary">
+      <h2>Your items</h2>
+      <div id="checkoutCartPreview" aria-live="polite"></div>
+    </section>
+    <button id="previewButton" class="btn btn-secondary checkout-review-button" type="button">Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
     <button id="submitButton" class="btn btn-primary checkout-submit-button" type="submit" hidden>Place order <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
   </form>
 </main>

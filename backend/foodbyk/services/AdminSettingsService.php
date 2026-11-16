@@ -50,7 +50,7 @@ class AdminSettingsService {
         } catch (Throwable $error) {
             if ($db->inTransaction()) $db->rollBack();
             error_log('Admin settings update failed: ' . $error->getMessage());
-            return $this->failure('Unable to update settings. Please try again.');
+            return $this->failure('Unable to update settings: ' . $error->getMessage());
         }
     }
 

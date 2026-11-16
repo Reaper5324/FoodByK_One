@@ -28,6 +28,7 @@
     const loyaltyBalanceMessage = document.getElementById("loyaltyBalanceMessage");
 
     const selectedPromotionKey = "foodbykSelectedPromotion";
+    let cartPreviewItems = [];
 
     let previewReady = false;
     let addressesLoaded = false;
@@ -110,6 +111,31 @@
     const schedulePreview = () => {
         window.clearTimeout(previewTimer);
         previewTimer = window.setTimeout(() => requestPreview({ silent: true }), 350);
+    };
+
+    const renderCartPreview = () => {
+        const host = document.getElementById("checkoutCartPreview");
+        if (!host) return;
+        host.replaceChildren();
+        cartPreviewItems.forEach((item) => {
+            const row = document.createElement("p");
+            row.className = "checkout-summary-row";
+            row.textContent = `${item.name || item.product_name || "Menu item"} × ${Number(item.quantity || 1)}`;
+            host.appendChild(row);
+        });
+        if (!cartPreviewItems.length) {
+            const empty = document.createElement("p");
+            empty.className = "checkout-summary-note";
+            empty.textContent = "Your cart is empty. Add menu items to see your order total.";
+            host.appendChild(empty);
+        }
+    };
+
+    const loadCartPreview = async () => {
+        const result = await apiGet("/cart").catch(() => null);
+        if (!result?.success || !Array.isArray(result.data?.items)) return;
+        cartPreviewItems = result.data.items;
+        renderCartPreview();
     };
 
     // Show the new address form
@@ -364,12 +390,12 @@
         };
 
         if (!fulfilment.value) {
-            explain("Choose collection or delivery to calculate your order total.");
+            explain("Choose collection or delivery to calculate your order total.", false);
             return;
         }
 
         if (!slotSelect.value) {
-            explain("Choose an available fulfilment time to calculate your total.");
+            explain("Choose an available fulfilment time to calculate your total.", false);
             return;
         }
 
@@ -395,14 +421,6 @@
 
         summary.setAttribute("aria-busy", "true");
 
-        summary.replaceChildren(...Array.from({ length: 4 }, () => {
-            const row = document.createElement("div");
-            row.className = "skeleton skeleton-line";
-            row.setAttribute("aria-hidden", "true");
-            return row;
-        }));
-
-        summary.hidden = false;
 
         const result = await apiPost("/checkout/preview", payload);
 
@@ -702,7 +720,12 @@
     dateInput.min = getLocalDate();
     dateInput.value = getLocalDate();
 
+    await loadCartPreview();
+    renderCartPreview();
+    const cartRefreshTimer = window.setInterval(loadCartPreview, 10000);
+    window.addEventListener("pagehide", () => window.clearInterval(cartRefreshTimer), { once: true });
     await loadSlots();
     await loadLoyaltyBalance();
     showSummaryMessage("Choose collection or delivery, an available time, and any offer or rewards to see your live total.");
+    schedulePreview();
 });
