@@ -1569,21 +1569,22 @@ const initializeAdminLive = async () => {
         });
 
         addGrid("orders", [
-            ["minimum_order_amount", "Suggested minimum order amount", { min: 0, max: 100000, step: "0.01", unit: "R", help: "Shown to customers as a guide; it does not block checkout." }],
+            ["minimum_order_amount", "Minimum order amount", { min: 0, max: 100000, step: "0.01", unit: "R", help: "Measured against item subtotal before promo-code discounts and delivery." }],
             ["slot_duration_minutes", "Slot length", { min: 5, max: 240, step: "1", unit: "min" }],
-            ["max_orders_per_slot", "Maximum orders per time slot", { min: 1, step: "1", unit: "orders" }],
+            ["max_orders_per_slot", "Maximum orders per time slot", { min: 1, max: 4294967295, step: "1", unit: "orders" }],
             ["max_item_quantity", "Maximum quantity of one menu item", { min: 1, max: 99, step: "1", unit: "items" }],
             ["max_cart_items", "Maximum cart quantity, including item quantities", { min: 1, max: 500, step: "1", unit: "items" }]
         ]);
+        addToggle("orders", "enforce_minimum_order", "Enforce minimum order amount", "When enabled, customers must meet the amount above before placing an order. Turn this off to show it as guidance only.");
         addToggle("orders", "ordering_enabled", "Accept new orders", "Pause checkout for both delivery and collection.");
 
         addGrid("delivery", [
-            ["business_lat", "Business latitude", { min: -90, max: 90, step: "0.000001" }],
-            ["business_long", "Business longitude", { min: -180, max: 180, step: "0.000001" }],
-            ["delivery_radius_km", "Delivery radius", { min: 0, step: "0.01", unit: "km" }],
-            ["collection_radius_km", "Collection radius", { min: 0, step: "0.01", unit: "km" }],
-            ["delivery_fee", "Delivery fee", { min: 0, step: "0.01", unit: "R" }],
-            ["free_delivery_threshold", "Free delivery above", { min: 0, step: "0.01", unit: "R", help: "Set to R0 to disable the threshold." }]
+            ["business_lat", "Store latitude", { min: -90, max: 90, step: "0.000001", help: "Used as the origin when checking customer delivery distance." }],
+            ["business_long", "Store longitude", { min: -180, max: 180, step: "0.000001", help: "Used as the origin when checking customer delivery distance." }],
+            ["delivery_radius_km", "Maximum delivery distance", { min: 0, max: 9999.99, step: "0.01", unit: "km", help: "Delivery orders beyond this distance are not accepted." }],
+            ["collection_radius_km", "Suggest collection up to", { min: 0, max: 9999.99, step: "0.01", unit: "km", help: "For a delivery address beyond delivery range, show the collection suggestion up to this distance." }],
+            ["delivery_fee", "Delivery fee", { min: 0, max: 999999.99, step: "0.01", unit: "R" }],
+            ["free_delivery_threshold", "Free delivery above", { min: 0, max: 99999999.99, step: "0.01", unit: "R", help: "Set to R0 to disable the automatic threshold. The threshold uses the item subtotal before promo-code discounts." }]
         ]);
         addToggle("delivery", "delivery_enabled", "Offer delivery", "Customers can choose delivery at checkout.");
         addToggle("delivery", "collection_enabled", "Offer collection", "Customers can collect orders from the store.");
@@ -1591,7 +1592,7 @@ const initializeAdminLive = async () => {
         const getCurrentState = () => {
             const state = {};
             new FormData(form).forEach((value, key) => { state[key] = value; });
-            ["ordering_enabled", "delivery_enabled", "collection_enabled"].forEach((key) => {
+            ["ordering_enabled", "delivery_enabled", "collection_enabled", "enforce_minimum_order"].forEach((key) => {
                 state[key] = Boolean(form.elements.namedItem(key).checked);
             });
             state.trading_hours = [...form.querySelectorAll(".hr")].map((row, index) => ({
@@ -1996,7 +1997,7 @@ const initializeAdminLive = async () => {
                 const input = form.elements.namedItem(key);
                 body[key] = input.type === "checkbox" ? input.checked : input.type === "number" ? Number(value) : value;
             });
-            ["ordering_enabled", "delivery_enabled", "collection_enabled"].forEach((key) => {
+            ["ordering_enabled", "delivery_enabled", "collection_enabled", "enforce_minimum_order"].forEach((key) => {
                 body[key] = Boolean(form.elements.namedItem(key).checked);
             });
             body.trading_hours = [...form.querySelectorAll(".hr")].map((row, index) => ({

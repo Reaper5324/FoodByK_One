@@ -9,6 +9,7 @@ SELECT expected.expected_column AS column_name,
 FROM (
     SELECT 'free_delivery_threshold' AS expected_column UNION ALL
     SELECT 'minimum_order_amount' UNION ALL
+    SELECT 'enforce_minimum_order' UNION ALL
     SELECT 'ordering_enabled' UNION ALL
     SELECT 'business_phone' UNION ALL
     SELECT 'business_address' UNION ALL

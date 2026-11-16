@@ -7,7 +7,7 @@ class AdminSettingsService {
         'business_lat', 'business_long', 'delivery_radius_km', 'collection_radius_km',
         'delivery_fee', 'free_delivery_threshold', 'trading_hours_start', 'trading_hours_end',
         'delivery_enabled', 'collection_enabled', 'slot_duration_minutes', 'max_orders_per_slot',
-        'max_item_quantity', 'max_cart_items', 'minimum_order_amount', 'ordering_enabled',
+        'max_item_quantity', 'max_cart_items', 'minimum_order_amount', 'enforce_minimum_order', 'ordering_enabled',
         'business_phone', 'business_address',
     ];
 
@@ -332,15 +332,20 @@ class AdminSettingsService {
 
     private function validateField(string $field, mixed $value): ?string {
         return match ($field) {
-            'business_lat'          => (is_numeric($value) && $value >= -90 && $value <= 90) ? null : 'Invalid latitude.',
-            'business_long'         => (is_numeric($value) && $value >= -180 && $value <= 180) ? null : 'Invalid longitude.',
-            'delivery_radius_km', 'collection_radius_km', 'delivery_fee', 'free_delivery_threshold' =>
-                (is_numeric($value) && $value >= 0) ? null : "Invalid value for {$field}.",
+            'business_lat'          => (is_numeric($value) && is_finite((float) $value) && $value >= -90 && $value <= 90) ? null : 'Invalid latitude.',
+            'business_long'         => (is_numeric($value) && is_finite((float) $value) && $value >= -180 && $value <= 180) ? null : 'Invalid longitude.',
+            'delivery_radius_km', 'collection_radius_km' =>
+                (is_numeric($value) && is_finite((float) $value) && $value >= 0 && $value <= 9999.99) ? null : "{$field} must be between 0 and 9,999.99 km.",
+            'delivery_fee' =>
+                (is_numeric($value) && is_finite((float) $value) && $value >= 0 && $value <= 999999.99) ? null : 'Delivery fee must be between R0 and R999,999.99.',
+            'free_delivery_threshold' =>
+                (is_numeric($value) && is_finite((float) $value) && $value >= 0 && $value <= 99999999.99) ? null : 'Free-delivery threshold must be between R0 and R99,999,999.99.',
             'slot_duration_minutes' => (filter_var($value, FILTER_VALIDATE_INT) !== false && $value >= 5 && $value <= 240) ? null : 'Slot duration must be a whole number between 5 and 240 minutes.',
-            'max_orders_per_slot'   => (filter_var($value, FILTER_VALIDATE_INT) !== false && $value >= 1) ? null : 'Max orders per slot must be a whole number of at least 1.',
+            'max_orders_per_slot'   => (filter_var($value, FILTER_VALIDATE_INT) !== false && $value >= 1 && $value <= 4294967295) ? null : 'Max orders per slot must be a whole number between 1 and 4,294,967,295.',
             'max_item_quantity'     => (filter_var($value, FILTER_VALIDATE_INT) !== false && $value >= 1 && $value <= 99) ? null : 'Maximum quantity per menu item must be between 1 and 99.',
             'max_cart_items'        => (filter_var($value, FILTER_VALIDATE_INT) !== false && $value >= 1 && $value <= 500) ? null : 'Maximum cart quantity must be between 1 and 500.',
             'minimum_order_amount'  => (is_numeric($value) && is_finite((float) $value) && $value >= 0 && $value <= 100000) ? null : 'Minimum order amount must be between R0 and R100,000.',
+            'enforce_minimum_order' => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== null ? null : 'Invalid minimum order enforcement setting.',
             'ordering_enabled'      => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== null ? null : 'Invalid order acceptance setting.',
             'business_phone'        => (is_string($value) && strlen(trim($value)) >= 7 && strlen($value) <= 30 && preg_match('/^[0-9+(). -]+$/', $value)) ? null : 'Enter a valid business phone number.',
             'business_address'      => (is_string($value) && trim($value) !== '' && strlen($value) <= 255) ? null : 'Business address must be between 1 and 255 characters.',
@@ -354,7 +359,7 @@ class AdminSettingsService {
 
     private function castField(string $field, mixed $value): mixed {
         return match ($field) {
-            'delivery_enabled', 'collection_enabled', 'ordering_enabled' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+            'delivery_enabled', 'collection_enabled', 'ordering_enabled', 'enforce_minimum_order' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
             'slot_duration_minutes', 'max_orders_per_slot', 'max_item_quantity', 'max_cart_items' => (int) $value,
             'trading_hours_start', 'trading_hours_end', 'business_phone', 'business_address' => trim((string) $value),
             default => (float) $value,

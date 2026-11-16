@@ -24,6 +24,8 @@ class CheckoutService {
         $cartItems = $cartValidation['data']['items'];
         $productsById = $cartValidation['data']['products'];
         $minimumOrderAmount = $cartValidation['data']['minimum_order_amount'];
+        $minimumOrderMet = $cartValidation['data']['minimum_order_met'];
+        $minimumOrderEnforced = $cartValidation['data']['enforce_minimum_order'];
 
         // Use current prices for the preview; submission saves a price snapshot.
         $subtotal = 0.0;
@@ -149,10 +151,9 @@ class CheckoutService {
             'total' => $total,
             'minimum_order_amount' => $minimumOrderAmount,
             'minimum_order_subtotal' => $cartValidation['data']['minimum_order_subtotal'],
-            'minimum_order_met' => $cartValidation['data']['minimum_order_met'],
-            // The configured minimum is advisory. Keep checkout available and
-            // show the customer the final calculated total before submission.
-            'can_proceed' => true,
+            'minimum_order_met' => $minimumOrderMet,
+            'minimum_order_enforced' => $minimumOrderEnforced,
+            'can_proceed' => !$minimumOrderEnforced || $minimumOrderMet,
         ]);
     }
 
@@ -209,6 +210,7 @@ class CheckoutService {
             'minimum_order_amount' => $settings->minimum_order_amount,
             'minimum_order_subtotal' => $subtotal,
             'minimum_order_met' => $subtotal >= $settings->minimum_order_amount,
+            'enforce_minimum_order' => $settings->enforce_minimum_order,
         ]);
     }
 

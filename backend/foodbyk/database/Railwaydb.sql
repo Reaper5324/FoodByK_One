@@ -85,6 +85,7 @@ CREATE TABLE `business_settings` (
   `max_item_quantity` int unsigned NOT NULL DEFAULT '6',
   `max_cart_items` int unsigned NOT NULL DEFAULT '10',
   `minimum_order_amount` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `enforce_minimum_order` tinyint(1) NOT NULL DEFAULT '0',
   `ordering_enabled` tinyint(1) NOT NULL DEFAULT '1',
   `business_phone` varchar(30) NOT NULL DEFAULT '081 447 8365',
   `business_address` varchar(255) NOT NULL DEFAULT '8513 Goshawk Street, Lenasia South, Gauteng',
@@ -100,7 +101,7 @@ CREATE TABLE `business_settings` (
 
 LOCK TABLES `business_settings` WRITE;
 /*!40000 ALTER TABLE `business_settings` DISABLE KEYS */;
-INSERT INTO `business_settings` VALUES (1,-26.398000,27.854700,30.00,50.00,20.00,0.00,'11:00:00','18:00:00',1,1,30,10,6,10,0.00,1,'081 447 8365','8513 Goshawk Street, Lenasia South, Gauteng','2026-10-08 16:03:22');
+INSERT INTO `business_settings` VALUES (1,-26.398000,27.854700,30.00,50.00,20.00,0.00,'11:00:00','18:00:00',1,1,30,10,6,10,0.00,0,1,'081 447 8365','8513 Goshawk Street, Lenasia South, Gauteng','2026-10-08 16:03:22');
 /*!40000 ALTER TABLE `business_settings` ENABLE KEYS */;
 UNLOCK TABLES;
 

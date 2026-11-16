@@ -20,6 +20,7 @@ public function __construct(
     public int     $max_item_quantity     = 6,
     public int     $max_cart_items        = 10,
     public float   $minimum_order_amount  = 0.0,
+    public bool    $enforce_minimum_order = false,
     public bool    $ordering_enabled      = true,
     public string  $business_phone       = '081 447 8365',
     public string  $business_address     = '8513 Goshawk Street, Lenasia South, Gauteng',
@@ -95,6 +96,7 @@ protected function toArray(): array {
         'max_item_quantity'     => $this->max_item_quantity,
         'max_cart_items'        => $this->max_cart_items,
         'minimum_order_amount'  => $this->minimum_order_amount,
+        'enforce_minimum_order' => (int) $this->enforce_minimum_order,
         'ordering_enabled'      => (int) $this->ordering_enabled,
         'business_phone'        => $this->business_phone,
         'business_address'      => $this->business_address,
@@ -119,6 +121,7 @@ protected static function fromRow(array $row): static {
     $s->max_item_quantity     = (int) ($row['max_item_quantity'] ?? 6);
     $s->max_cart_items        = (int) ($row['max_cart_items'] ?? 10);
     $s->minimum_order_amount  = (float) ($row['minimum_order_amount'] ?? 0);
+    $s->enforce_minimum_order = (bool) ($row['enforce_minimum_order'] ?? false);
     $s->ordering_enabled      = (bool) ($row['ordering_enabled'] ?? true);
     $s->business_phone        = (string) ($row['business_phone'] ?? '081 447 8365');
     $s->business_address      = (string) ($row['business_address'] ?? '8513 Goshawk Street, Lenasia South, Gauteng');

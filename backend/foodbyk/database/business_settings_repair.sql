@@ -2,7 +2,7 @@
 --
 -- Check the current schema with business_settings_schema_check.sql first.
 -- This is a one-time migration: MySQL has no ADD COLUMN IF NOT EXISTS syntax.
--- Run it only when all seven columns below are absent. If any are already
+-- Run it only when all eight columns below are absent. If any are already
 -- present, remove those ADD COLUMN clauses before executing this file.
 
 ALTER TABLE business_settings
@@ -10,6 +10,7 @@ ALTER TABLE business_settings
     ADD COLUMN max_item_quantity INT UNSIGNED NOT NULL DEFAULT 6,
     ADD COLUMN max_cart_items INT UNSIGNED NOT NULL DEFAULT 10,
     ADD COLUMN minimum_order_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    ADD COLUMN enforce_minimum_order TINYINT(1) NOT NULL DEFAULT 0,
     ADD COLUMN ordering_enabled TINYINT(1) NOT NULL DEFAULT 1,
     ADD COLUMN business_phone VARCHAR(30) NOT NULL DEFAULT '081 447 8365',
     ADD COLUMN business_address VARCHAR(255) NOT NULL DEFAULT '8513 Goshawk Street, Lenasia South, Gauteng';
@@ -47,7 +48,7 @@ WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = 'business_settings'
   AND COLUMN_NAME IN (
       'free_delivery_threshold', 'max_item_quantity', 'max_cart_items',
-      'minimum_order_amount', 'ordering_enabled', 'business_phone', 'business_address'
+      'minimum_order_amount', 'enforce_minimum_order', 'ordering_enabled', 'business_phone', 'business_address'
   )
 ORDER BY COLUMN_NAME;
 

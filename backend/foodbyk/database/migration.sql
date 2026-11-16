@@ -45,6 +45,7 @@ CREATE TABLE business_settings (
     max_item_quantity      INT UNSIGNED  NOT NULL DEFAULT 6,
     max_cart_items         INT UNSIGNED  NOT NULL DEFAULT 10,
     minimum_order_amount   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    enforce_minimum_order  TINYINT(1)    NOT NULL DEFAULT 0,
     ordering_enabled       TINYINT(1)    NOT NULL DEFAULT 1,
     business_phone        VARCHAR(30)   NOT NULL DEFAULT '081 447 8365',
     business_address      VARCHAR(255)  NOT NULL DEFAULT '8513 Goshawk Street, Lenasia South, Gauteng',

@@ -1,6 +1,7 @@
 ﻿document.addEventListener("DOMContentLoaded", async () => {
     const form = document.getElementById("checkoutForm");
     const fulfilment = document.getElementById("fulfilmentType");
+    const fulfilmentAvailabilityMessage = document.getElementById("fulfilmentAvailabilityMessage");
     const addressField = document.getElementById("addressField");
     const addressSelect = document.getElementById("addressId");
 
@@ -35,6 +36,7 @@
     let cartFingerprint = "";
 
     let previewReady = false;
+    let minimumOrderBlocked = false;
     let addressesLoaded = false;
     let previewRequestId = 0;
     let previewTimer = null;
@@ -63,6 +65,42 @@
 
         loyaltyBalanceMessage.textContent =
             `You have ${formatPoints(balance)} points worth R${Number(result.data.estimated_value || 0).toFixed(2)}.`;
+    };
+
+    const loadBusinessAvailability = async () => {
+        const result = await apiGet("/business/settings").catch(() => null);
+        const settings = result?.success ? result.data : null;
+        if (!settings) return;
+
+        const orderingEnabled = settings.ordering_enabled !== false && Number(settings.ordering_enabled) !== 0;
+        const deliveryEnabled = settings.delivery_enabled !== false && Number(settings.delivery_enabled) !== 0;
+        const collectionEnabled = settings.collection_enabled !== false && Number(settings.collection_enabled) !== 0;
+        const deliveryOption = fulfilment.querySelector('option[value="delivery"]');
+        const collectionOption = fulfilment.querySelector('option[value="collection"]');
+
+        deliveryOption.disabled = !orderingEnabled || !deliveryEnabled;
+        collectionOption.disabled = !orderingEnabled || !collectionEnabled;
+        deliveryOption.textContent = deliveryEnabled ? "Delivery" : "Delivery (currently unavailable)";
+        collectionOption.textContent = collectionEnabled ? "Collection" : "Collection (currently unavailable)";
+        fulfilment.disabled = !orderingEnabled;
+
+        const messages = [];
+        if (!orderingEnabled) messages.push("Online ordering is temporarily paused.");
+        else if (!deliveryEnabled && !collectionEnabled) messages.push("Delivery and collection are currently unavailable.");
+        else {
+            if (!deliveryEnabled) messages.push("Delivery is currently unavailable.");
+            if (!collectionEnabled) messages.push("Collection is currently unavailable.");
+        }
+        if (fulfilmentAvailabilityMessage) {
+            fulfilmentAvailabilityMessage.textContent = messages.join(" ");
+            fulfilmentAvailabilityMessage.hidden = messages.length === 0;
+        }
+        if (fulfilment.value && (fulfilment.disabled || fulfilment.selectedOptions[0]?.disabled)) {
+            fulfilment.value = "";
+            addressField.hidden = true;
+            addressSelect.required = false;
+            clearPreview("Choose an available fulfilment option to review your total.");
+        }
     };
 
     try {
@@ -105,6 +143,7 @@
     const clearPreview = (prompt = "Update the checkout details to see your latest total.") => {
         previewRequestId++;
         previewReady = false;
+        minimumOrderBlocked = false;
         pricedItemsActive = false;
         previewButton.disabled = false;
         previewButton.innerHTML = 'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
@@ -443,6 +482,7 @@
     const requestPreview = async ({ silent = false } = {}) => {
         message.hidden = true;
         previewReady = false;
+        minimumOrderBlocked = false;
         submitButton.hidden = true;
         const requestId = ++previewRequestId;
 
@@ -669,7 +709,14 @@
         if (data.minimum_order_met === false) {
             const minimumNote = document.createElement("p");
             minimumNote.className = "checkout-summary-note";
-            minimumNote.textContent = `Your order is below the R${Number(data.minimum_order_amount || 0).toFixed(2)} suggested minimum. You can still continue.`;
+            const minimum = Number(data.minimum_order_amount || 0);
+            const currentSubtotal = Number(data.minimum_order_subtotal || 0);
+            if (data.minimum_order_enforced) {
+                const remaining = Math.max(0, minimum - currentSubtotal);
+                minimumNote.textContent = `Your item subtotal is R${currentSubtotal.toFixed(2)}. Add at least R${remaining.toFixed(2)} in items to meet the R${minimum.toFixed(2)} minimum and place your order.`;
+            } else {
+                minimumNote.textContent = `Your order is below the R${minimum.toFixed(2)} suggested minimum. You can still continue.`;
+            }
             summary.appendChild(minimumNote);
         }
 
@@ -681,7 +728,8 @@
         summary.appendChild(summaryNote);
 
         summary.hidden = false;
-        submitButton.hidden = !slotSelect.value;
+        minimumOrderBlocked = data.can_proceed === false;
+        submitButton.hidden = !slotSelect.value || minimumOrderBlocked;
         previewReady = true;
 
         if (!silent) showMessage("Total updated. Check the breakdown before continuing.");
@@ -738,6 +786,11 @@
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
+
+        if (minimumOrderBlocked) {
+            showMessage("Add more items to meet the minimum order amount before continuing.", true);
+            return;
+        }
 
         if (!previewReady) {
             showMessage("Review the order total before continuing.", true);
@@ -801,6 +854,7 @@
     dateInput.min = getLocalDate();
     dateInput.value = getLocalDate();
 
+    await loadBusinessAvailability();
     await loadCartPreview();
     renderCartPreview();
     const cartRefreshTimer = window.setInterval(loadCartPreview, 10000);
