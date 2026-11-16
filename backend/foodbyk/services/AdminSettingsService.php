@@ -134,6 +134,11 @@ class AdminSettingsService {
         $db = Database::getConnection();
         try {
             $db->beginTransaction();
+            $conflict = $active ? $this->promotionTargetConflict($db, $targetIds, $start, $end) : null;
+            if ($conflict !== null) {
+                $db->rollBack();
+                return $this->failure($conflict);
+            }
             if (!$promo->save() || !$this->replacePromotionTargets($promo->id, $targetIds)) {
                 throw new RuntimeException('Unable to create promotion.');
             }
@@ -204,6 +209,11 @@ class AdminSettingsService {
         $db = Database::getConnection();
         try {
             $db->beginTransaction();
+            $conflict = $active ? $this->promotionTargetConflict($db, $targetIds, $start, $end, $promotion->id) : null;
+            if ($conflict !== null) {
+                $db->rollBack();
+                return $this->failure($conflict);
+            }
             if (!$promotion->save() || !$this->replacePromotionTargets($promotion->id, $targetIds)) {
                 throw new RuntimeException('Unable to update promotion.');
             }
@@ -233,6 +243,52 @@ class AdminSettingsService {
             if (!$product || $product->status !== Product::STATUS_ACTIVE) return null;
         }
         return array_values($ids);
+    }
+
+    /** Prevent overlapping active promotions from claiming the same menu item. */
+    private function promotionTargetConflict(PDO $db, array $targetIds, ?string $start, ?string $end, ?int $excludePromotionId = null): ?string {
+        if ($targetIds === []) {
+            $targetIds = array_map('intval', $db->query("SELECT id FROM products WHERE status = 'active' ORDER BY id FOR UPDATE")->fetchAll(PDO::FETCH_COLUMN));
+        }
+        if ($targetIds === []) return null;
+
+        // Lock target products in a stable order so concurrent promotion edits cannot
+        // both pass the overlap check for the same menu item.
+        $marks = implode(',', array_fill(0, count($targetIds), '?'));
+        $lock = $db->prepare("SELECT id FROM products WHERE id IN ({$marks}) ORDER BY id FOR UPDATE");
+        $lock->execute($targetIds);
+
+        $sql = 'SELECT p.id, p.code, pp.product_id, product.name AS product_name
+                FROM promotions p
+                LEFT JOIN promotion_products pp ON pp.promotion_id = p.id
+                LEFT JOIN products product ON product.id = pp.product_id
+                WHERE p.is_active = 1
+                  AND (p.end_date IS NULL OR ? IS NULL OR p.end_date >= ?)
+                  AND (? IS NULL OR p.start_date IS NULL OR p.start_date <= ?)';
+        $params = [$start, $start, $end, $end];
+        if ($excludePromotionId !== null) {
+            $sql .= ' AND p.id <> ?';
+            $params[] = $excludePromotionId;
+        }
+        $sql .= " AND (pp.product_id IS NULL OR pp.product_id IN ({$marks})) ORDER BY p.id, product.name";
+        array_push($params, ...$targetIds);
+        $query = $db->prepare($sql);
+        $query->execute($params);
+        $rows = $query->fetchAll();
+        $conflicts = array_values(array_filter($rows, static fn(array $row): bool =>
+            $row['product_id'] === null || in_array((int) $row['product_id'], $targetIds, true)
+        ));
+        if ($conflicts === []) return null;
+
+        $names = [];
+        foreach ($conflicts as $row) {
+            if ($row['product_id'] === null) {
+                $names['all menu items'] = true;
+            } else {
+                $names[(string) $row['product_name']] = true;
+            }
+        }
+        return 'These menu items already have another promotion during those dates: ' . implode(', ', array_keys($names)) . '. Choose different items or dates.';
     }
 
     private function replacePromotionTargets(int $promotionId, array $productIds): bool {
