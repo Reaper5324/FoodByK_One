@@ -50,7 +50,7 @@ class AdminSettingsService {
         } catch (Throwable $error) {
             if ($db->inTransaction()) $db->rollBack();
             error_log('Admin settings update failed: ' . $error->getMessage());
-            return $this->failure('Unable to update settings: ' . $error->getMessage());
+            return $this->failure('Unable to update settings. Please try again.');
         }
     }
 
@@ -74,7 +74,7 @@ class AdminSettingsService {
             if ($weekday === false || $weekday === null || $weekday < 1 || $weekday > 7 || $isOpen === null
                 || !is_string($open) || !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D', $open)
                 || !is_string($close) || !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D', $close)
-                || ($isOpen && $close <= $open) || isset($normalized[$weekday])) {
+                || $close <= $open || isset($normalized[$weekday])) {
                 return $this->failure('Each open day needs valid opening and closing times, and days cannot repeat.');
             }
             $normalized[$weekday] = [
@@ -254,7 +254,10 @@ class AdminSettingsService {
     /** Prevent overlapping active promotions from claiming the same menu item. */
     private function promotionTargetConflict(PDO $db, array $targetIds, ?string $start, ?string $end, ?int $excludePromotionId = null): ?string {
         if ($targetIds === []) {
-            $targetIds = array_map('intval', $db->query("SELECT id FROM products WHERE status = 'active' ORDER BY id FOR UPDATE")->fetchAll(PDO::FETCH_COLUMN));
+            // A promotion targeting every product also conflicts with targeted
+            // promotions on currently inactive products, which may be re-enabled
+            // while both date ranges are still active.
+            $targetIds = array_map('intval', $db->query("SELECT id FROM products ORDER BY id FOR UPDATE")->fetchAll(PDO::FETCH_COLUMN));
         }
         if ($targetIds === []) return null;
 
@@ -342,7 +345,7 @@ class AdminSettingsService {
             'business_phone'        => (is_string($value) && strlen(trim($value)) >= 7 && strlen($value) <= 30 && preg_match('/^[0-9+(). -]+$/', $value)) ? null : 'Enter a valid business phone number.',
             'business_address'      => (is_string($value) && trim($value) !== '' && strlen($value) <= 255) ? null : 'Business address must be between 1 and 255 characters.',
             'trading_hours_start', 'trading_hours_end' =>
-                (preg_match('/^\d{2}:\d{2}(:\d{2})?$/', (string) $value) === 1) ? null : "Invalid time format for {$field}.",
+                $this->isValidTime((string) $value) ? null : "Invalid time format for {$field}.",
             'delivery_enabled', 'collection_enabled' => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== null
                 ? null : 'Invalid boolean value.',
             default => 'Unknown field.',
@@ -356,6 +359,11 @@ class AdminSettingsService {
             'trading_hours_start', 'trading_hours_end', 'business_phone', 'business_address' => trim((string) $value),
             default => (float) $value,
         };
+    }
+
+    private function isValidTime(string $value): bool {
+        if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/D', $value)) return false;
+        return true;
     }
 
     private function success(mixed $data, int $code = 200): array {

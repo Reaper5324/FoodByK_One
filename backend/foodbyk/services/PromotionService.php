@@ -9,7 +9,19 @@ class PromotionService {
             $promotion->discount_type !== Promotion::TYPE_BUY_ONE_GET_ONE
             || count($promotion->target_product_ids) === 1
         ));
-        return $this->success($promotions);
+        // Older data may contain overlapping offers created before the admin
+        // guard existed. Hide every conflicting offer rather than showing
+        // multiple prices/labels for one item or arbitrarily choosing a winner.
+        $conflicted = [];
+        for ($i = 0; $i < count($promotions); $i++) {
+            for ($j = $i + 1; $j < count($promotions); $j++) {
+                if ($this->targetsOverlap($promotions[$i], $promotions[$j])) {
+                    $conflicted[$promotions[$i]->id] = true;
+                    $conflicted[$promotions[$j]->id] = true;
+                }
+            }
+        }
+        return $this->success(array_values(array_filter($promotions, static fn(Promotion $promotion) => !isset($conflicted[$promotion->id]))));
     }
 
     // Pass the calculated discount to the order so its submitted price is retained.
@@ -27,6 +39,9 @@ class PromotionService {
         if ($promotion->discount_type === Promotion::TYPE_BUY_ONE_GET_ONE
             && count($promotion->target_product_ids) !== 1) {
             return $this->failure('This buy-one-get-one offer is not set up for one menu item. Please contact the business before applying it.');
+        }
+        if ($this->hasActiveTargetConflict($promotion)) {
+            return $this->failure('This promotion overlaps another active offer on a menu item. Please contact the business before applying it.');
         }
 
         $discount = $promotion->calculateDiscount($subtotal, $lineItems, $deliveryFee);
@@ -68,16 +83,16 @@ class PromotionService {
             'unit_price' => $item->unit_price,
         ], $order->getItems());
 
-        // Persisted order-item quantities include any BOGO free unit. An
-        // adjusted order only earns BOGO when at least two units of its one
-        // target product will be fulfilled.
+        // Checkout snapshots contain paid and free units together. On staff
+        // adjustment, each complete paid/free pair remains a qualifying pair;
+        // an unmatched odd unit is charged at full price.
         if ($promotion->discount_type === Promotion::TYPE_BUY_ONE_GET_ONE) {
             $targetId = (int) $promotion->target_product_ids[0];
-            $fulfilledQuantity = array_sum(array_map(
-                static fn(array $item): int => $item['product_id'] === $targetId ? $item['quantity'] : 0,
-                $lineItems
-            ));
-            if ($fulfilledQuantity < 2) $lineItems = [];
+            $lineItems = array_map(static function (array $item) use ($targetId): array {
+                if ($item['product_id'] === $targetId) $item['quantity'] = intdiv(max(0, $item['quantity']), 2);
+                else $item['quantity'] = 0;
+                return $item;
+            }, $lineItems);
         }
 
         $discount = $promotion->calculateDiscount($order->subtotal, $lineItems, $order->delivery_fee);
@@ -85,6 +100,23 @@ class PromotionService {
         return $this->success([
             'discount' => $discount,
         ]);
+    }
+
+    private function hasActiveTargetConflict(Promotion $promotion): bool {
+        $others = array_values(array_filter(Promotion::findAll(), static fn(Promotion $other) =>
+            $other->id !== $promotion->id && $other->isActiveAt()
+        ));
+        if ($others === []) return false;
+        Promotion::attachTargets($others);
+        foreach ($others as $other) {
+            if ($this->targetsOverlap($promotion, $other)) return true;
+        }
+        return false;
+    }
+
+    private function targetsOverlap(Promotion $left, Promotion $right): bool {
+        if ($left->target_product_ids === [] || $right->target_product_ids === []) return true;
+        return array_intersect($left->target_product_ids, $right->target_product_ids) !== [];
     }
 
     private function success(mixed $data): array {

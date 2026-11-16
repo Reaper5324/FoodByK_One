@@ -22,7 +22,9 @@ expect(!$order->canTransitionTo(Order::STATUS_PAID), 'Submitted order cannot be 
 $completedOrder = new Order(status: Order::STATUS_COMPLETED);
 expect(!$completedOrder->canTransitionTo(Order::STATUS_PREPARING), 'Completed orders must be terminal.');
 $paidOrder = new Order(status: Order::STATUS_PAID);
-expect(!$paidOrder->canTransitionTo(Order::STATUS_CANCELLED), 'Paid orders must not be cancelled through the normal state machine.');
+expect(!$paidOrder->canTransitionTo(Order::STATUS_CANCELLED), 'The general state machine must not allow paid-order cancellation without the guarded refund workflow.');
+$preparingOrder = new Order(status: Order::STATUS_PREPARING);
+expect(!$preparingOrder->canTransitionTo(Order::STATUS_CANCELLED), 'Preparing-order cancellation must also go through the guarded refund workflow.');
 
 $address = new Address(latitude: -26.2041, longitude: 28.0473);
 expect($address->hasCoordinates(), 'Valid coordinates must be accepted.');
@@ -46,7 +48,7 @@ $fixed = new Promotion(discount_type: Promotion::TYPE_FIXED_AMOUNT, discount_val
 expect($fixed->calculateDiscount(100.0) === 25.0, 'Fixed promotion calculation failed.');
 
 $bogo = new Promotion(discount_type: Promotion::TYPE_BUY_ONE_GET_ONE);
-expect($bogo->calculateDiscount(90.0, $items) === 35.0, 'BOGO promotion calculation failed.');
+expect($bogo->calculateDiscount(90.0, $items) === 0.0, 'BOGO without exactly one target item must fail closed.');
 
 $delivery = new Promotion(discount_type: Promotion::TYPE_FREE_DELIVERY);
 expect($delivery->calculateDiscount(100.0, [], 15.0) === 15.0, 'Free-delivery promotion calculation failed.');
@@ -64,8 +66,18 @@ $targetedFixed->target_product_ids = [2];
 expect($targetedFixed->calculateDiscount(80.0, $targetedItems) === 20.0, 'Targeted fixed discount must cap at selected product subtotal.');
 $targetedBogo = new Promotion(discount_type: Promotion::TYPE_BUY_ONE_GET_ONE);
 $targetedBogo->target_product_ids = [1];
-expect($targetedBogo->calculateDiscount(80.0, $targetedItems) === 30.0, 'Targeted BOGO must discount pairs only for selected products.');
-expect($targetedBogo->appliedProductNames($targetedItems) === ['Kota'], 'BOGO checkout details must name only products with a qualifying pair.');
+expect($targetedBogo->calculateDiscount(80.0, $targetedItems) === 60.0, 'Targeted BOGO must discount one free unit for every paid target unit.');
+expect($targetedBogo->appliedProductNames($targetedItems) === ['Kota'], 'BOGO checkout details must name the qualifying target product.');
+$bogoCartLines = [
+    ['cart_item_id' => 20, 'product_id' => 1, 'product_name' => 'Kota', 'quantity' => 1, 'unit_price' => 30.0],
+    ['cart_item_id' => 22, 'product_id' => 1, 'product_name' => 'Kota', 'quantity' => 3, 'unit_price' => 25.0],
+    ['cart_item_id' => 21, 'product_id' => 2, 'product_name' => 'Burger', 'quantity' => 4, 'unit_price' => 20.0],
+];
+expect($targetedBogo->freeQuantitiesByCartItem($bogoCartLines) === [20 => 1, 22 => 3], 'BOGO must add one matching free unit per paid target unit and never a non-target item.');
+$noTargetQuantity = $targetedBogo->freeQuantitiesByCartItem([[
+    'cart_item_id' => 22, 'product_id' => 2, 'product_name' => 'Burger', 'quantity' => 1, 'unit_price' => 20.0,
+]]);
+expect($noTargetQuantity === [], 'BOGO must not add a free item when the targeted item is absent.');
 $targetedDelivery = new Promotion(discount_type: Promotion::TYPE_FREE_DELIVERY);
 $targetedDelivery->target_product_ids = [1];
 expect($targetedDelivery->calculateDiscount(80.0, $targetedItems, 18.0) === 18.0, 'Targeted free delivery must apply when an eligible product is present.');

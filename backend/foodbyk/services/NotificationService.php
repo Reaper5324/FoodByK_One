@@ -242,6 +242,9 @@ class NotificationService {
     }
 
     public static function subjectFor(Order $order, string $event, string $audience): string {
+        if ($audience === 'staff' && in_array($event, ['cancelled', 'cancellation_requested'], true)) {
+            return "Customer cancellation for order #{$order->id}";
+        }
         if ($audience === 'staff') return "New order #{$order->id} needs review · R" . number_format($order->total(), 2);
         $status = match ($event) {
             'confirmed' => 'confirmed',
@@ -281,8 +284,15 @@ class NotificationService {
     }
 
     private static function eventIntro(Order $order, string $event, string $audience): string {
-        if ($audience === 'staff') return "New Food by K order #{$order->id} needs review.";
+        if ($audience === 'staff') {
+            if ($event === 'cancellation_requested') return "Customer cancellation requested for order #{$order->id}; check the PayFast refund status. Reason: " . substr($order->cancel_reason ?: 'Customer request', 0, 180);
+            if ($event === 'cancelled') return "Customer cancelled Food by K order #{$order->id}. Reason: " . substr($order->cancel_reason ?: 'Customer request', 0, 180);
+            return "New Food by K order #{$order->id} needs review.";
+        }
         return match ($event) {
+            'cancelled' => $order->getPayment()?->status === Payment::STATUS_SUCCESS
+                ? "Food by K order #{$order->id} has been cancelled. Its PayFast refund request is being processed and may take time to settle."
+                : "Food by K order #{$order->id} has been cancelled. No payment was taken.",
             'declined' => "Food by K order #{$order->id} could not be accepted. Reason: " . ($order->decline_reason ?: 'Please contact us for details.'),
             'confirmed' => "Food by K order #{$order->id} is confirmed for " . ($order->confirmed_window_start ?: 'the selected time') . '.',
             'paid' => "Payment received for Food by K order #{$order->id}. Thank you!",

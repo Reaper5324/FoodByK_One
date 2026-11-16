@@ -18,10 +18,16 @@ passes or has an explicitly accepted issue.
   overflow; skeletons clear after products load.
 - [ ] Add products to cart, change quantities, remove a product, and confirm
   the displayed total matches the remaining item quantities and prices.
+- [ ] Lower a configured cart limit below an existing cart's quantity. Confirm
+  the customer can reduce quantities or remove items, cannot increase beyond
+  the new limit, and can proceed after bringing the cart within bounds.
 - [ ] With two items in the cart, confirm loading placeholders disappear and
   exactly two real cart rows remain.
 - [ ] Checkout as collection; choose a date and available time, review the
   total, then submit through PayFast sandbox.
+- [ ] Set a non-zero minimum order amount and place a lower-value order. The
+  preview must show the final total and explain the advisory minimum without
+  blocking submission; the order's actual amount must still match checkout.
 - [ ] Checkout as delivery using a saved, located address; verify delivery
   fee, selected address, and time slot in the review and submitted order.
 - [ ] Try a missing/unlocated address, unavailable time, invalid promotion,
@@ -30,9 +36,15 @@ passes or has an explicitly accepted issue.
 - [ ] After PayFast returns, verify the newest order is shown, the status
   updates while the page remains open, and collection and delivery use
   distinct progress language (including “Out for delivery” for delivery).
-- [ ] Cancel a submitted order and verify it disappears/updates after server
-  confirmation; verify cancellation is unavailable after the order leaves
-  the pending/submitted state.
+- [ ] Cancel submitted, accepted, and payment-failed unpaid orders. Verify the
+  server confirms cancellation, staff are notified, and no refund is claimed
+  when no payment was taken.
+- [ ] In production-mode PayFast UAT only, request cancellation of a paid or
+  preparing order. Verify a full remaining refund is requested once, PayFast's
+  required bank payout fields are handled without storing them, staff receive
+  the cancellation/refund status, and uncertain API outcomes cannot be retried
+  as duplicate refunds. Sandbox must clearly say automatic refunds are not
+  available there.
 - [ ] Complete an order in staging and verify it leaves the current-order
   page, the thank-you dialog appears once, and the empty state offers a menu
   link on a later visit.
@@ -83,6 +95,20 @@ passes or has an explicitly accepted issue.
 - [ ] Exercise percentage, fixed-amount, BOGO, and free-delivery promotions
   against both targeted and non-targeted products, mixed baskets, expired and
   inactive dates, delivery and collection, and edge quantities.
+- [ ] Verify BOGO targets exactly one product and grants one matching free unit
+  for every paid target unit (1 paid -> 1 free, 3 paid -> 3 free), never adds a
+  non-target product, and remains charged correctly after staff adjust order
+  quantities.
+- [ ] Verify checkout shows paid/free quantities and the full value of free
+  units in the subtotal, then offsets exactly that value in one promotion row.
+- [ ] Verify only one promotion code can be submitted per order and a menu item
+  cannot be claimed by overlapping active promotions, including whole-menu
+  offers.
+- [ ] Verify legacy overlapping offers are hidden from customer lists and their
+  codes fail closed until an administrator resolves the conflict.
+- [ ] Create overlapping promotions against an inactive product and an
+  all-products promotion. Confirm the conflict guard rejects schedules that
+  could overlap after the product is reactivated.
 - [ ] Confirm every eligible menu item shows its offer label; ineligible items
   do not. Confirm percent/fixed-price presentation, code requirements, and
   BOGO/free-delivery wording agree with the checkout calculation.
@@ -95,6 +121,11 @@ passes or has an explicitly accepted issue.
 
 ## RAG assistant and ingestion
 
+- [ ] Send a valid assistant question and repeat from the same client before
+  four minutes have elapsed. Confirm the second request receives HTTP 429 with
+  the cooldown message; retry after four minutes and confirm it is accepted.
+- [ ] Send simultaneous assistant requests from one client. Confirm no more
+  than one passes the cooldown, while a different client remains independent.
 - [ ] Ask the FAQ a representative set of business questions in formal, casual,
   misspelled, and paraphrased language. Record the question, expected source,
   answer, correctness, grounding, and any unsupported claims.

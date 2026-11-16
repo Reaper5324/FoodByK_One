@@ -1220,7 +1220,15 @@ const initializeAdminLive = async () => {
             if (canEditItems) {
                 const controls = document.createElement("div"); controls.className = "order-item-edit-controls";
                 const quantity = document.createElement("input");
-                quantity.type = "number"; quantity.min = "1"; quantity.max = "99"; quantity.step = "1";
+                const limits = currentReviewData?.limits || { max_item_quantity: 6, max_cart_items: 10 };
+                const productQuantity = items.filter((other) => Number(other.product_id) === Number(item.product_id))
+                    .reduce((sum, other) => sum + Number(other.quantity || 0), 0);
+                const cartQuantity = items.reduce((sum, other) => sum + Number(other.quantity || 0), 0);
+                const maxForRow = Math.max(Number(item.quantity || 1), Math.min(
+                    Number(limits.max_item_quantity) - (productQuantity - Number(item.quantity || 0)),
+                    Number(limits.max_cart_items) - (cartQuantity - Number(item.quantity || 0))
+                ));
+                quantity.type = "number"; quantity.min = "1"; quantity.max = String(Math.min(99, maxForRow)); quantity.step = "1";
                 quantity.value = String(item.quantity || 1); quantity.setAttribute("aria-label", `Quantity for ${title.textContent}`);
                 const remove = document.createElement("button"); remove.type = "button"; remove.dataset.removeOrderItem = "true"; remove.textContent = "Remove";
                 controls.append(quantity, remove); name.appendChild(controls);
@@ -1560,7 +1568,7 @@ const initializeAdminLive = async () => {
         });
 
         addGrid("orders", [
-            ["minimum_order_amount", "Minimum order amount", { min: 0, max: 100000, step: "0.01", unit: "R" }],
+            ["minimum_order_amount", "Suggested minimum order amount", { min: 0, max: 100000, step: "0.01", unit: "R", help: "Shown to customers as a guide; it does not block checkout." }],
             ["slot_duration_minutes", "Slot length", { min: 5, max: 240, step: "1", unit: "min" }],
             ["max_orders_per_slot", "Maximum orders per time slot", { min: 1, step: "1", unit: "orders" }],
             ["max_item_quantity", "Maximum quantity of one menu item", { min: 1, max: 99, step: "1", unit: "items" }],
@@ -1690,6 +1698,14 @@ const initializeAdminLive = async () => {
             if (!product || !Array.isArray(currentReviewData?.items)) return alert("Choose an available menu item first.");
             const existing = currentReviewData.items.find((item) => Number(item.product_id) === productId
                 && (!Array.isArray(item.customizations) || item.customizations.length === 0));
+            const limits = currentReviewData.limits || { max_item_quantity: 6, max_cart_items: 10 };
+            const productTotal = currentReviewData.items
+                .filter((item) => Number(item.product_id) === productId)
+                .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+            const cartTotal = currentReviewData.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+            if (productTotal >= Number(limits.max_item_quantity) || cartTotal >= Number(limits.max_cart_items)) {
+                return alert(`Current settings allow up to ${limits.max_item_quantity} of one menu item and ${limits.max_cart_items} total items. Reduce the order before adding another.`);
+            }
             if (existing) {
                 if (Number(existing.quantity) >= 99) return alert("An item quantity cannot exceed 99.");
                 existing.quantity = Number(existing.quantity) + 1;
@@ -1706,7 +1722,7 @@ const initializeAdminLive = async () => {
                 const productId = Number(row.dataset.productId);
                 const quantity = Number(row.querySelector('input[type="number"]')?.value);
                 if (!Number.isInteger(productId) || productId < 1 || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
-                    return alert("Each item needs a quantity between 1 and 99.");
+                    return alert("Each item needs a whole-number quantity between 1 and 99.");
                 }
                 let optionIds = [];
                 try { optionIds = JSON.parse(row.dataset.optionIds || "[]"); } catch (_) {}

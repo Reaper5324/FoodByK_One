@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
         feedback.textContent = text;
         feedback.hidden = !visible;
         if (visible && text && !text.startsWith("Order updates refresh")) {
-            window.foodByKNotify?.(text, /unable|could not|cancelled|problem|error/i.test(text) ? "error" : "info");
+            window.foodByKNotify?.(text, /unable|could not|problem|error|failed/i.test(text) ? "error" : "info");
         }
     };
     const showOrderSkeleton = () => {
@@ -98,6 +98,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (order.status === "declined" && order.decline_reason) main.appendChild(element("p", "order-reason", `This order was declined: ${order.decline_reason}`));
         if (order.status === "cancelled") main.appendChild(element("p", "order-reason", "This order has been cancelled."));
+        if (order.cancel_reason === "Customer cancellation refund pending") {
+            main.appendChild(element("p", "order-status-message", "Your cancellation and PayFast refund request are being processed. Please do not submit another cancellation request."));
+        }
         if (order.status === "payment_failed") main.appendChild(element("p", "order-reason", "We couldn’t confirm payment for this order. Please contact Food by K for help."));
 
         const progress = isDelivery
@@ -180,28 +183,82 @@ document.addEventListener("DOMContentLoaded", () => {
         if (order.status === "submitted" && paymentState === "pending") {
             side.appendChild(element("p", "order-muted", "Secure card setup is returning to us. Your card is not charged while the team reviews your order."));
         }
-        if (order.status === "submitted") {
+        if (["submitted", "accepted", "adjusted", "payment_failed", "paid", "preparing"].includes(order.status)
+            && order.cancel_reason !== "Customer cancellation refund pending") {
             const actions = element("div", "order-actions");
-            const cancel = element("button", "btn order-cancel", "Cancel order");
-            cancel.type = "button";
-            cancel.addEventListener("click", async () => {
-                if (!window.confirm("Cancel this order? This cannot be undone.")) return;
-                cancel.disabled = true;
-                cancel.textContent = "Cancelled";
-                statusLabel.textContent = "cancelled";
-                progressTrack.hidden = true;
-                const optimisticNotice = element("p", "order-reason", "Your cancellation is being saved…");
-                main.insertBefore(optimisticNotice, main.firstChild);
-                const result = await apiPost(`/orders/${order.id}/cancel`, { reason: "Customer request" });
-                if (!result.success) {
-                    const error = result.error || "Unable to cancel this order. Please try again.";
-                    await loadOrders(true);
-                    setFeedback(error);
+            const details = document.createElement("details");
+            const summary = element("summary", "", "Request cancellation");
+            details.appendChild(summary);
+            const cancelForm = document.createElement("form");
+            cancelForm.className = "order-cancel-form";
+            const reasonLabel = document.createElement("label");
+            reasonLabel.textContent = "Reason for cancellation";
+            const reasonInput = document.createElement("input");
+            reasonInput.name = "reason";
+            reasonInput.required = true;
+            reasonInput.maxLength = 255;
+            reasonInput.value = "Customer request";
+            reasonLabel.appendChild(reasonInput);
+            cancelForm.appendChild(reasonLabel);
+            if (["paid", "preparing"].includes(order.status)) {
+                const bankFieldset = document.createElement("fieldset");
+                bankFieldset.className = "order-cancel-bank-details";
+                const legend = document.createElement("legend");
+                legend.textContent = "Bank payout details, if PayFast requests them";
+                bankFieldset.appendChild(legend);
+                const addBankField = (name, label, maxLength = 255) => {
+                    const fieldLabel = document.createElement("label");
+                    fieldLabel.textContent = label;
+                    const input = document.createElement("input");
+                    input.name = name;
+                    input.maxLength = maxLength;
+                    fieldLabel.appendChild(input);
+                    bankFieldset.appendChild(fieldLabel);
+                };
+                addBankField("bank_account_holder", "Account holder");
+                addBankField("bank_name", "Bank name (as listed by PayFast)");
+                addBankField("bank_branch_code", "Branch code", 6);
+                addBankField("bank_account_number", "Account number", 12);
+                const typeLabel = document.createElement("label");
+                typeLabel.textContent = "Account type";
+                const typeSelect = document.createElement("select");
+                typeSelect.name = "bank_account_type";
+                typeSelect.append(new Option("Select account type", ""), new Option("Current", "current"), new Option("Savings", "savings"));
+                typeLabel.appendChild(typeSelect);
+                bankFieldset.appendChild(typeLabel);
+                bankFieldset.appendChild(element("small", "order-muted", "PayFast receives these details only if its refund API requires a bank payout. Food by K does not save them."));
+                cancelForm.appendChild(bankFieldset);
+                cancelForm.appendChild(element("p", "order-muted", "Online cancellation and automatic PayFast refunds are available when PayFast is in production mode. If it is still in sandbox, no refund can be sent."));
+            }
+            const cancelButton = element("button", "btn order-cancel", "Submit cancellation request");
+            cancelButton.type = "submit";
+            cancelForm.appendChild(cancelButton);
+            cancelForm.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                cancelButton.disabled = true;
+                cancelButton.textContent = "Processing…";
+                const payload = { reason: reasonInput.value.trim() };
+                if (["paid", "preparing"].includes(order.status)) {
+                    payload.bank_details = Object.fromEntries(new FormData(cancelForm).entries());
+                    delete payload.bank_details.reason;
+                }
+                const result = await apiPost(`/orders/${order.id}/cancel`, payload);
+                cancelButton.disabled = false;
+                cancelButton.textContent = "Submit cancellation request";
+                if (!result?.success) {
+                    setFeedback(result?.error || "Unable to cancel this order. Please try again.");
                     return;
                 }
-                await loadOrders();
+                const refundStatus = result.data?.refund_status;
+                setFeedback(refundStatus === "pending"
+                    ? "Your cancellation is recorded. PayFast is still confirming the refund; the Food by K team has been notified."
+                    : refundStatus === "submitted"
+                        ? "Your cancellation was recorded and PayFast accepted the refund request. Settlement may take time."
+                        : "Your order has been cancelled.");
+                await loadOrders(true);
             });
-            actions.appendChild(cancel);
+            details.appendChild(cancelForm);
+            actions.appendChild(details);
             side.appendChild(actions);
         }
         content.append(main, side);

@@ -82,7 +82,7 @@ class Promotion extends Model {
      * Calculates the discount from immutable line-item prices. Each line item
      * must expose product_id, quantity, and unit_price as array keys or public
      * properties. BOGO requires one targeted product and grants one free unit
-     * of that product per order when at least one paid unit is present.
+     * of that product for every paid qualifying unit.
      */
     public function calculateDiscount(
         float $subtotal,
@@ -152,25 +152,22 @@ class Promotion extends Model {
         ));
     }
 
-    /** Returns one free unit against exactly one cart line for this BOGO. */
+    /** Returns one free unit per paid qualifying unit, preserving its options. */
     public function freeQuantitiesByCartItem(array $lineItems): array {
         if ($this->discount_type !== self::TYPE_BUY_ONE_GET_ONE || !$this->isActiveAt()
             || count($this->target_product_ids) !== 1) return [];
         $targetId = (int) $this->target_product_ids[0];
         if ($targetId < 1) return [];
-        $selectedLineId = null;
-        $freeUnitPrice = null;
+        $freeQuantities = [];
         foreach ($lineItems as $index => $item) {
             $id = (int) $this->lineItemValue($item, 'product_id');
             $quantity = max(0, (int) $this->lineItemValue($item, 'quantity'));
             $unitPrice = (float) $this->lineItemValue($item, 'unit_price');
             if ($id !== $targetId || $quantity < 1 || $unitPrice < 0.0) continue;
-            if ($freeUnitPrice === null || $unitPrice < $freeUnitPrice) {
-                $freeUnitPrice = $unitPrice;
-                $selectedLineId = $this->lineItemValue($item, 'cart_item_id') ?? $index;
-            }
+            $lineId = $this->lineItemValue($item, 'cart_item_id') ?? $index;
+            $freeQuantities[$lineId] = ($freeQuantities[$lineId] ?? 0) + $quantity;
         }
-        return $selectedLineId === null ? [] : [$selectedLineId => 1];
+        return $freeQuantities;
     }
 
     public function isValid(): bool {
@@ -224,7 +221,7 @@ class Promotion extends Model {
         if (count($this->target_product_ids) !== 1) return 0.0;
 
         $targetId = (int) $this->target_product_ids[0];
-        $freeUnitPrice = null;
+        $discount = 0.0;
         foreach ($lineItems as $lineItem) {
             $productId = (int) ($this->lineItemValue($lineItem, 'product_id') ?? 0);
             $quantity = (int) $this->lineItemValue($lineItem, 'quantity');
@@ -234,10 +231,10 @@ class Promotion extends Model {
                 continue;
             }
 
-            $freeUnitPrice = $freeUnitPrice === null ? $unitPrice : min($freeUnitPrice, $unitPrice);
+            $discount += $quantity * $unitPrice;
         }
 
-        return $freeUnitPrice ?? 0.0;
+        return $discount;
     }
 
     private function lineItemValue(array|object $lineItem, string $field): mixed {

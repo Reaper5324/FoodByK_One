@@ -608,6 +608,13 @@
             summary.appendChild(promoNote);
         }
 
+        if (data.minimum_order_met === false) {
+            const minimumNote = document.createElement("p");
+            minimumNote.className = "checkout-summary-note";
+            minimumNote.textContent = `Your order is below the R${Number(data.minimum_order_amount || 0).toFixed(2)} suggested minimum. You can still continue.`;
+            summary.appendChild(minimumNote);
+        }
+
         const summaryNote = document.createElement("p");
         summaryNote.className = "checkout-summary-note";
         summaryNote.textContent =

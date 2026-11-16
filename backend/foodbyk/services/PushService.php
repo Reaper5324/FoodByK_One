@@ -107,6 +107,29 @@ class PushService {
         catch (Throwable $error) { error_log('Staff push notification failed: ' . $error->getMessage()); }
     }
 
+    public function notifyStaffOfCancellation(Order $order, string $refundStatus): void {
+        if (!$this->available()) return;
+        $db = Database::getConnection();
+        $users = $db->prepare(
+            'SELECT DISTINCT ps.user_id, ps.endpoint, ps.public_key, ps.auth_token
+             FROM push_subscriptions ps JOIN users u ON u.id = ps.user_id
+             JOIN roles r ON r.id = u.role_id
+             WHERE u.is_active = 1 AND r.role_name IN (?, ?)'
+        );
+        $users->execute(self::STAFF_ROLES);
+        $body = 'A customer cancelled order #' . $order->id . '.';
+        if (in_array($refundStatus, ['pending', 'submitted'], true)) $body .= ' PayFast refund status: ' . $refundStatus . '.';
+        try { $this->deliver($users->fetchAll(), [
+            'title' => 'Food by K: Order cancellation',
+            'body' => $body,
+            'tag' => 'foodbyk-cancel-' . $order->id,
+            'requireInteraction' => true,
+            'renotify' => true,
+            'orderId' => $order->id,
+            'url' => '/admin/orders.html?order=' . $order->id,
+        ]); } catch (Throwable $error) { error_log('Staff cancellation push notification failed: ' . $error->getMessage()); }
+    }
+
     public function notifyCustomerOfOrderStatus(Order $order, string $status): void {
         if (!$this->available()) return;
         $messages = [
@@ -117,6 +140,7 @@ class PushService {
             'ready' => [$order->fulfilment_type === 'delivery' ? 'Your order is out for delivery' : 'Your order is ready', 'Order #' . $order->id . ' is ready for its next step.'],
             'completed' => ['Your order is complete', 'Order #' . $order->id . ' has been completed.'],
             'declined' => ['Your order could not be accepted', 'Order #' . $order->id . ' could not be accepted.'],
+            'cancelled' => ['Your order was cancelled', 'Order #' . $order->id . ' was cancelled. Any refund is processed through PayFast.'],
         ];
         if (!isset($messages[$status])) return;
         $db = Database::getConnection();

@@ -456,8 +456,8 @@ class PaymentService {
             if ($refundMethod === 'BANK_PAYOUT') {
                 $holder = trim((string) ($bankDetails['bank_account_holder'] ?? ''));
                 $bankName = trim((string) ($bankDetails['bank_name'] ?? ''));
-                $branchCode = preg_replace('/\D+/', '', (string) ($bankDetails['bank_branch_code'] ?? ''));
-                $accountNumber = preg_replace('/\D+/', '', (string) ($bankDetails['bank_account_number'] ?? ''));
+                $branchCode = trim((string) ($bankDetails['bank_branch_code'] ?? ''));
+                $accountNumber = trim((string) ($bankDetails['bank_account_number'] ?? ''));
                 $accountType = strtolower(trim((string) ($bankDetails['bank_account_type'] ?? '')));
                 $bankNames = $details['bank_names'] ?? [];
                 $allowedBanks = [];
@@ -469,8 +469,8 @@ class PaymentService {
                     }
                 }
                 if (strlen($holder) < 2 || strlen($holder) > 255 || !in_array($bankName, $allowedBanks, true)
-                    || strlen($branchCode) < 1 || strlen($branchCode) > 6
-                    || strlen($accountNumber) < 1 || strlen($accountNumber) > 12
+                    || !preg_match('/^\d{1,6}$/D', $branchCode)
+                    || !preg_match('/^\d{1,12}$/D', $accountNumber)
                     || !in_array($accountType, ['current', 'savings'], true)) {
                     $this->setRefundStatus((int) $refund->id, 'failed');
                     return ['success' => false, 'error' => 'Enter valid bank payout details and choose a bank offered by PayFast.'];
@@ -507,6 +507,66 @@ class PaymentService {
             error_log('PayFast refund outcome is uncertain for order ' . $orderId . ', refund ' . $refund->id . ': ' . $e->getMessage());
             return ['success' => false, 'error' => 'The refund request could not be confirmed. ' . $e->getMessage() . ' Do not submit it again until its status is checked in PayFast.'];
         }
+    }
+
+    /** Request a full remaining refund for a verified customer's cancellation. */
+    public function refundCustomerCancellation(int $orderId, int $customerId, array $bankDetails = []): array {
+        if ($this->sandboxEnabled()) {
+            return ['success' => false, 'error' => 'Automatic refunds are available after PayFast is switched to production.'];
+        }
+        $order = Order::findById($orderId);
+        $payment = $order?->getPayment();
+        if (!$order || $order->customer_id !== $customerId || !$payment
+            || $payment->status !== Payment::STATUS_SUCCESS || !$payment->gateway_reference) {
+            return ['success' => false, 'error' => 'This order does not have a confirmed PayFast payment to refund.'];
+        }
+
+        $db = Database::getConnection();
+        $inFlight = $db->prepare("SELECT COUNT(*) FROM payment_refunds WHERE payment_id = ? AND status IN ('pending', 'submitted')");
+        $inFlight->execute([$payment->id]);
+        if ((int) $inFlight->fetchColumn() > 0) {
+            return ['success' => false, 'error' => 'A refund is already being processed for this order. Please contact the Food by K team before retrying.'];
+        }
+        $refunded = $db->prepare("SELECT COALESCE(SUM(amount_cents), 0) FROM payment_refunds WHERE payment_id = ? AND status IN ('submitted', 'completed')");
+        $refunded->execute([$payment->id]);
+        $amountCents = (int) round($payment->amount * 100) - (int) $refunded->fetchColumn();
+        if ($amountCents <= 0) return ['success' => false, 'error' => 'There is no remaining confirmed payment to refund.'];
+        $amount = round($amountCents / 100, 2);
+
+        $eligibility = $this->getRefundEligibility($orderId, $amount);
+        if (!$eligibility['success']) return $eligibility;
+        if (($eligibility['data']['method'] ?? '') === 'BANK_PAYOUT') {
+            $holder = trim((string) ($bankDetails['bank_account_holder'] ?? ''));
+            $bankName = trim((string) ($bankDetails['bank_name'] ?? ''));
+            $branchCode = trim((string) ($bankDetails['bank_branch_code'] ?? ''));
+            $accountNumber = trim((string) ($bankDetails['bank_account_number'] ?? ''));
+            $accountType = strtolower(trim((string) ($bankDetails['bank_account_type'] ?? '')));
+            $banks = array_values(array_filter(array_map(static function ($bank): string {
+                if (is_string($bank)) return $bank;
+                return is_array($bank) ? (string) ($bank['bank_name'] ?? $bank['value'] ?? $bank['code'] ?? '') : '';
+            }, $eligibility['data']['bank_names'] ?? [])));
+            if (strlen($holder) < 2 || strlen($holder) > 255 || !in_array($bankName, $banks, true)
+                || !preg_match('/^\d{1,6}$/D', $branchCode)
+                || !preg_match('/^\d{1,12}$/D', $accountNumber)
+                || !in_array($accountType, ['current', 'savings'], true)) {
+                return ['success' => false, 'error' => 'PayFast requires bank payout details for this refund. Enter the account holder, a bank from its list (' . implode(', ', $banks) . '), branch code, account number, and account type.'];
+            }
+        }
+
+        $result = $this->refundOrder($orderId, $customerId, $amount, 'Customer requested order cancellation', $bankDetails);
+        if ($result['success']) {
+            return ['success' => true, 'data' => ['amount' => $amount, 'status' => 'submitted']];
+        }
+
+        // A network timeout after submission has an uncertain outcome. Keep the
+        // request in-flight and treat it as pending; never allow a duplicate.
+        $latest = $db->prepare("SELECT status FROM payment_refunds WHERE payment_id = ? ORDER BY id DESC LIMIT 1");
+        $latest->execute([$payment->id]);
+        $latestStatus = $latest->fetchColumn();
+        if (in_array($latestStatus, ['pending', 'submitted'], true)) {
+            return ['success' => true, 'data' => ['amount' => $amount, 'status' => $latestStatus]];
+        }
+        return $result;
     }
 
     public function refreshRefundStatus(int $orderId): array {

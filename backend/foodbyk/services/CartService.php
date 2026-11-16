@@ -55,8 +55,6 @@ class CartService {
 
     public function updateQuantity(int $customerId, int $cartItemId, int $quantity): array {
         if ($cartItemId <= 0) return $this->failure('Cart item not found.');
-        $settings = BusinessSettings::current();
-        if ($quantity > $settings->max_item_quantity) return $this->failure('You can add up to ' . $settings->max_item_quantity . ' of the same menu item.');
         return $this->withCustomerLock($customerId, function (PDO $db) use ($customerId, $cartItemId, $quantity): array {
             $settings = BusinessSettings::current();
             $lock = $db->prepare('SELECT id, product_id FROM cart_items WHERE id = ? AND customer_id = ? FOR UPDATE');
@@ -65,6 +63,15 @@ class CartService {
             if (!$lockedRow) return $this->failure('Cart item not found.');
             $item = CartItem::findById($cartItemId);
             if ($quantity <= 0) return $item->delete() ? $this->success(null) : $this->failure('Unable to remove item.');
+            if ($quantity > $item->quantity && $quantity > $settings->max_item_quantity) {
+                return $this->failure('You can add up to ' . $settings->max_item_quantity . ' of the same menu item.');
+            }
+            // Allow reductions even when an administrator has since lowered a
+            // limit below the customer's current cart quantity.
+            if ($quantity <= $item->quantity) {
+                $item->quantity = $quantity;
+                return $item->save() ? $this->success($item) : $this->failure('Unable to update cart.');
+            }
             $otherItems = $db->prepare('SELECT COALESCE(SUM(quantity), 0) FROM cart_items WHERE customer_id = ? AND product_id = ? AND id <> ?');
             $otherItems->execute([$customerId, (int) $lockedRow['product_id'], $cartItemId]);
             if ((int) $otherItems->fetchColumn() + $quantity > $settings->max_item_quantity) {

@@ -155,7 +155,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             cartItems.replaceChildren();
             cartItems.setAttribute("aria-busy", "false");
             showMessage("Your cart is empty.");
-            renderRecommendations(productResult.data.filter((product) => product.is_available !== false && product.status !== "inactive" && product.status !== "removed"));
+            const isAvailable = (value) => ![false, 0, "0", "false"].includes(
+                typeof value === "string" ? value.trim().toLowerCase() : value
+            );
+            renderRecommendations(productResult.data.filter((product) =>
+                isAvailable(product.is_available) && !["inactive", "removed"].includes(String(product.status || "").toLowerCase())
+            ));
             return;
         }
 
@@ -263,7 +268,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             const updateQuantity = async (newQuantity) => {
-                if (!Number.isInteger(newQuantity) || newQuantity < 1 || newQuantity > rowMaximum) {
+                if (!Number.isInteger(newQuantity) || newQuantity < 1 || (newQuantity > currentQuantity && newQuantity > rowMaximum)) {
                     quantity.value = String(item.quantity);
                     if (newQuantity > rowMaximum) showMessage(`This change exceeds your cart limit of ${maxCartItems} items or the per-item limit of ${maxItemQuantity}.`, true);
                     return;

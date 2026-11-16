@@ -122,10 +122,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         apply.addEventListener("click", () => {
             try {
                 sessionStorage.setItem("foodbykSelectedPromotion", String(promotion.code || "").toUpperCase());
-                window.location.assign("/pages/customer/checkout.html");
             } catch (error) {
                 setMessage("Your browser could not save the offer. Please copy the code and enter it at checkout.", true);
+                return;
             }
+            apply.disabled = true;
+            apiGet("/cart").then((cart) => {
+                apply.disabled = false;
+                if (!cart?.success) {
+                    setMessage("Sign in and add menu items to your cart before applying this offer at checkout.", true);
+                    return;
+                }
+                if (Number(cart.data?.item_count || 0) < 1) {
+                    setMessage("Your offer is saved. Add menu items to your cart, then continue to checkout to apply it.");
+                    return;
+                }
+                window.location.assign("/pages/customer/checkout.html");
+            }).catch(() => {
+                apply.disabled = false;
+                setMessage("We could not check your cart. Please try again before applying this offer.", true);
+            });
         });
 
         article.append(kicker, title);

@@ -23,6 +23,7 @@ class CheckoutService {
         }
         $cartItems = $cartValidation['data']['items'];
         $productsById = $cartValidation['data']['products'];
+        $minimumOrderAmount = $cartValidation['data']['minimum_order_amount'];
 
         // Use current prices for the preview; submission saves a price snapshot.
         $subtotal = 0.0;
@@ -146,6 +147,11 @@ class CheckoutService {
             'distance_km' => $distanceKm,
             'fulfillment_type' => $fulfilmentType,
             'total' => $total,
+            'minimum_order_amount' => $minimumOrderAmount,
+            'minimum_order_subtotal' => $cartValidation['data']['minimum_order_subtotal'],
+            'minimum_order_met' => $cartValidation['data']['minimum_order_met'],
+            // The configured minimum is advisory. Keep checkout available and
+            // show the customer the final calculated total before submission.
             'can_proceed' => true,
         ]);
     }
@@ -162,9 +168,6 @@ class CheckoutService {
             $cartItems
         ));
         $settings = BusinessSettings::current();
-        if ($subtotal < $settings->minimum_order_amount) {
-            return $this->failure('The minimum order amount is R' . number_format($settings->minimum_order_amount, 2) . '. Add more items to continue.');
-        }
         $cartQuantity = array_sum(array_map(fn(CartItem $item) => $item->quantity, $cartItems));
         if ($cartQuantity > $settings->max_cart_items) {
             return $this->failure('Your cart can contain up to ' . $settings->max_cart_items . ' items, including quantities. Reduce your cart to continue.');
@@ -191,7 +194,22 @@ class CheckoutService {
 
         }
 
-        return $this->success(['items' => $cartItems, 'products' => $productsById]);
+        // Keep the advisory amount based on the paid cart subtotal before
+        // promotions, so the customer sees the same basis as the admin setting.
+        $subtotal = 0.0;
+        foreach ($cartItems as $item) {
+            $product = $productsById[$item->product_id];
+            $subtotal += ($product->price + $item->getCustomizationTotal()) * $item->quantity;
+        }
+        $subtotal = round($subtotal, 2);
+
+        return $this->success([
+            'items' => $cartItems,
+            'products' => $productsById,
+            'minimum_order_amount' => $settings->minimum_order_amount,
+            'minimum_order_subtotal' => $subtotal,
+            'minimum_order_met' => $subtotal >= $settings->minimum_order_amount,
+        ]);
     }
 
     /** Geocodes the address if needed and checks delivery eligibility. */

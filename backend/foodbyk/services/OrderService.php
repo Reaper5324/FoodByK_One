@@ -3,6 +3,7 @@
 class OrderService {
 
     private const PAYMENT_SETUP_TIMEOUT_MINUTES = 30;
+    private const CUSTOMER_REFUND_PENDING = 'Customer cancellation refund pending';
 
     // Keep each order change and its status history in the same transaction.
     private function transactional(callable $work): array {
@@ -168,8 +169,82 @@ class OrderService {
         return $result;
     }
 
-    public function cancelOrder(int $orderId, ?int $customerId, ?int $staffId, mixed $reason): array {
+    public function cancelOrder(int $orderId, ?int $customerId, ?int $staffId, mixed $reason, array $bankDetails = [], bool $notify = true): array {
         $reason = is_string($reason) ? trim($reason) : '';
+        if ($reason === '' || strlen($reason) > 255) return $this->failure('A cancellation reason of 1 to 255 characters is required.');
+
+        // A confirmed payment must be refunded through PayFast before the order
+        // is marked cancelled. Mark the request first so staff cannot advance
+        // the order while the external refund is being processed.
+        if ($customerId !== null) {
+            $existing = Order::findById($orderId);
+            if (!$existing || $existing->customer_id !== $customerId) return $this->failure("Order {$orderId} not found.");
+            $payment = $existing->getPayment();
+            if ($payment?->status === Payment::STATUS_SUCCESS) {
+                if (!in_array($existing->status, [Order::STATUS_PAID, Order::STATUS_PREPARING], true)) {
+                    return $this->failure('This order can no longer be cancelled online. Please contact the Food by K team.');
+                }
+                $marked = $this->transactional(function () use ($orderId, $customerId) {
+                    $order = Order::lockById($orderId);
+                    $payment = $order?->getPayment();
+                    if (!$order || $order->customer_id !== $customerId) throw new RuntimeException('Order not found.');
+                    if (!in_array($order->status, [Order::STATUS_PAID, Order::STATUS_PREPARING], true)
+                        || !$payment || $payment->status !== Payment::STATUS_SUCCESS) {
+                        throw new RuntimeException('This order can no longer be cancelled online.');
+                    }
+                    if ($order->cancel_reason === self::CUSTOMER_REFUND_PENDING) {
+                        throw new RuntimeException('A cancellation refund request is already being processed.');
+                    }
+                    $order->cancel_reason = self::CUSTOMER_REFUND_PENDING;
+                    if (!$order->save()) throw new RuntimeException('Unable to record the cancellation request.');
+                    return $order;
+                });
+                if (!$marked['success']) return $marked;
+
+                $refund = (new PaymentService())->refundCustomerCancellation($orderId, $customerId, $bankDetails);
+                if (!$refund['success']) {
+                    $this->transactional(function () use ($orderId) {
+                        $order = Order::lockById($orderId);
+                        if ($order && $order->cancel_reason === self::CUSTOMER_REFUND_PENDING) {
+                            $order->cancel_reason = null;
+                            $order->save();
+                        }
+                        return true;
+                    });
+                    return $refund;
+                }
+
+                $refundStatus = (string) ($refund['data']['status'] ?? 'pending');
+                $result = $this->transactional(function () use ($orderId, $customerId, $reason) {
+                    $order = Order::lockById($orderId);
+                    if (!$order || $order->customer_id !== $customerId
+                        || $order->cancel_reason !== self::CUSTOMER_REFUND_PENDING
+                        || !in_array($order->status, [Order::STATUS_PAID, Order::STATUS_PREPARING], true)) {
+                        throw new RuntimeException('The refund request is recorded, but the order status could not be updated. Contact Food by K before retrying.');
+                    }
+                    $fromStatus = $order->status;
+                    $order->status = Order::STATUS_CANCELLED;
+                    $order->cancel_reason = $reason;
+                    $loyaltyRefund = (new LoyaltyService())->refundOrderRedemption($order);
+                    if (!$loyaltyRefund['success']) throw new RuntimeException($loyaltyRefund['error']);
+                    if (!$order->save()) throw new RuntimeException('Unable to cancel order after recording the refund request.');
+                    $this->logTransition($order->id, $fromStatus, $order->status, $customerId, 'Customer cancellation; PayFast refund ' . $refundStatus);
+                    return $order;
+                });
+
+                $noticeOrder = $result['success'] ? $result['data'] : Order::findById($orderId);
+                if ($noticeOrder) {
+                    (new NotificationService())->notifyOrderEvent($noticeOrder, 'cancellation_requested', 'staff');
+                    (new PushService())->notifyStaffOfCancellation($noticeOrder, $refundStatus);
+                }
+                if (!$result['success']) return $result;
+                (new PaymentService())->releaseToken($result['data']);
+                (new NotificationService())->notifyOrderEvent($result['data'], 'cancelled', 'customer');
+                (new PushService())->notifyCustomerOfOrderStatus($result['data'], 'cancelled');
+                return $this->success(['order' => $result['data'], 'refund_status' => $refundStatus]);
+            }
+        }
+
         $result = $this->transactional(function () use ($orderId, $customerId, $staffId, $reason) {
             $order = Order::lockById($orderId);
             if (!$order) throw new \Exception("Order {$orderId} not found.");
@@ -177,7 +252,6 @@ class OrderService {
                 throw new \Exception("Order {$orderId} not found.");
             }
             if (!$order->canTransitionTo(Order::STATUS_CANCELLED)) {
-                // Paid orders cannot be cancelled through the app.
                 throw new \Exception("Order {$orderId} can no longer be cancelled (status: '{$order->status}').");
             }
 
@@ -199,7 +273,15 @@ class OrderService {
 
             return $order;
         });
-        if ($result['success']) (new PaymentService())->releaseToken($result['data']);
+        if ($result['success']) {
+            (new PaymentService())->releaseToken($result['data']);
+            if ($notify) {
+                $audience = $staffId === null ? 'staff' : 'customer';
+                (new NotificationService())->notifyOrderEvent($result['data'], 'cancelled', $audience);
+                if ($staffId === null) (new PushService())->notifyStaffOfCancellation($result['data'], 'not_applicable');
+                else (new PushService())->notifyCustomerOfOrderStatus($result['data'], 'cancelled');
+            }
+        }
         return $result;
     }
 
@@ -207,6 +289,9 @@ class OrderService {
         $result = $this->transactional(function () use ($orderId, $staffId, $newStatus) {
             $order = Order::lockById($orderId);
             if (!$order) throw new \Exception("Order {$orderId} not found.");
+            if ($order->cancel_reason === self::CUSTOMER_REFUND_PENDING) {
+                throw new \Exception('This order has a customer cancellation refund in progress and cannot be advanced.');
+            }
             if (!$order->canTransitionTo($newStatus)) {
                 throw new \Exception("Cannot move order {$orderId} from '{$order->status}' to '{$newStatus}'.");
             }
@@ -401,10 +486,6 @@ class OrderService {
                 $subtotal += ($product->price + $cartItem->getCustomizationTotal()) * $cartItem->quantity;
             }
             $order->subtotal = round($subtotal, 2);
-            if ($order->subtotal < $cartSettings->minimum_order_amount) {
-                throw new \Exception('The minimum order amount is R' . number_format($cartSettings->minimum_order_amount, 2) . '. Add more items to continue.');
-            }
-
             $deliveryService = new DeliveryService();
             $address = $addressId ? Address::findById($addressId) : null;
             if ($fulfilmentType === Order::TYPE_DELIVERY && (!$address || $address->customer_id !== $customerId)) {
@@ -514,12 +595,12 @@ class OrderService {
         $order = $result['data']['order'];
         $setup = (new PaymentService())->beginTokenSetup($order, $result['data']['customer']);
         if (!$setup['success']) {
-            $this->cancelOrder($order->id, $customerId, null, 'Payment setup could not be started.');
+            $this->cancelOrder($order->id, $customerId, null, 'Payment setup could not be started.', [], false);
             return $this->failure($setup['error'] ?? 'Unable to start secure payment setup.');
         }
         $clearResult = (new CartService())->clear($customerId);
         if (!$clearResult['success']) {
-            $this->cancelOrder($order->id, $customerId, null, 'Checkout could not be completed.');
+            $this->cancelOrder($order->id, $customerId, null, 'Checkout could not be completed.', [], false);
             return $this->failure($clearResult['error']);
         }
         return $this->success(['order' => $order, 'payment_setup' => $setup['data']]);
@@ -612,7 +693,7 @@ class OrderService {
                 $productId = filter_var($item['product_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
                 $quantity = filter_var($item['quantity'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 99]]);
                 if ($productId === false || $quantity === false) {
-                    return $this->failure('Adjusted items need a valid product and a quantity from 1 to 99.');
+                    return $this->failure('Adjusted items need a valid product and quantities from 1 to 99.');
                 }
                 $totalsByProduct[(int) $productId] = ($totalsByProduct[(int) $productId] ?? 0) + (int) $quantity;
                 if ($totalsByProduct[(int) $productId] > 99) {
@@ -650,6 +731,35 @@ class OrderService {
             $order = Order::lockById($orderId);
             if (!$order) {
                 throw new \Exception("Order {$orderId} not found.");
+            }
+            if ($order->cancel_reason === self::CUSTOMER_REFUND_PENDING) {
+                throw new \Exception('This order has a customer cancellation refund in progress and cannot be adjusted.');
+            }
+
+            if ($adjustedItems !== null) {
+                $settings = BusinessSettings::current();
+                $totalQuantity = 0;
+                $quantitiesByProduct = [];
+                $previousQuantity = 0;
+                $previousByProduct = [];
+                foreach ($order->getItems() as $oldItem) {
+                    $previousQuantity += $oldItem->quantity;
+                    $previousByProduct[$oldItem->product_id] = ($previousByProduct[$oldItem->product_id] ?? 0) + $oldItem->quantity;
+                }
+                foreach ($adjustedItems as $item) {
+                    $quantity = (int) $item['quantity'];
+                    $productId = (int) $item['product_id'];
+                    $totalQuantity += $quantity;
+                    $quantitiesByProduct[$productId] = ($quantitiesByProduct[$productId] ?? 0) + $quantity;
+                }
+                if ($totalQuantity > $settings->max_cart_items && $totalQuantity > $previousQuantity) {
+                    throw new \Exception('An adjusted order cannot exceed the current cart limit of ' . $settings->max_cart_items . ' total items.');
+                }
+                foreach ($quantitiesByProduct as $productId => $quantity) {
+                    if ($quantity > $settings->max_item_quantity && $quantity > ($previousByProduct[$productId] ?? 0)) {
+                        throw new \Exception('An adjusted menu item cannot exceed the current limit of ' . $settings->max_item_quantity . '.');
+                    }
+                }
             }
 
             if (!in_array($order->status, [Order::STATUS_SUBMITTED, Order::STATUS_ADJUSTED], true)) {
@@ -785,6 +895,10 @@ $payment = $order->getPayment();
             'address'  => $order->getAddress(),
             'customer' => $order->getCustomer(),
             'history'  => OrderStatusHistory::findBy('order_id', $orderId),
+            'limits'   => [
+                'max_item_quantity' => BusinessSettings::current()->max_item_quantity,
+                'max_cart_items' => BusinessSettings::current()->max_cart_items,
+            ],
             'total'    => $order->total(), // computed - won't serialize on its own, Order::total() is a method not a property
         ]);
     }

@@ -19,7 +19,8 @@ function registerRoutes(Router $router): void {
     $router->get('/categories/{id}/products', [CategoryController::class, 'products']);
     $router->get('/products/category/{id}', [ProductController::class, 'byCategory']);
     $router->get('/promotions/active', [PromotionController::class, 'active']);
-    $router->post('/assistant/ask', [AssistantController::class, 'ask'], [new RateLimitMiddleware('assistant', 10, 300)]);
+    // Keep expensive retrieval calls to one question per client every four minutes.
+    $router->post('/assistant/ask', [AssistantController::class, 'ask'], [new RateLimitMiddleware('assistant', 1, 240)]);
 
     $customer = [new AuthMiddleware(), RoleMiddleware::customer(), new CsrfMiddleware()];
     $customerProtected = [new AuthMiddleware(), RoleMiddleware::customer(), new CsrfMiddleware(), new CustomerPolicyMiddleware()];

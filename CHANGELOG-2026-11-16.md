@@ -24,13 +24,22 @@ This entry records the application changes made on 16 November 2026. It describe
 
 ## Remaining work and deployment status
 
-- A four-minute server-side rate limit for support queries is not included in this entry.
-- Customer-initiated cancellation with an automatic PayFast refund of confirmed charges is not implemented here. The existing staff refund flow is separate and should not be described as customer cancellation automation.
+- At the time of the original commits, the four-minute assistant cooldown was not implemented.
+- At the time of the original commits, customer cancellation with an automatic PayFast refund of confirmed charges was not implemented.
 - BOGO application still depends on a promotion being selected/applied at checkout; automatic application solely from having the promoted item in the cart is not recorded as completed here.
-- The current checkout validation rejects carts below the configured minimum order amount. The requested behavior that the minimum be applied last without blocking checkout remains unresolved.
+- At the time of the original commits, checkout rejected carts below the configured minimum order amount, contrary to the requested non-blocking behavior.
 - The settings migration has not been run against Railway in this workspace. Run the schema preflight against the production database and apply only the missing-column changes before expecting the settings save endpoint to work there.
 
 ## Verification
 
 - PHP syntax checks passed for the promotion, checkout, order, and admin-settings code changed for BOGO behavior.
 - No automated test suite or Railway production database migration was run for this entry.
+
+## Follow-up review corrections
+
+- Checkout now treats the configured minimum as an advisory in the final preview; it does not block preview or order submission.
+- Customer cancellation now requests a full remaining PayFast refund for paid or preparing orders in production mode. Orders are frozen while the refund is in flight, duplicate refunds are guarded, and pending settlement is reported accurately. Sandbox remains disabled for automatic refunds. Bank payout fields are validated against PayFast's returned bank list and are not saved by Food by K.
+- Staff and customers receive cancellation notifications. Staff advancement and adjustment are blocked while a customer refund is pending.
+- Assistant requests are limited to one per client every four minutes, with a concurrency guard.
+- Existing carts and staff-adjusted orders can be reduced after admins lower limits; increases still follow configured caps.
+- Updated model checks and staging acceptance criteria cover the corrected BOGO quantity rules, advisory minimum, cart-limit recovery, assistant cooldown, and production-only refund path. These follow-up changes have not been deployed or runtime-tested.
