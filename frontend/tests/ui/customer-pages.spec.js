@@ -209,6 +209,9 @@ test('menu cards keep the price and add button separate on a phone viewport', as
 
 test('admin optional extras editor adds and removes paired name/price rows', async ({ page }) => {
   let submittedOptions;
+
+  await page.route(/^https?:\/\/(?!127\.0\.0\.1|localhost)/, (route) => route.abort());
+
   await page.route(/\/auth\/me$/, (route) => route.fulfill({
     headers: { 'X-CSRF-Token': 'test-csrf-token' },
     contentType: 'application/json',
@@ -228,7 +231,7 @@ test('admin optional extras editor adds and removes paired name/price rows', asy
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data }) });
   });
 
-  await page.goto('/admin/menu-items.html');
+  await page.goto('/admin/menu-items.html', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#adminLoadingState')).toHaveCount(0);
   await page.locator('#addMenuBtn').click();
   const rows = page.locator('#itemOptions .optional-extra-row');
