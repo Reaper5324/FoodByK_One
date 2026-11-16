@@ -1,4 +1,4 @@
-﻿const ADMIN_ONLY_PAGES = new Set([
+const ADMIN_ONLY_PAGES = new Set([
     "categories.html",
     "promotions.html",
     "customers.html",
@@ -307,6 +307,7 @@ const initializeAdminLive = async () => {
             const link = document.createElement("a");
             link.className = "menu-item" + (paths[label] === page ? " active" : "");
             link.href = paths[label];
+            if (paths[label] === page) link.setAttribute("aria-current", "page");
             const name = document.createElement("span");
             name.textContent = label;
             link.appendChild(name);
