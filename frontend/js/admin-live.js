@@ -94,6 +94,27 @@ const initializeAdminLive = async () => {
     loadingState?.querySelector("[data-admin-loading-retry]")?.addEventListener("click", () => location.reload());
     let initialDataLoadError = false;
     let isInitialPageLoad = true;
+    let settingsActionInFlight = false;
+    let settingsAction = null;
+    const saveSettingsButton = document.getElementById("saveBtn");
+    const discardSettingsButton = document.getElementById("discardBtn");
+    const updateSettingsActionState = () => {
+        const form = document.getElementById("adminApiSettingsForm");
+        if (form) {
+            form.inert = settingsActionInFlight;
+            form.setAttribute("aria-busy", String(settingsActionInFlight));
+        }
+        if (saveSettingsButton) {
+            saveSettingsButton.disabled = settingsActionInFlight || !form;
+            saveSettingsButton.innerHTML = settingsAction === "saving"
+                ? '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Saving…'
+                : '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save changes';
+        }
+        if (discardSettingsButton) {
+            discardSettingsButton.disabled = settingsActionInFlight || !form;
+            discardSettingsButton.textContent = settingsAction === "discarding" ? "Reloading…" : "Discard";
+        }
+    };
     const loadScript = (src) => new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src = src;
@@ -1390,9 +1411,9 @@ const initializeAdminLive = async () => {
 
     const loadSettings = async () => {
         const result = await apiGet("/admin/settings");
-        if (!showResult(result)) return;
+        if (!showResult(result)) return false;
         const content = document.querySelector(".dashboard-content");
-        if (!content) return;
+        if (!content) return false;
         content.replaceChildren();
         const form = document.createElement("form");
         form.id = "adminApiSettingsForm";
@@ -1615,18 +1636,32 @@ const initializeAdminLive = async () => {
         });
         content.appendChild(form);
         saveBar?.classList.remove("show");
+        updateSettingsActionState();
+        return true;
     };
 
-    document.getElementById("saveBtn")?.addEventListener("click", () => {
+    saveSettingsButton?.addEventListener("click", () => {
+        if (settingsActionInFlight) return;
         document.getElementById("adminApiSettingsForm")?.requestSubmit();
     });
-    document.getElementById("discardBtn")?.addEventListener("click", async () => {
-        await loadSettings();
-        const toast = document.getElementById("toast");
-        if (toast) {
-            toast.querySelector("span").textContent = "Changes discarded";
-            toast.classList.add("show");
-            window.setTimeout(() => toast.classList.remove("show"), 2500);
+    discardSettingsButton?.addEventListener("click", async () => {
+        if (settingsActionInFlight || !document.getElementById("adminApiSettingsForm")) return;
+        settingsActionInFlight = true;
+        settingsAction = "discarding";
+        updateSettingsActionState();
+        try {
+            if (await loadSettings()) {
+                const toast = document.getElementById("toast");
+                if (toast) {
+                    toast.querySelector("span").textContent = "Changes discarded";
+                    toast.classList.add("show");
+                    window.setTimeout(() => toast.classList.remove("show"), 2500);
+                }
+            }
+        } finally {
+            settingsActionInFlight = false;
+            settingsAction = null;
+            updateSettingsActionState();
         }
     });
 
@@ -1994,6 +2029,7 @@ const initializeAdminLive = async () => {
         let result;
         if (form.id === "adminApiSettingsForm") {
             event.preventDefault(); event.stopImmediatePropagation();
+            if (settingsActionInFlight) return;
             const body = {};
             new FormData(form).forEach((value, key) => {
                 const input = form.elements.namedItem(key);
@@ -2008,16 +2044,30 @@ const initializeAdminLive = async () => {
                 open_time: row.querySelector('[data-hour-field="open_time"]').value,
                 close_time: row.querySelector('[data-hour-field="close_time"]').value
             }));
-            result = await apiPut("/admin/settings", body);
-            if (showResult(result)) {
-                await loadSettings();
-                const toast = document.getElementById("toast");
-                if (toast) {
-                    toast.querySelector("span").textContent = "Settings saved";
-                    toast.classList.add("show");
-                    window.setTimeout(() => toast.classList.remove("show"), 2500);
+            settingsActionInFlight = true;
+            settingsAction = "saving";
+            updateSettingsActionState();
+            try {
+                result = await apiPut("/admin/settings", body);
+                if (showResult(result)) {
+                    await loadSettings();
+                    const toast = document.getElementById("toast");
+                    if (toast) {
+                        toast.querySelector("span").textContent = "Settings saved";
+                        toast.classList.add("show");
+                        window.setTimeout(() => toast.classList.remove("show"), 2500);
+                    }
+                } else if (result?.status === 0 || result?.status >= 500) {
+                    if (await loadSettings()) {
+                        window.foodByKNotify?.("The save result was uncertain. Settings were reloaded from the server; review the current values.", "error", 0);
+                    }
                 }
+            } finally {
+                settingsActionInFlight = false;
+                settingsAction = null;
+                updateSettingsActionState();
             }
+            return;
         } else if (form.id === "categoryForm") {
             event.preventDefault(); event.stopImmediatePropagation();
             const category = window.adminCategories?.find((item) => Number(item.id) === Number(id));

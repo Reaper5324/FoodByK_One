@@ -278,7 +278,7 @@
           <div class="support-lookup-row">
             <div class="support-lookup-control">
               <label for="supportOrderSearch">Find an order</label>
-              <input id="supportOrderSearch" class="support-lookup-search" type="search" inputmode="numeric" placeholder="Search by order number">
+              <input id="supportOrderSearch" class="support-lookup-search" type="search" inputmode="numeric" maxlength="20" placeholder="Search by order number">
               <button id="supportOrderLookupButton" class="btn btn-secondary" type="button">Look up order</button>
               <select id="supportOrderLookup" name="order_id" aria-label="Choose one of your orders">
                 <option value="">No order selected</option>
@@ -286,7 +286,7 @@
             </div>
             <div class="support-lookup-control">
               <label for="supportProductSearch">Find a menu item</label>
-              <input id="supportProductSearch" class="support-lookup-search" type="search" placeholder="Search menu items">
+              <input id="supportProductSearch" class="support-lookup-search" type="search" maxlength="100" placeholder="Search menu items">
               <select id="supportProductLookup" name="product_id" aria-label="Choose a menu item">
                 <option value="">No menu item selected</option>
               </select>

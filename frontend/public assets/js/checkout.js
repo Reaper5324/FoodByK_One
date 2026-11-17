@@ -19,6 +19,7 @@
 
     const deliveryMessage = document.getElementById("deliveryMessage");
     const dateInput = document.getElementById("slotDate");
+    const dateMessage = document.getElementById("slotDateMessage");
     const slotSelect = document.getElementById("slotSelect");
     const promotionInput = document.getElementById("promotionCode");
     const message = document.getElementById("checkoutMessage");
@@ -43,6 +44,7 @@
     let previewTimer = null;
     let slotRequestId = 0;
     let tradingSchedule = null;
+    let submitInFlight = false;
 
     const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, {
         minimumFractionDigits: 2,
@@ -785,22 +787,30 @@
 
     dateInput.addEventListener("change", async () => {
         await loadBusinessAvailability();
-        let redirectedFromClosedDay = false;
         if (!isOpenDate(dateInput.value)) {
             const closedDate = dateInput.value;
             dateInput.value = nextOpenDate(closedDate);
             if (!dateInput.value) {
                 slotSelect.replaceChildren(new Option("No open days are currently scheduled", ""));
                 clearPreview("No collection or delivery days are currently available.");
+                if (dateMessage) {
+                    dateMessage.textContent = "No collection or delivery days are currently available.";
+                    dateMessage.hidden = false;
+                }
                 showMessage("The selected day is closed. Please contact support for assistance.", true);
                 return;
             }
-            redirectedFromClosedDay = true;
+            if (dateMessage) {
+                dateMessage.textContent = "That day is closed. The date has moved to the next open day.";
+                dateMessage.hidden = false;
+            }
+        } else if (dateMessage) {
+            dateMessage.textContent = "";
+            dateMessage.hidden = true;
         }
         clearPreview();
         await loadSlots();
         schedulePreview();
-        if (redirectedFromClosedDay) showMessage("That day is closed. The date has moved to the next open day.");
     });
 
     [addressSelect, slotSelect, promotionInput, loyaltyPointsInput]
@@ -836,6 +846,7 @@
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
+        if (submitInFlight) return;
 
         if (minimumOrderBlocked) {
             showMessage("Add more items to meet the minimum order amount before continuing.", true);
@@ -854,6 +865,7 @@
 
         const selectedSlot = JSON.parse(slotSelect.value);
 
+        submitInFlight = true;
         submitButton.disabled = true;
 
         const result = await apiPost("/checkout/submit", {
@@ -866,7 +878,17 @@
             quote_fingerprint: quoteFingerprint
         });
 
-        if (!result.success || !result.data?.order || !result.data?.payment_setup?.redirect_url || !result.data?.payment_setup?.fields) {
+        if (!result?.success || !result.data?.order || !result.data?.payment_setup?.redirect_url || !result.data?.payment_setup?.fields) {
+            if (result?.status === 0 || result?.status >= 500 || result?.success) {
+                await loadCartPreview();
+                submitInFlight = false;
+                submitButton.disabled = false;
+                clearPreview("We couldn't confirm whether the order was saved. Check your refreshed cart, then review the total before trying again.");
+                showMessage("We couldn't confirm the order result. Your cart has been refreshed from the server; review it before retrying.", true);
+                return;
+            }
+
+            submitInFlight = false;
             submitButton.disabled = false;
 
             if (String(result.error || "").includes("changed after your review")) {
@@ -914,7 +936,16 @@
     dateInput.value = isOpenDate(getLocalDate())
         ? getLocalDate()
         : nextOpenDate(getLocalDate());
-    if (!dateInput.value) dateInput.disabled = true;
+    if (!dateInput.value) {
+        dateInput.disabled = true;
+        if (dateMessage) {
+            dateMessage.textContent = "No collection or delivery days are currently available.";
+            dateMessage.hidden = false;
+        }
+    } else if (dateInput.value !== getLocalDate() && dateMessage) {
+        dateMessage.textContent = "Today is closed. The date has moved to the next open day.";
+        dateMessage.hidden = false;
+    }
     await loadCartPreview();
     renderCartPreview();
     const cartRefreshTimer = window.setInterval(loadCartPreview, 10000);

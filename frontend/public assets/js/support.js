@@ -252,16 +252,28 @@
     await Promise.all([loadTickets(), loadLookups()]);
   };
 
+  let ticketSubmissionInFlight = false;
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (ticketSubmissionInFlight) return;
+    ticketSubmissionInFlight = true;
     const button = form.querySelector("button[type=submit]");
     button.disabled = true;
     button.textContent = "Sending…";
     const payload = Object.fromEntries(new FormData(form));
     if (context) payload.message = `Page context: ${context}\n\n${payload.message}`.slice(0, 5000);
     const result = await apiPost("/support/tickets", payload);
+    if (!result?.success && (result?.status === 0 || result?.status >= 500)) {
+      await loadTickets();
+      button.disabled = false;
+      button.textContent = "Send message";
+      ticketSubmissionInFlight = false;
+      showMessage("We couldn't confirm whether your request was received. Your support history has been refreshed; your message is still here so you can review it before trying again.", true);
+      return;
+    }
     button.disabled = false;
     button.textContent = "Send message";
+    ticketSubmissionInFlight = false;
     if (!result?.success) {
       showMessage(result?.error || "Your message could not be sent. Please try again.", true);
       return;

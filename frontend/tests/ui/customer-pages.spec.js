@@ -172,8 +172,10 @@ test('all customer pages use the homepage footer and include Contact support', a
 
 test('checkout redirects dates that are closed in the current business schedule', async ({ page }) => {
   const openDays = [1, 2, 3, 4, 5];
+  const requestedSlotDates = [];
   await page.route(/https:\/\/api\.foodbyk\.co\.za\//, async (route) => {
     const path = new URL(route.request().url()).pathname;
+    if (path === '/checkout/slots') requestedSlotDates.push(new URL(route.request().url()).searchParams.get('date'));
     const data = path === '/business/settings'
       ? { trading_hours: Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, is_open: openDays.includes(index + 1), open_time: '09:00', close_time: '17:00' })), ordering_enabled: true, delivery_enabled: true, collection_enabled: true }
       : path === '/cart' ? { items: [] }
@@ -194,9 +196,9 @@ test('checkout redirects dates that are closed in the current business schedule'
   const toDateValue = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
   await dateInput.fill(toDateValue(sunday));
-  await dateInput.dispatchEvent('change');
   await expect(dateInput).toHaveValue(toDateValue(monday));
-  await expect(page.locator('#checkoutMessage')).toContainText('That day is closed');
+  await expect(page.locator('#slotDateMessage')).toContainText('That day is closed');
+  await expect.poll(() => requestedSlotDates.at(-1)).toBe(toDateValue(monday));
 });
 
 test('order tracking uses delivery-specific progress labels', async ({ page }) => {
@@ -399,4 +401,78 @@ await page.route(/pwa\.js$/, (route) => route.abort());
     { name: 'Extra cheese', price_delta: 8 },
     { name: 'Free sauce', price_delta: 0 },
   ]);
+});
+
+test('admin settings search, discard and save buttons work and prevent duplicate saves', async ({ page }) => {
+  const settings = {
+    business_phone: '081 447 8365', business_address: '8513 Goshawk Street',
+    business_lat: -26.3, business_long: 27.9, delivery_radius_km: 5, collection_radius_km: 15,
+    delivery_fee: 15, free_delivery_threshold: 0, trading_hours_start: '09:00:00', trading_hours_end: '18:00:00',
+    delivery_enabled: true, collection_enabled: true, ordering_enabled: true, enforce_minimum_order: false,
+    slot_duration_minutes: 30, max_orders_per_slot: 10, max_advance_booking_days: 30,
+    max_item_quantity: 6, max_cart_items: 10, minimum_order_amount: 0,
+    trading_hours: Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, is_open: index < 6, open_time: '09:00', close_time: '18:00' })),
+  };
+  let submittedSettings;
+  let releaseSave;
+  const saveGate = new Promise((resolve) => { releaseSave = resolve; });
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': 'http://127.0.0.1:4173',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Headers': 'Content-Type, X-CSRF-Token, X-Session-Token',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+  };
+
+  await page.route(/^https?:\/\/(?!127\.0\.0\.1|localhost)/, (route) => route.abort());
+  await page.route(/pwa\.js$/, (route) => route.abort());
+  await page.route('**/js/dashboard.js', (route) => route.fulfill({ path: require('path').resolve(__dirname, '../../js/dashboard.js') }));
+  await page.route('**/js/admin-live.js', (route) => route.fulfill({ path: require('path').resolve(__dirname, '../../js/admin-live.js') }));
+  await page.route('**/public%20assets/js/config.js', (route) => route.fulfill({ path: require('path').resolve(__dirname, '../../public assets/js/config.js') }));
+  await page.route('**/public%20assets/js/api/api.js', (route) => route.fulfill({ path: require('path').resolve(__dirname, '../../public assets/js/api/api.js') }));
+  await page.route(/\/auth\/me$/, (route) => route.request().method() === 'OPTIONS'
+    ? route.fulfill({ status: 204, headers: corsHeaders })
+    : route.fulfill({
+      headers: { ...corsHeaders, 'X-CSRF-Token': 'test-csrf-token' }, contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { id: 7, full_name: 'Test Admin', email: 'admin@example.test', role: 'admin' } }),
+    }));
+  await page.route(/\/admin\/settings$/, async (route) => {
+    if (route.request().method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    if (route.request().method() === 'PUT') {
+      submittedSettings = route.request().postDataJSON();
+      await saveGate;
+      Object.assign(settings, submittedSettings);
+    }
+    await route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify({ success: true, data: settings }) });
+  });
+  await page.route(/\/(push\/public-key|staff\/orders\/unacknowledged)$/, (route) => route.request().method() === 'OPTIONS'
+    ? route.fulfill({ status: 204, headers: corsHeaders })
+    : route.fulfill({ headers: corsHeaders, contentType: 'application/json', body: JSON.stringify({ success: true, data: { enabled: false } }) }));
+  await page.goto('/admin/settings.html', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#adminLoadingState')).toHaveCount(0);
+  const save = page.locator('#saveBtn');
+  const discard = page.locator('#discardBtn');
+  await expect(save).toBeEnabled();
+  await expect(discard).toBeEnabled();
+
+  await page.locator('#setting-business_phone').fill('082 000 0000');
+  await expect(page.locator('#saveBar')).toHaveClass(/show/);
+  await discard.click();
+  await expect(page.locator('#setting-business_phone')).toHaveValue('081 447 8365');
+  await expect(page.locator('#saveBar')).not.toHaveClass(/show/);
+
+  await page.locator('#fbkSearch').fill('days ahead');
+  await expect(page.locator('#setting-max_advance_booking_days')).toBeVisible();
+  await page.locator('#setting-max_advance_booking_days').fill('42');
+  await expect(page.locator('#saveBar')).toHaveClass(/show/);
+  await save.click();
+  await expect(save).toBeDisabled();
+  await expect(discard).toBeDisabled();
+  await save.click({ force: true });
+  releaseSave();
+  await expect.poll(() => submittedSettings?.max_advance_booking_days).toBe(42);
+  await expect(page.locator('#setting-max_advance_booking_days')).toHaveValue('42');
+  await expect(save).toBeEnabled();
 });

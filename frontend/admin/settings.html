@@ -147,6 +147,7 @@
     .savebar .discard:hover { background: rgba(255, 255, 255, .12); }
     .savebar .save { color: #fff; background: var(--red); }
     .savebar .save:hover { background: var(--red-dark); }
+    .savebar button:disabled { opacity: .6; cursor: wait; }
 
     .toast {
       position: fixed; right: clamp(1rem, 3vw, 2rem); bottom: 1.2rem; z-index: 70; display: flex; align-items: center; gap: .7rem; padding: .85rem 1.3rem;
@@ -241,8 +242,8 @@
 
     <div class="savebar" id="saveBar" role="region" aria-label="Unsaved changes">
       <span>You have unsaved changes</span>
-      <button type="button" class="discard" id="discardBtn">Discard</button>
-      <button type="button" class="save" id="saveBtn"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save changes</button>
+      <button type="button" class="discard" id="discardBtn" disabled>Discard</button>
+      <button type="button" class="save" id="saveBtn" disabled><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save changes</button>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Settings saved</span></div>
 

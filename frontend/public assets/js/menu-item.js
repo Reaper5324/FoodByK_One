@@ -176,6 +176,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
+        if (addResult?.status === 0 || addResult?.status >= 500) {
+            addButton.textContent = "Checking cart…";
+            const cart = await apiGet("/cart");
+            if (cart?.success && Array.isArray(cart.data?.items)) {
+                addButton.disabled = false;
+                addButton.textContent = "Add to cart";
+                showMessage("We couldn't confirm that addition. Your cart has been refreshed; check it before trying again.", true);
+            } else {
+                addButton.textContent = "Cart status unavailable";
+                showMessage("We couldn't confirm that addition or refresh your cart. Refresh this page before trying again.", true);
+            }
+            return;
+        }
+
         addButton.disabled = false;
         addButton.textContent = "Add to cart";
         showMessage(

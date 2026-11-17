@@ -91,6 +91,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     showMessage(`${product.name || "Meal"} added to your cart.`, false, true);
                     return;
                 }
+                if (result?.status === 0 || result?.status >= 500) {
+                    await loadCart();
+                    showMessage("We couldn't confirm that addition. Your cart has been refreshed from the server.", true);
+                    return;
+                }
                 add.disabled = false;
                 add.textContent = "Add to cart";
                 showMessage(result?.error || "Unable to add this meal to your cart.", true);
@@ -219,9 +224,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             quantity.type = "text";
             quantity.pattern = "[0-9]*";
             quantity.inputMode = "numeric";
+            quantity.maxLength = 3;
+            quantity.required = true;
             quantity.value = String(currentQuantity);
             quantity.id = `cart-quantity-${item.id}`;
             quantity.setAttribute("aria-label", `Quantity for ${name.textContent}`);
+            quantity.setAttribute("aria-description", `Enter a whole number from 1 to ${rowMaximum}.`);
             const quantityControl = document.createElement("div");
             quantityControl.className = "cart-quantity-control";
             const decrease = document.createElement("button");
@@ -260,6 +268,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (result.success) {
                     await loadCart();
                     showMessage(`${name.textContent} removed from your cart.`, false, true);
+                }
+                else if (result.status === 0 || result.status >= 500) {
+                    await loadCart();
+                    showMessage("We couldn't confirm that removal. Your cart has been refreshed from the server.", true);
                 }
                 else {
                     remove.disabled = false;
@@ -300,7 +312,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         await loadCart();
                         showMessage("Cart quantity updated.", false, true);
                     }
-                    else if (result.status === 0) {
+                    else if (result.status === 0 || result.status >= 500) {
                         await loadCart();
                         showMessage("We couldn't confirm that update. Your cart has been refreshed from the server.", true);
                     }
