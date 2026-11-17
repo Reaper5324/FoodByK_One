@@ -188,6 +188,8 @@ test('checkout redirects dates that are closed in the current business schedule'
   await page.goto('/pages/customer/checkout.html');
   const dateInput = page.locator('#slotDate');
   await expect(dateInput).toBeEnabled();
+  expect(await page.locator('#addressField').evaluate((field) => field.nextElementSibling?.matches('.checkout-cart-preview')))
+    .toBe(true);
 
   const sunday = new Date();
   sunday.setDate(sunday.getDate() + (7 - sunday.getDay()));
