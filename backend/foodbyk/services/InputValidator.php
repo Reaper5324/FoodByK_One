@@ -18,4 +18,26 @@ final class InputValidator {
         $validated = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
         return $validated === false ? null : $validated;
     }
+
+    /** Validate a non-negative currency value with at most two decimal places. */
+    public static function nonNegativeMoney(mixed $value, float $maximum = 100000.0): ?float {
+        if (is_int($value)) {
+            $text = (string) $value;
+        } elseif (is_float($value) && is_finite($value)) {
+            $text = json_encode($value, JSON_PRESERVE_ZERO_FRACTION);
+        } elseif (is_string($value)) {
+            $text = trim($value);
+        } else {
+            return null;
+        }
+
+        if (!is_string($text) || preg_match('/^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,2})?$/D', $text) !== 1) {
+            return null;
+        }
+        $amount = (float) $text;
+        if (!is_finite($amount) || $amount < 0 || $amount > $maximum) {
+            return null;
+        }
+        return round($amount, 2);
+    }
 }

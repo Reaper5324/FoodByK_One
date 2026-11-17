@@ -210,7 +210,8 @@ class ProductService {
         if ($this->stringLength($description) > self::MAX_DESCRIPTION_LENGTH) {
             return $this->failure('Product description cannot exceed 2000 characters.');
         }
-        if (!is_numeric($price) || (float) $price < 0.0 || (float) $price > 100000.0) {
+        $validatedPrice = InputValidator::nonNegativeMoney($price);
+        if ($validatedPrice === null) {
             return $this->failure('Invalid product price.');
         }
         if ($imageUrl !== null && $imageUrl !== '' && filter_var($imageUrl, FILTER_VALIDATE_URL) === false
@@ -228,7 +229,7 @@ class ProductService {
             'category_id' => (int) $categoryId,
             'name' => $name,
             'description' => $description,
-            'price' => round((float) $price, 2),
+            'price' => $validatedPrice,
             'is_available' => (bool) $isAvailable,
             'status' => $status,
             'image_url' => $imageUrl === '' ? null : $imageUrl,

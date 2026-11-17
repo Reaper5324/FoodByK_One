@@ -415,11 +415,12 @@ class OrderService {
         string $requestedWindowStart,
         string $requestedWindowEnd,
         ?string $promotionCode = null,
-        float $loyaltyPointsToRedeem = 0.0
+        float $loyaltyPointsToRedeem = 0.0,
+        string $quoteFingerprint = ''
     ): array {
         $result = $this->transactional(function () use (
             $customerId, $fulfilmentType, $addressId,
-            $requestedWindowStart, $requestedWindowEnd, $promotionCode, $loyaltyPointsToRedeem
+            $requestedWindowStart, $requestedWindowEnd, $promotionCode, $loyaltyPointsToRedeem, $quoteFingerprint
         ) {
             // Serialize order creation against account erasure. The erasure
             // service locks this same user row, then either waits for this
@@ -483,6 +484,8 @@ class OrderService {
                 if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
                     throw new \Exception("Item {$cartItem->product_id} is no longer available.");
                 }
+                $customizationValidation = (new ProductOptionService())->validateCartSelection($cartItem, true);
+                if (!$customizationValidation['success']) throw new \Exception($customizationValidation['error']);
                 $subtotal += ($product->price + $cartItem->getCustomizationTotal()) * $cartItem->quantity;
             }
             $subtotal = round($subtotal, 2);
@@ -546,6 +549,33 @@ class OrderService {
             );
             if (!$redemption['success']) throw new \Exception($redemption['error']);
             $pointsToRedeem = $redemption['data']['points_to_redeem'];
+            $loyaltyDiscount = $redemption['data']['discount'];
+            $quoteItems = array_map(fn(CartItem $item) => [
+                'cart_item_id' => $item->id,
+                'product_id' => $item->product_id,
+                'product_name' => $productsById[$item->product_id]->name,
+                'quantity' => $item->quantity,
+                'unit_price' => $productsById[$item->product_id]->price + $item->getCustomizationTotal(),
+                'customizations' => $item->customizations,
+            ], $cartItems);
+            $currentQuoteFingerprint = CheckoutQuote::fingerprint(
+                $customerId,
+                $fulfilmentType,
+                $fulfilmentType === Order::TYPE_DELIVERY ? $addressId : null,
+                $quoteItems,
+                $freeQuantitiesByCartItem,
+                $order->subtotal,
+                $order->delivery_fee,
+                $order->promotion_id,
+                $order->locked_discount,
+                $pointsToRedeem,
+                $loyaltyDiscount,
+                max(0.0, $order->subtotal + $order->delivery_fee - $order->locked_discount - $loyaltyDiscount)
+            );
+            if (preg_match('/^[a-f0-9]{64}$/D', $quoteFingerprint) !== 1
+                || !hash_equals($currentQuoteFingerprint, $quoteFingerprint)) {
+                throw new \Exception('Checkout details changed after your review. Please review the updated total and continue.');
+            }
             if ($pointsToRedeem > 0) {
                 $redeemResult = $loyaltyService->redeemPoints($customerId, $pointsToRedeem);
                 if (!$redeemResult['success']) throw new \Exception($redeemResult['error']);

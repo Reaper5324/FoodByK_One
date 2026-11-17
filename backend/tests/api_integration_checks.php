@@ -178,17 +178,27 @@ try {
     // service, and test database using an isolated catalogue fixture.
     $categoryId = (int) $pdo->query('SELECT id FROM categories ORDER BY id LIMIT 1')->fetchColumn();
     apiExpect($categoryId > 0, 'Cart integration checks require the seeded catalogue category.');
+    $minimumOrder = (float) $pdo->query('SELECT minimum_order_amount FROM business_settings WHERE id = 1')->fetchColumn();
+    $testProductPrice = max(10.00, $minimumOrder + 1.00);
     $insertProduct = $pdo->prepare('INSERT INTO products (category_id, name, description, price, is_available, status) VALUES (?, ?, ?, ?, 1, ?)');
-    $insertProduct->execute([$categoryId, 'Cart API check ' . bin2hex(random_bytes(4)), 'Temporary cart integration fixture.', 10.00, 'active']);
+    $insertProduct->execute([$categoryId, 'Cart API check ' . bin2hex(random_bytes(4)), 'Temporary cart integration fixture.', $testProductPrice, 'active']);
     $productId = (int) $pdo->lastInsertId();
 
-    $cartAdd = apiRequest('POST', '/cart/items', ['product_id' => $productId, 'quantity' => 1], [
+    $cartAdd = apiRequest('POST', '/cart/items', [
+        'product_id' => $productId,
+        'quantity' => 1,
+        'unit_price' => 0.01,
+        'customer_id' => 999999999,
+    ], [
         'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
         'Origin: https://foodbyks.netlify.app',
     ], $cookieFile);
     apiExpect($cartAdd['status'] === 201 && ($cartAdd['json']['success'] ?? false), 'A valid positive whole-number cart quantity must succeed.');
     $cartItemId = (int) ($cartAdd['json']['data']['id'] ?? 0);
     apiExpect($cartItemId > 0, 'A successful cart add must return its cart item identifier.');
+    $cartViewAfterAdd = apiRequest('GET', '/cart', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    apiExpect((float) ($cartViewAfterAdd['json']['data']['items'][0]['unit_price'] ?? -1) === $testProductPrice,
+        'Client-supplied cart prices and ownership fields must not affect the server result.');
 
     $maxItemQuantity = (int) $pdo->query('SELECT max_item_quantity FROM business_settings WHERE id = 1')->fetchColumn();
     apiExpect($maxItemQuantity > 0, 'Business settings must contain a positive per-item cart limit.');
@@ -231,7 +241,68 @@ try {
     apiExpect(($crossCustomerUpdate['json']['success'] ?? true) === false,
         'A customer must not modify a cart item owned by another customer.');
 
-    $cartDelete = apiRequest('DELETE', '/cart/items/' . $cartItemId, null, [
+    $baseCartRemoved = apiRequest('DELETE', '/cart/items/' . $cartItemId, null, [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($baseCartRemoved['json']['success'] ?? false), 'The base cart fixture must be removable before the customization check.');
+
+    $optionInsert = $pdo->prepare('INSERT INTO product_options (product_id, name, price_delta, is_available) VALUES (?, ?, ?, 1)');
+    $optionInsert->execute([$productId, 'Temporary cheese', 2.00]);
+    $optionId = (int) $pdo->lastInsertId();
+    $customizedAdd = apiRequest('POST', '/cart/items', ['product_id' => $productId, 'quantity' => 1, 'option_ids' => [$optionId]], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect($customizedAdd['status'] === 201 && ($customizedAdd['json']['success'] ?? false), 'A valid product customization must be added to the cart.');
+    $customizedCartItemId = (int) ($customizedAdd['json']['data']['id'] ?? 0);
+    $pdo->prepare('UPDATE product_options SET price_delta = 2.50 WHERE id = ?')->execute([$optionId]);
+    $staleCustomizationPreview = apiRequest('POST', '/checkout/preview', ['fulfilment_type' => 'collection'], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($staleCustomizationPreview['json']['success'] ?? true) === false
+        && str_contains((string) ($staleCustomizationPreview['json']['error'] ?? ''), 'customization changed'),
+        'Checkout must reject stale customization prices and ask the customer to review the cart.');
+
+    foreach ([$customizedCartItemId] as $itemToRemove) {
+        $removed = apiRequest('DELETE', '/cart/items/' . $itemToRemove, null, [
+            'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+            'Origin: https://foodbyks.netlify.app',
+        ], $cookieFile);
+        apiExpect(($removed['json']['success'] ?? false), 'Test cart fixtures must be explicitly removable.');
+    }
+
+    $quoteCartAdd = apiRequest('POST', '/cart/items', ['product_id' => $productId, 'quantity' => 1], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($quoteCartAdd['json']['success'] ?? false), 'A cart line must be available for quote change verification.');
+    $quoteCartItemId = (int) ($quoteCartAdd['json']['data']['id'] ?? 0);
+    $quotePreview = apiRequest('POST', '/checkout/preview', ['fulfilment_type' => 'collection'], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    $quoteFingerprint = $quotePreview['json']['data']['quote_fingerprint'] ?? null;
+    apiExpect(($quotePreview['json']['success'] ?? false) && is_string($quoteFingerprint)
+        && preg_match('/^[a-f0-9]{64}$/D', $quoteFingerprint) === 1,
+        'Checkout preview must return a current quote fingerprint.');
+    $pdo->prepare('UPDATE products SET price = price + 1.00 WHERE id = ?')->execute([$productId]);
+    $staleQuoteSubmit = apiRequest('POST', '/checkout/submit', [
+        'fulfilment_type' => 'collection',
+        'address_id' => null,
+        'requested_window_start' => '2099-01-01T12:00:00',
+        'requested_window_end' => '2099-01-01T12:30:00',
+        'quote_fingerprint' => $quoteFingerprint,
+    ], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($staleQuoteSubmit['json']['success'] ?? true) === false
+        && str_contains((string) ($staleQuoteSubmit['json']['error'] ?? ''), 'changed after your review'),
+        'A product price change after preview must require another customer review before order creation.');
+
+    $cartDelete = apiRequest('DELETE', '/cart/items/' . $quoteCartItemId, null, [
         'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
         'Origin: https://foodbyks.netlify.app',
     ], $cookieFile);

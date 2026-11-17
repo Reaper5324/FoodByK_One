@@ -114,6 +114,20 @@ class CheckoutService {
 
         $loyaltyDiscount = $redemption['data']['discount'];
         $total = round(max(0.0, $fulfillmentSubtotal + $deliveryFee - $discount - $loyaltyDiscount), 2);
+        $quoteFingerprint = CheckoutQuote::fingerprint(
+            $customerId,
+            $fulfilmentType,
+            $fulfilmentType === Order::TYPE_DELIVERY ? $addressId : null,
+            $lineItems,
+            $freeQuantitiesByCartItem,
+            $fulfillmentSubtotal,
+            $deliveryFee,
+            $promotionId,
+            $discount,
+            $redemption['data']['points_to_redeem'],
+            $loyaltyDiscount,
+            $total
+        );
 
         return $this->success([
             'items_count' => count($cartItems),
@@ -149,6 +163,7 @@ class CheckoutService {
             'distance_km' => $distanceKm,
             'fulfillment_type' => $fulfilmentType,
             'total' => $total,
+            'quote_fingerprint' => $quoteFingerprint,
             'minimum_order_amount' => $minimumOrderAmount,
             'minimum_order_subtotal' => $cartValidation['data']['minimum_order_subtotal'],
             'minimum_order_met' => $minimumOrderMet,
@@ -192,6 +207,9 @@ class CheckoutService {
                     'One or more items in your cart are no longer available. Please review your cart.'
                 );
             }
+
+            $customizationValidation = (new ProductOptionService())->validateCartSelection($item);
+            if (!$customizationValidation['success']) return $customizationValidation;
 
         }
 
@@ -250,7 +268,8 @@ class CheckoutService {
         string $requestedWindowStart,
         string $requestedWindowEnd,
         ?string $promotionCode = null,
-        float $loyaltyPointsToRedeem = 0.0
+        float $loyaltyPointsToRedeem = 0.0,
+        string $quoteFingerprint = ''
     ): array {
         $orderService = new OrderService();
         return $orderService->submitOrder(
@@ -260,7 +279,8 @@ class CheckoutService {
             $requestedWindowStart,
             $requestedWindowEnd,
             $promotionCode,
-            $loyaltyPointsToRedeem
+            $loyaltyPointsToRedeem,
+            $quoteFingerprint
         );
     }
 

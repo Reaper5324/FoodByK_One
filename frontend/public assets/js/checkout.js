@@ -34,6 +34,7 @@
     let productCatalogPromise = null;
     let pricedItemsActive = false;
     let cartFingerprint = "";
+    let quoteFingerprint = "";
 
     let previewReady = false;
     let minimumOrderBlocked = false;
@@ -145,6 +146,7 @@
         previewReady = false;
         minimumOrderBlocked = false;
         pricedItemsActive = false;
+        quoteFingerprint = "";
         previewButton.disabled = false;
         previewButton.innerHTML = 'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
         submitButton.hidden = true;
@@ -232,6 +234,7 @@
         if (cartFingerprint && nextFingerprint !== cartFingerprint) {
             pricedItemsActive = false;
             previewReady = false;
+            quoteFingerprint = "";
             submitButton.hidden = true;
             showSummaryMessage("Your cart changed. Review the latest total before placing your order.");
         }
@@ -482,6 +485,7 @@
     const requestPreview = async ({ silent = false } = {}) => {
         message.hidden = true;
         previewReady = false;
+        quoteFingerprint = "";
         minimumOrderBlocked = false;
         submitButton.hidden = true;
         const requestId = ++previewRequestId;
@@ -563,6 +567,11 @@
         }
 
         const data = result.data;
+        if (typeof data.quote_fingerprint !== "string" || !/^[a-f0-9]{64}$/.test(data.quote_fingerprint)) {
+            explain("Unable to confirm the current order quote. Please review your total again.");
+            return;
+        }
+        quoteFingerprint = data.quote_fingerprint;
         if (!Array.isArray(data.items) || data.items.length === 0) {
             explain("Your cart is empty. Add menu items before continuing.");
             return;
@@ -812,11 +821,18 @@
             requested_window_start: selectedSlot.start,
             requested_window_end: selectedSlot.end,
             promotion_code: promotionInput.value.trim() || null,
-            loyalty_points_to_redeem: Number(loyaltyPointsInput?.value || 0)
+            loyalty_points_to_redeem: Number(loyaltyPointsInput?.value || 0),
+            quote_fingerprint: quoteFingerprint
         });
 
         if (!result.success || !result.data?.order || !result.data?.payment_setup?.redirect_url || !result.data?.payment_setup?.fields) {
             submitButton.disabled = false;
+
+            if (String(result.error || "").includes("changed after your review")) {
+                clearPreview("Order prices or details changed. Review the updated total before continuing.");
+                showMessage("Order details changed. Please review the updated total before continuing.", true);
+                return;
+            }
 
             showMessage(
                 result.error || "Unable to place your order. Please try again.",
