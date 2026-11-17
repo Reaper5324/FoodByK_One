@@ -14,6 +14,14 @@ class PushService {
 
     public function saveSubscription(int $userId, array $subscription): array {
         if (!$this->available()) return $this->failure('Push notifications are not configured.');
+        $db = Database::getConnection();
+        $account = $db->prepare(
+            'SELECT r.role_name FROM users u JOIN roles r ON r.id = u.role_id
+             WHERE u.id = ? AND u.is_active = 1 AND r.role_name IN (?, ?, ?) LIMIT 1'
+        );
+        $account->execute([$userId, Role::CUSTOMER, Role::STAFF, Role::ADMIN]);
+        if (!$account->fetchColumn()) return $this->failure('An active customer or staff account is required for notifications.');
+
         $endpoint = trim((string) ($subscription['endpoint'] ?? ''));
         $keys = $subscription['keys'] ?? null;
         $publicKey = is_array($keys) ? trim((string) ($keys['p256dh'] ?? '')) : '';
@@ -23,7 +31,6 @@ class PushService {
             return $this->failure('The browser returned an invalid notification subscription.');
         }
 
-        $db = Database::getConnection();
         $statement = $db->prepare(
             'INSERT INTO push_subscriptions (user_id, endpoint, public_key, auth_token, user_agent)
              VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), public_key = VALUES(public_key), auth_token = VALUES(auth_token), user_agent = VALUES(user_agent)'
@@ -144,8 +151,13 @@ class PushService {
         ];
         if (!isset($messages[$status])) return;
         $db = Database::getConnection();
-        $statement = $db->prepare('SELECT endpoint, public_key, auth_token FROM push_subscriptions WHERE user_id = ?');
-        $statement->execute([$order->customer_id]);
+        $statement = $db->prepare(
+            'SELECT ps.endpoint, ps.public_key, ps.auth_token
+             FROM push_subscriptions ps JOIN users u ON u.id = ps.user_id
+             JOIN roles r ON r.id = u.role_id
+             WHERE ps.user_id = ? AND u.is_active = 1 AND r.role_name = ?'
+        );
+        $statement->execute([$order->customer_id, Role::CUSTOMER]);
         try { $this->deliver($statement->fetchAll(), [
             'title' => $messages[$status][0], 'body' => $messages[$status][1],
             'tag' => 'foodbyk-order-' . $order->id . '-' . $status,
@@ -157,9 +169,12 @@ class PushService {
         if (!$this->available()) return;
         try {
             $statement = Database::getConnection()->prepare(
-                'SELECT endpoint, public_key, auth_token FROM push_subscriptions WHERE user_id = ?'
+                'SELECT ps.endpoint, ps.public_key, ps.auth_token
+                 FROM push_subscriptions ps JOIN users u ON u.id = ps.user_id
+                 JOIN roles r ON r.id = u.role_id
+                 WHERE ps.user_id = ? AND u.is_active = 1 AND r.role_name = ?'
             );
-            $statement->execute([$customerId]);
+            $statement->execute([$customerId, Role::CUSTOMER]);
             $this->deliver($statement->fetchAll(), [
                 'title' => 'Food by K: Support replied',
                 'body' => 'There is a new reply to your support ticket: ' . $subject,

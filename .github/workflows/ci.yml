@@ -61,6 +61,12 @@ jobs:
       TEST_DB_PASS: foodbyk_test_password
       PAYMENT_TOKEN_ENCRYPTION_KEY: a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=
       FRONTEND_URL: https://foodbyks.netlify.app
+      # Checkout integration tests need to create a payment setup, but must
+      # never use real PayFast credentials or make a gateway request.
+      API_BASE_URL: http://127.0.0.1:8080
+      PAYFAST_MERCHANT_ID: ci-test-merchant
+      PAYFAST_MERCHANT_KEY: ci-test-merchant-key
+      PAYFAST_SANDBOX: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2

@@ -386,7 +386,12 @@ try {
         ['path' => '/checkout/submit', 'cookie' => $secondCookieFile, 'headers' => ['X-CSRF-Token: ' . $secondMe['headers']['x-csrf-token'], 'Origin: https://foodbyks.netlify.app'], 'body' => ['fulfilment_type' => 'collection', 'requested_window_start' => $selectedSlot['start'], 'requested_window_end' => $selectedSlot['end'], 'quote_fingerprint' => $secondRacePreview['json']['data']['quote_fingerprint']]],
     ]);
     $raceSuccesses = count(array_filter($raceSubmits, static fn(array $result): bool => ($result['json']['success'] ?? false) === true));
-    apiExpect($raceSuccesses === 1, 'With one slot remaining, exactly one of two simultaneous real checkout submissions must succeed.');
+    apiExpect($raceSuccesses === 1, 'With one slot remaining, exactly one of two simultaneous real checkout submissions must succeed. Responses: '
+        . json_encode(array_map(static fn(array $result): array => [
+            'status' => $result['status'],
+            'success' => $result['json']['success'] ?? null,
+            'error' => $result['json']['error'] ?? null,
+        ], $raceSubmits), JSON_UNESCAPED_SLASHES));
     $raceCustomers = $pdo->prepare('SELECT id FROM users WHERE email IN (?, ?)');
     $raceCustomers->execute([$email, $secondEmail]);
     $raceCustomerIds = array_map('intval', $raceCustomers->fetchAll(PDO::FETCH_COLUMN));
