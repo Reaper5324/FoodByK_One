@@ -39,6 +39,7 @@ function apiRequest(string $method, string $path, ?array $body = null, array $he
     curl_close($handle);
     $rawHeaders = substr($raw, 0, $headerSize);
     $responseHeaders = [];
+
     foreach (preg_split('/\r?\n/', trim($rawHeaders)) as $line) {
         if (str_contains($line, ':')) {
             [$name, $value] = explode(':', $line, 2);

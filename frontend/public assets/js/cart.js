@@ -282,6 +282,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         : "Enter a whole-number quantity of at least 1.", true);
                     return;
                 }
+                if (newQuantity === currentQuantity) return;
                 decrease.disabled = true;
                 increase.disabled = true;
                 quantity.disabled = true;
@@ -309,6 +310,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 updateQuantity(current > 99 ? 99 : current - 1);
             });
             increase.addEventListener("click", () => updateQuantity(Number(quantity.value) + 1));
+            quantity.addEventListener("input", () => {
+                if (quantity.value !== "" && !/^\d+$/.test(quantity.value)) {
+                    updateQuantity(quantity.value);
+                }
+            });
             quantity.addEventListener("change", () => updateQuantity(quantity.value));
 
             row.append(image, itemInfo, quantityLabel, subtotal, remove);
