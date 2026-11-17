@@ -70,8 +70,11 @@ $pdo = new PDO(
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
 );
 $email = 'api-check-' . bin2hex(random_bytes(8)) . '@example.test';
+$secondEmail = 'api-check-owner-' . bin2hex(random_bytes(8)) . '@example.test';
 $cookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
+$secondCookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
 $password = 'BlueRiver!9072';
+$productId = null;
 
 try {
     $health = apiRequest('GET', '/health');
@@ -171,6 +174,71 @@ try {
     apiExpect(($profileAfterRejectedWrites['json']['data']['full_name'] ?? '') === 'Integration Customer Updated',
         'Rejected CSRF attempts must not mutate customer profile data.');
 
+    // Exercise cart writes through the real router, middleware, controller,
+    // service, and test database using an isolated catalogue fixture.
+    $categoryId = (int) $pdo->query('SELECT id FROM categories ORDER BY id LIMIT 1')->fetchColumn();
+    apiExpect($categoryId > 0, 'Cart integration checks require the seeded catalogue category.');
+    $insertProduct = $pdo->prepare('INSERT INTO products (category_id, name, description, price, is_available, status) VALUES (?, ?, ?, ?, 1, ?)');
+    $insertProduct->execute([$categoryId, 'Cart API check ' . bin2hex(random_bytes(4)), 'Temporary cart integration fixture.', 10.00, 'active']);
+    $productId = (int) $pdo->lastInsertId();
+
+    $cartAdd = apiRequest('POST', '/cart/items', ['product_id' => $productId, 'quantity' => 1], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect($cartAdd['status'] === 201 && ($cartAdd['json']['success'] ?? false), 'A valid positive whole-number cart quantity must succeed.');
+    $cartItemId = (int) ($cartAdd['json']['data']['id'] ?? 0);
+    apiExpect($cartItemId > 0, 'A successful cart add must return its cart item identifier.');
+
+    $maxItemQuantity = (int) $pdo->query('SELECT max_item_quantity FROM business_settings WHERE id = 1')->fetchColumn();
+    apiExpect($maxItemQuantity > 0, 'Business settings must contain a positive per-item cart limit.');
+    $overLimitUpdate = apiRequest('PUT', '/cart/items/' . $cartItemId, ['quantity' => $maxItemQuantity + 1], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($overLimitUpdate['json']['success'] ?? true) === false, 'The configured per-item cart limit must be enforced server-side.');
+
+    foreach ([0, -1, 1.5, 'abc', '', '1e3', '999999999999999999999999999999'] as $invalidQuantity) {
+        $invalidUpdate = apiRequest('PUT', '/cart/items/' . $cartItemId, ['quantity' => $invalidQuantity], [
+            'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+            'Origin: https://foodbyks.netlify.app',
+        ], $cookieFile);
+        apiExpect($invalidUpdate['status'] === 422, 'Malformed cart quantities must be rejected before service integer conversion.');
+        $cartAfterFailure = apiRequest('GET', '/cart', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+        apiExpect(($cartAfterFailure['json']['data']['items'][0]['quantity'] ?? null) === 1,
+            'A rejected cart quantity update must leave the existing row unchanged.');
+    }
+
+    $secondRegistration = apiRequest('POST', '/auth/register', [
+        'name' => 'Other Cart Customer',
+        'email' => $secondEmail,
+        'password' => $password,
+        'phone' => '+27820000001',
+        'terms_accepted' => true,
+        'privacy_notice_acknowledged' => true,
+    ], ['Origin: https://foodbyks.netlify.app'], $secondCookieFile);
+    apiExpect($secondRegistration['status'] === 201, 'A second customer fixture must register for cart ownership checks.');
+    $pdo->prepare('UPDATE users SET email_verified_at = NOW() WHERE email = ?')->execute([$secondEmail]);
+    $secondLogin = apiRequest('POST', '/auth/login', ['email' => $secondEmail, 'password' => $password], [
+        'Origin: https://foodbyks.netlify.app',
+    ], $secondCookieFile);
+    apiExpect($secondLogin['status'] === 200 && ($secondLogin['json']['success'] ?? false), 'The second customer fixture must sign in.');
+    $secondMe = apiRequest('GET', '/auth/me', null, ['Origin: https://foodbyks.netlify.app'], $secondCookieFile);
+    $crossCustomerUpdate = apiRequest('PUT', '/cart/items/' . $cartItemId, ['quantity' => 2], [
+        'X-CSRF-Token: ' . ($secondMe['headers']['x-csrf-token'] ?? ''),
+        'Origin: https://foodbyks.netlify.app',
+    ], $secondCookieFile);
+    apiExpect(($crossCustomerUpdate['json']['success'] ?? true) === false,
+        'A customer must not modify a cart item owned by another customer.');
+
+    $cartDelete = apiRequest('DELETE', '/cart/items/' . $cartItemId, null, [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect($cartDelete['status'] === 200 && ($cartDelete['json']['success'] ?? false), 'Explicit cart deletion must succeed.');
+    $emptyCart = apiRequest('GET', '/cart', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    apiExpect(($emptyCart['json']['data']['items'] ?? null) === [], 'Explicit cart deletion must remove the cart item.');
+
     $allowedCors = apiRequest('OPTIONS', '/products', null, [
         'Origin: https://foodbyks.netlify.app',
         'Access-Control-Request-Method: GET',
@@ -192,8 +260,21 @@ try {
     if ($existingUserId !== false) {
         $pdo->prepare('DELETE FROM customer_email_verifications WHERE user_id = ?')->execute([$existingUserId]);
         $pdo->prepare('DELETE FROM policy_acceptances WHERE user_id = ?')->execute([$existingUserId]);
+        $pdo->prepare('DELETE FROM cart_items WHERE customer_id = ?')->execute([$existingUserId]);
         $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$existingUserId]);
     }
 
+    $secondUserId = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $secondUserId->execute([$secondEmail]);
+    $existingSecondUserId = $secondUserId->fetchColumn();
+    if ($existingSecondUserId !== false) {
+        $pdo->prepare('DELETE FROM customer_email_verifications WHERE user_id = ?')->execute([$existingSecondUserId]);
+        $pdo->prepare('DELETE FROM policy_acceptances WHERE user_id = ?')->execute([$existingSecondUserId]);
+        $pdo->prepare('DELETE FROM cart_items WHERE customer_id = ?')->execute([$existingSecondUserId]);
+        $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$existingSecondUserId]);
+    }
+    if ($productId !== null) $pdo->prepare('DELETE FROM products WHERE id = ?')->execute([$productId]);
+
     if (is_file($cookieFile)) unlink($cookieFile);
+    if (is_file($secondCookieFile)) unlink($secondCookieFile);
 }

@@ -267,10 +267,19 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
 
-            const updateQuantity = async (newQuantity) => {
-                if (!Number.isInteger(newQuantity) || newQuantity < 1 || (newQuantity > currentQuantity && newQuantity > rowMaximum)) {
+            const updateQuantity = async (rawQuantity) => {
+                const quantityText = String(rawQuantity);
+                if (!/^\d+$/.test(quantityText)) {
                     quantity.value = String(item.quantity);
-                    if (newQuantity > rowMaximum) showMessage(`This change exceeds your cart limit of ${maxCartItems} items or the per-item limit of ${maxItemQuantity}.`, true);
+                    showMessage("Enter a whole-number quantity of at least 1.", true);
+                    return;
+                }
+                const newQuantity = Number(quantityText);
+                if (!Number.isSafeInteger(newQuantity) || newQuantity < 1 || (newQuantity > currentQuantity && newQuantity > rowMaximum)) {
+                    quantity.value = String(item.quantity);
+                    showMessage(newQuantity > rowMaximum
+                        ? `This change exceeds your cart limit of ${maxCartItems} items or the per-item limit of ${maxItemQuantity}.`
+                        : "Enter a whole-number quantity of at least 1.", true);
                     return;
                 }
                 decrease.disabled = true;
@@ -282,6 +291,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     showMessage("Cart quantity updated.", false, true);
                 }
                 else {
+                    if (result.status === 0) {
+                        await loadCart();
+                        showMessage("We couldn't confirm that update. Your cart has been refreshed from the server.", true);
+                        return;
+                    }
                     quantity.disabled = false;
                     decrease.disabled = newQuantity <= 1;
                     increase.disabled = newQuantity >= rowMaximum;
@@ -295,7 +309,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 updateQuantity(current > 99 ? 99 : current - 1);
             });
             increase.addEventListener("click", () => updateQuantity(Number(quantity.value) + 1));
-            quantity.addEventListener("change", () => updateQuantity(Number(quantity.value)));
+            quantity.addEventListener("change", () => updateQuantity(quantity.value));
 
             row.append(image, itemInfo, quantityLabel, subtotal, remove);
             cartItems.appendChild(row);

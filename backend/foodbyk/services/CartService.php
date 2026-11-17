@@ -2,9 +2,10 @@
 
 class CartService {
 
-    public function addItem(int $customerId, int $productId, int $quantity = 1, array $optionIds = []): array {
+    public function addItem(int $customerId, int $productId, mixed $quantity = 1, array $optionIds = []): array {
         if ($customerId <= 0 || $productId <= 0) return $this->failure('Invalid request.');
-        if ($quantity <= 0) return $this->failure('Quantity must be at least 1.');
+        $quantity = InputValidator::positiveInteger($quantity);
+        if ($quantity === null) return $this->failure('Quantity must be a whole number of at least 1.');
         $settings = BusinessSettings::current();
         if ($quantity > $settings->max_item_quantity) return $this->failure('You can add up to ' . $settings->max_item_quantity . ' of the same menu item.');
 
@@ -53,8 +54,11 @@ class CartService {
         });
     }
 
-    public function updateQuantity(int $customerId, int $cartItemId, int $quantity): array {
+    public function updateQuantity(int $customerId, int $cartItemId, mixed $quantity): array {
+        if ($customerId <= 0) return $this->failure('Invalid customer account.');
         if ($cartItemId <= 0) return $this->failure('Cart item not found.');
+        $quantity = InputValidator::positiveInteger($quantity);
+        if ($quantity === null) return $this->failure('Quantity must be a whole number of at least 1.');
         return $this->withCustomerLock($customerId, function (PDO $db) use ($customerId, $cartItemId, $quantity): array {
             $settings = BusinessSettings::current();
             $lock = $db->prepare('SELECT id, product_id FROM cart_items WHERE id = ? AND customer_id = ? FOR UPDATE');
@@ -62,7 +66,6 @@ class CartService {
             $lockedRow = $lock->fetch();
             if (!$lockedRow) return $this->failure('Cart item not found.');
             $item = CartItem::findById($cartItemId);
-            if ($quantity <= 0) return $item->delete() ? $this->success(null) : $this->failure('Unable to remove item.');
             if ($quantity > $item->quantity && $quantity > $settings->max_item_quantity) {
                 return $this->failure('You can add up to ' . $settings->max_item_quantity . ' of the same menu item.');
             }

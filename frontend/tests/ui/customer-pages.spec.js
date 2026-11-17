@@ -66,6 +66,36 @@ test('cart loading placeholders do not remain beside real cart items', async ({ 
   await expect(page.getByText('Fries')).toBeVisible();
 });
 
+test('cart rejects decimal quantities and restores the last valid value after a rejected update', async ({ page }) => {
+  await mockAnonymousSession(page);
+  await page.route(/\/cart$/, (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ success: true, data: { items: [
+      { id: 11, product_id: 1, quantity: 2, unit_price: 49.99 },
+    ], limits: { max_item_quantity: 6, max_cart_items: 10 } } }),
+  }));
+  await page.route(/\/products$/, (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ success: true, data: [{ id: 1, name: 'Classic Burger', price: 49.99 }] }),
+  }));
+  await page.route(/\/cart\/items\/11$/, (route) => route.fulfill({
+    status: 422,
+    contentType: 'application/json',
+    body: JSON.stringify({ success: false, data: null, error: 'Quantity must be a whole number of at least 1.' }),
+  }));
+
+  await page.goto('/pages/customer/cart.html');
+  const quantity = page.locator('#cart-quantity-11');
+  await expect(quantity).toHaveValue('2');
+  await quantity.fill('1.5');
+  await expect(quantity).toHaveValue('2');
+  await expect(page.locator('#cartMessage')).toContainText('whole-number quantity');
+
+  await quantity.fill('3');
+  await expect(quantity).toHaveValue('2');
+  await expect(page.locator('#cartMessage')).toContainText('whole number of at least 1');
+});
+
 test('order tracking uses delivery-specific progress labels', async ({ page }) => {
   await mockAnonymousSession(page);
   await page.route(/\/orders\?limit=1$/, (route) => route.fulfill({

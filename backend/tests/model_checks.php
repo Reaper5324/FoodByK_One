@@ -8,11 +8,25 @@ require_once __DIR__ . '/../foodbyk/models/Promotion.php';
 require_once __DIR__ . '/../foodbyk/services/AuthService.php';
 require_once __DIR__ . '/../foodbyk/services/ProductService.php';
 require_once __DIR__ . '/../foodbyk/services/ProductOptionService.php';
+require_once __DIR__ . '/../foodbyk/services/InputValidator.php';
+require_once __DIR__ . '/../foodbyk/services/CartService.php';
 
 function expect(bool $condition, string $message): void {
     if (!$condition) {
         throw new RuntimeException($message);
     }
+}
+
+foreach ([1 => 1, 6 => 6, '1' => 1, '6' => 6] as $input => $expected) {
+    expect(InputValidator::positiveInteger($input) === $expected, 'Positive integer validator rejected a valid whole-number quantity.');
+}
+foreach ([0, -1, 1.5, 1.0, '1.5', '1e3', 'abc', '', ' ', '+1', '0006', '999999999999999999999999999999'] as $input) {
+    expect(InputValidator::positiveInteger($input) === null, 'Positive integer validator accepted malformed or out-of-range input.');
+}
+$cartService = new CartService();
+foreach ([0, -1, 1.5, 1.0, '1.5', 'abc', '', '1e3', '999999999999999999999999999999'] as $invalidQuantity) {
+    expect(!$cartService->addItem(1, 1, $invalidQuantity)['success'], 'Cart additions must reject malformed quantities before touching persistence.');
+    expect(!$cartService->updateQuantity(1, 1, $invalidQuantity)['success'], 'Cart updates must reject malformed quantities before touching persistence.');
 }
 
 $order = new Order(subtotal: 100.0, locked_discount: 15.0, delivery_fee: 10.0);
