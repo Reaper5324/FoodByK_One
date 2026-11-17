@@ -526,6 +526,17 @@ const initializeAdminLive = async () => {
         setText("reportOrdersCopy", String(Number(data.orders || 0)));
         setText("reportAverage", "R" + Number(data.average_paid_order || 0).toFixed(2));
         setText("reportPaidOrders", String(Number(data.paid_orders || 0)));
+        const totalOrders = Math.max(0, Number(data.orders || 0));
+        const paidOrders = Math.max(0, Number(data.paid_orders || 0));
+        const conversionRate = totalOrders > 0 ? Math.min(100, Math.round(paidOrders / totalOrders * 100)) : 0;
+        setText("reportUnpaidOrders", String(Math.max(0, totalOrders - paidOrders)));
+        setText("reportConversionRate", `${conversionRate}%`);
+        setText("reportConversionRateCopy", `${conversionRate}%`);
+        const conversionRing = document.getElementById("reportConversionRing");
+        if (conversionRing) {
+            conversionRing.style.setProperty("--conversion-rate", `${conversionRate}%`);
+            conversionRing.setAttribute("aria-label", `Payment completion: ${conversionRate} percent, ${paidOrders} successfully paid orders out of ${totalOrders}.`);
+        }
         setText("reportPeriodRange", `${data.from || ""} – ${data.to || ""}`);
 
         const sales = data.sales_buckets || data.daily_sales || [];
@@ -569,30 +580,76 @@ const initializeAdminLive = async () => {
         const productList = document.getElementById("topProductsList");
         if (productList) {
             productList.replaceChildren();
-            (data.top_products || []).forEach((product, index) => {
-                const item = document.createElement("p");
-                item.textContent = `${index + 1}. ${product.name} — ${product.units} units sold · R${Number(product.sales || 0).toFixed(2)} item sales`;
-                productList.appendChild(item);
+            const topProducts = data.top_products || [];
+            const maximumUnits = Math.max(1, ...topProducts.map((product) => Number(product.units || 0)));
+            topProducts.forEach((product, index) => {
+                const item = document.createElement("article"); item.className = "report-ranking-item";
+                const rank = document.createElement("span"); rank.className = "report-rank"; rank.textContent = String(index + 1); rank.setAttribute("aria-label", `Rank ${index + 1}`);
+                const media = document.createElement("div"); media.className = "report-product-media";
+                const fallbackIcon = document.createElement("i"); fallbackIcon.className = "fa-solid fa-burger"; fallbackIcon.setAttribute("aria-hidden", "true"); media.appendChild(fallbackIcon);
+                const imageUrl = String(product.image_url || "").trim();
+                if (imageUrl) {
+                    try {
+                        const safeImageUrl = new URL(imageUrl, window.location.href);
+                        if (["http:", "https:"].includes(safeImageUrl.protocol)) {
+                            const image = document.createElement("img"); image.src = safeImageUrl.href; image.alt = ""; image.loading = "lazy"; image.decoding = "async"; image.referrerPolicy = "no-referrer";
+                            image.addEventListener("error", () => { image.remove(); media.appendChild(fallbackIcon); }, { once: true });
+                            media.replaceChildren(image);
+                        }
+                    } catch (_) {}
+                }
+                const copy = document.createElement("div"); copy.className = "report-item-copy";
+                const name = document.createElement("strong"); name.textContent = String(product.name || "Menu item");
+                const units = Number(product.units || 0); const sales = Number(product.sales || 0);
+                const details = document.createElement("span"); details.textContent = `${units.toLocaleString()} ${units === 1 ? "unit" : "units"} sold`;
+                copy.append(name, details);
+                const value = document.createElement("div"); value.className = "report-item-value";
+                const valueAmount = document.createElement("strong"); valueAmount.textContent = `R${sales.toFixed(2)}`;
+                const valueLabel = document.createElement("span"); valueLabel.textContent = "item sales";
+                value.append(valueAmount, valueLabel);
+                const track = document.createElement("div"); track.className = "report-rank-track"; track.setAttribute("role", "meter"); track.setAttribute("aria-label", `${units} units sold`); track.setAttribute("aria-valuemin", "0"); track.setAttribute("aria-valuemax", String(maximumUnits)); track.setAttribute("aria-valuenow", String(units));
+                const fill = document.createElement("div"); fill.className = "report-rank-fill"; fill.style.width = `${Math.max(0, Math.min(100, units / maximumUnits * 100))}%`; track.appendChild(fill);
+                item.append(rank, media, copy, value, track); productList.appendChild(item);
             });
-            if (!(data.top_products || []).length) {
-                const empty = document.createElement("p"); empty.className = "sf-empty"; empty.textContent = "No paid orders in this period."; productList.appendChild(empty);
+            if (!topProducts.length) {
+                const empty = document.createElement("div"); empty.className = "report-section-empty";
+                const icon = document.createElement("i"); icon.className = "fa-solid fa-burger"; icon.setAttribute("aria-hidden", "true");
+                const text = document.createElement("span"); text.textContent = "No paid menu item sales in this period.";
+                empty.append(icon, text); productList.appendChild(empty);
             }
         }
+
         const promotionList = document.getElementById("topPromotionsList");
         if (promotionList) {
             promotionList.replaceChildren();
-            (data.top_promotions || []).forEach((promotion, index) => {
-                const item = document.createElement("p");
-                const uses = Number(promotion.uses || 0);
-                const saved = Number(promotion.discounts_given || 0);
-                item.textContent = `${index + 1}. ${promotion.code} — ${uses} paid uses · R${saved.toFixed(2)} discounts · R${Number(promotion.sales || 0).toFixed(2)} charged`;
-                promotionList.appendChild(item);
+            const promotions = data.top_promotions || [];
+            const maximumPromotionSales = Math.max(1, ...promotions.map((promotion) => Number(promotion.sales || 0)));
+            const promotionTypes = { percentage: "Percentage off", fixed_amount: "Fixed amount off", buy_one_get_one: "Buy one, get one", free_delivery: "Free delivery" };
+            promotions.forEach((promotion) => {
+                const item = document.createElement("article"); item.className = "promotion-report-item";
+                const head = document.createElement("div"); head.className = "promotion-report-head";
+                const icon = document.createElement("span"); icon.className = "promotion-report-icon";
+                const glyph = document.createElement("i"); glyph.className = "fa-solid fa-ticket"; glyph.setAttribute("aria-hidden", "true"); icon.appendChild(glyph);
+                const name = document.createElement("div"); name.className = "promotion-report-name";
+                const code = document.createElement("strong"); code.textContent = String(promotion.code || "Promotion");
+                const type = document.createElement("span"); type.textContent = promotionTypes[promotion.discount_type] || "Promotion offer";
+                name.append(code, type);
+                const badge = document.createElement("span"); badge.className = "promotion-report-badge"; badge.textContent = "PAID ORDERS";
+                head.append(icon, name, badge);
+                const metrics = document.createElement("div"); metrics.className = "promotion-report-metrics";
+                [["Paid uses", Number(promotion.uses || 0).toLocaleString()], ["Customer savings", `R${Number(promotion.discounts_given || 0).toFixed(2)}`], ["Charged sales", `R${Number(promotion.sales || 0).toFixed(2)}`]].forEach(([labelText, valueText]) => {
+                    const metric = document.createElement("div"); const label = document.createElement("span"); label.textContent = labelText; const value = document.createElement("strong"); value.textContent = valueText; metric.append(label, value); metrics.appendChild(metric);
+                });
+                const sales = Number(promotion.sales || 0);
+                const track = document.createElement("div"); track.className = "promotion-report-track"; track.setAttribute("role", "meter"); track.setAttribute("aria-label", `Charged sales R${sales.toFixed(2)}`); track.setAttribute("aria-valuemin", "0"); track.setAttribute("aria-valuemax", String(maximumPromotionSales)); track.setAttribute("aria-valuenow", String(sales));
+                const fill = document.createElement("div"); fill.className = "promotion-report-fill"; fill.style.width = `${Math.max(0, Math.min(100, sales / maximumPromotionSales * 100))}%`; track.appendChild(fill);
+                item.append(head, metrics, track); promotionList.appendChild(item);
             });
-            if (!(data.top_promotions || []).length) {
-                const empty = document.createElement("p");
-                empty.className = "sf-empty";
-                empty.textContent = "No paid promotion uses in this period.";
-                promotionList.appendChild(empty);
+            if (!promotions.length) {
+                const empty = document.createElement("div"); empty.className = "report-section-empty";
+                const icon = document.createElement("i"); icon.className = "fa-solid fa-ticket"; icon.setAttribute("aria-hidden", "true");
+                const text = document.createElement("span"); text.textContent = "No paid promotion uses in this period.";
+                empty.append(icon, text); promotionList.appendChild(empty);
             }
         }
         if (typeof window.renderAdditionalReports === "function") window.renderAdditionalReports(data);

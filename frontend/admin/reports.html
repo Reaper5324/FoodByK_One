@@ -29,6 +29,64 @@
         .live-grid > * { min-width: 0; }
         @media (max-width: 900px) { .live-grid { grid-template-columns: 1fr; } }
 
+        .report-insight-card { padding: 24px; border-radius: 16px; }
+        .report-conversion-layout { display: grid; grid-template-columns: 148px minmax(0, 1fr); align-items: center; gap: 28px; }
+        .conversion-ring { --conversion-rate: 0%; width: 142px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 50%; background: conic-gradient(var(--fbk-red, #d71920) var(--conversion-rate), #f1e9df 0); position: relative; }
+        .conversion-ring::before { content: ""; position: absolute; inset: 10px; border-radius: inherit; background: #fff; }
+        .conversion-ring-value { position: relative; display: grid; text-align: center; font-size: 1.75rem; font-weight: 700; line-height: 1.05; color: var(--fbk-ink, #211d19); font-variant-numeric: tabular-nums; }
+        .conversion-ring-value small { margin-top: 6px; font-size: .65rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #766e65; }
+        .conversion-summary { min-width: 0; }
+        .conversion-summary > p { margin: 0 0 14px; color: #665f57; line-height: 1.55; }
+        .conversion-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .conversion-metric { padding: 13px 15px; border: 1px solid #eee5dc; border-radius: 12px; background: #fdfaf7; }
+        .conversion-metric span { display: block; color: #766e65; font-size: .72rem; }
+        .conversion-metric strong { display: block; margin-top: 3px; color: #211d19; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+        .report-ranking-item { display: grid; grid-template-columns: 30px 54px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; padding: 12px; border: 1px solid #eee7df; border-radius: 13px; background: #fffdfa; }
+        .report-rank { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; color: #a90f15; background: #fff0ec; font-size: .76rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .report-product-media { display: grid; width: 54px; height: 54px; place-items: center; overflow: hidden; border-radius: 11px; color: #b3131a; background: #fff0ec; }
+        .report-product-media i { font-size: 1.25rem; }
+        .report-product-media img { width: 100%; height: 100%; object-fit: cover; }
+        .report-item-copy { min-width: 0; }
+        .report-item-copy strong { display: block; overflow: hidden; color: #211d19; font-size: .88rem; text-overflow: ellipsis; white-space: nowrap; }
+        .report-item-copy span { display: block; margin-top: 4px; color: #766e65; font-size: .75rem; }
+        .report-item-value { text-align: right; white-space: nowrap; }
+        .report-item-value strong { display: block; color: #211d19; font-size: .84rem; font-variant-numeric: tabular-nums; }
+        .report-item-value span { color: #766e65; font-size: .7rem; }
+        .report-rank-track { grid-column: 2 / -1; height: 6px; overflow: hidden; border-radius: 99px; background: #f1e9df; }
+        .report-rank-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #d71920, #f5a623); }
+        .promotion-report-item { padding: 14px; border: 1px solid #eee7df; border-radius: 13px; background: #fffdfa; }
+        .promotion-report-head { display: flex; align-items: center; gap: 11px; min-width: 0; }
+        .promotion-report-icon { display: grid; flex: none; width: 42px; height: 42px; place-items: center; border-radius: 12px; color: #a90f15; background: #fff0ec; }
+        .promotion-report-name { min-width: 0; flex: 1; }
+        .promotion-report-name strong { display: block; overflow: hidden; color: #211d19; text-overflow: ellipsis; white-space: nowrap; }
+        .promotion-report-name span { display: block; margin-top: 3px; color: #766e65; font-size: .72rem; }
+        .promotion-report-badge { flex: none; padding: 5px 8px; border-radius: 99px; color: #80530b; background: #fff4d5; font-size: .66rem; font-weight: 700; }
+        .promotion-report-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+        .promotion-report-metrics div { min-width: 0; }
+        .promotion-report-metrics span { display: block; color: #766e65; font-size: .65rem; }
+        .promotion-report-metrics strong { display: block; overflow: hidden; margin-top: 3px; color: #211d19; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .promotion-report-track { height: 5px; margin-top: 12px; overflow: hidden; border-radius: 99px; background: #f1e9df; }
+        .promotion-report-fill { height: 100%; border-radius: inherit; background: #d99b1d; }
+        .customer-insight-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .customer-insight-tile { min-width: 0; padding: 16px; border: 1px solid #eee7df; border-radius: 14px; background: #fffdfa; }
+        .customer-insight-tile .customer-insight-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 11px; color: #a90f15; background: #fff0ec; }
+        .customer-insight-tile strong { display: block; margin-top: 13px; color: #211d19; font-size: 1.45rem; line-height: 1; font-variant-numeric: tabular-nums; }
+        .customer-insight-tile span { display: block; margin-top: 6px; color: #766e65; font-size: .72rem; }
+        .customer-analysis-note { margin: 14px 0 0; color: #766e65; font-size: .76rem; line-height: 1.5; }
+        .report-section-empty { display: flex; align-items: center; gap: 12px; min-height: 70px; padding: 13px; border: 1px dashed #e5d9cc; border-radius: 12px; color: #766e65; background: #fdfaf7; font-size: .82rem; }
+        .report-section-empty i { color: #b7a99a; font-size: 1.1rem; }
+        @media (max-width: 700px) {
+            .report-conversion-layout { grid-template-columns: 1fr; justify-items: center; gap: 18px; }
+            .conversion-summary { width: 100%; }
+            .report-ranking-item { grid-template-columns: 26px 46px minmax(0, 1fr); gap: 9px; }
+            .report-product-media { width: 46px; height: 46px; }
+            .report-item-value { grid-column: 3; grid-row: 2; text-align: left; }
+            .report-rank-track { grid-column: 2 / -1; }
+            .customer-insight-grid { grid-template-columns: 1fr; }
+        }
+        @media (min-width: 701px) and (max-width: 1200px) { .customer-insight-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 420px) { .conversion-metrics, .promotion-report-metrics { grid-template-columns: 1fr; } .report-insight-card { padding: 18px; } }
+
         .cust-legend { display: flex; gap: 18px; font-size: 13px; margin-bottom: 16px; flex-wrap: wrap; }
         .cust-legend span { display: inline-flex; align-items: center; gap: 6px; }
         .cust-legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
@@ -300,9 +358,22 @@
 
             </div>
 
-            <div class="content-card report-section">
-                <div class="report-section-header"><div><p class="card-label">PAYMENT CONVERSION</p><h3>Order payment completion</h3></div></div>
-                <p><strong id="reportPaidOrders">—</strong> successfully paid orders out of <strong id="reportOrdersCopy">—</strong> placed in this period.</p>
+            <div class="content-card report-section report-insight-card report-conversion-card">
+                <div class="report-section-header"><div><p class="card-label">PAYMENT CONVERSION</p><h3>Order payment completion</h3><p class="cust-note">Successful charges compared with all orders placed in this period.</p></div></div>
+                <div class="report-conversion-layout">
+                    <div class="conversion-ring" id="reportConversionRing" role="img" aria-label="Payment conversion rate">
+                        <div class="conversion-ring-value"><span id="reportConversionRate">—%</span><small>paid</small></div>
+                    </div>
+                    <div class="conversion-summary">
+                        <p>See how many placed orders reached a successful payment.</p>
+                        <div class="conversion-metrics">
+                            <div class="conversion-metric"><span>Successfully paid</span><strong id="reportPaidOrders">—</strong></div>
+                            <div class="conversion-metric"><span>Orders placed</span><strong id="reportOrdersCopy">—</strong></div>
+                            <div class="conversion-metric"><span>Not successfully paid</span><strong id="reportUnpaidOrders">—</strong></div>
+                            <div class="conversion-metric"><span>Payment completion</span><strong id="reportConversionRateCopy">—%</strong></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <p class="cust-note" id="reportPeriodRange" aria-live="polite"></p>
@@ -393,22 +464,23 @@
 
             <div class="live-grid">
 
-                <div class="content-card report-section">
+                <div class="content-card report-section report-insight-card">
 
                     <div class="report-section-header">
                         <div>
                             <p class="card-label">MENU PERFORMANCE</p>
-                            <h3>Most ordered menu items</h3>
+                            <h3>Best-selling menu items</h3>
+                            <p class="cust-note">Ranked by units in successfully paid orders. Current menu photos appear when available.</p>
                         </div>
                     </div>
 
-                    <div id="topProductsList"><p>Loading...</p></div>
+                    <div id="topProductsList" aria-live="polite"><div class="report-section-empty"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i><span>Loading menu performance…</span></div></div>
 
                 </div>
 
-                <div class="content-card report-section">
-                    <div class="report-section-header"><div><p class="card-label">PROMOTION PERFORMANCE</p><h3>Promotion return</h3></div></div>
-                    <div id="topPromotionsList" aria-live="polite"><p>Loading paid promotion results…</p></div>
+                <div class="content-card report-section report-insight-card">
+                <div class="report-section-header"><div><p class="card-label">PROMOTION PERFORMANCE</p><h3>Paid promotion results</h3><p class="cust-note">Paid uses, customer savings, and charged sales by promotion.</p></div></div>
+                    <div id="topPromotionsList" aria-live="polite"><div class="report-section-empty"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i><span>Loading paid promotion results…</span></div></div>
                 </div>
             </div>
 
@@ -551,7 +623,7 @@
     </div>
 
     <!-- CUSTOMER INSIGHTS -->
-    <div class="content-card report-section">
+    <div class="content-card report-section report-insight-card">
         <div class="report-section-header">
             <div>
                 <p class="card-label">CUSTOMER ANALYSIS</p>
@@ -559,7 +631,7 @@
             </div>
         </div>
 
-        <div id="customerAnalytics"></div>
+        <div id="customerAnalytics" aria-live="polite"><div class="report-section-empty"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i><span>Loading customer insights…</span></div></div>
     </div>
 
 </div>
@@ -664,8 +736,21 @@
             const customerHost = document.getElementById('customerAnalytics');
             if (customerHost) {
                 customerHost.replaceChildren();
-                customerHost.append(make('p', '', `${totalCustomers} unique customers made successfully paid orders during this period.`));
-                customerHost.append(make('p', '', `${newCustomers} new · ${returningCustomers} returning`));
+                const returningShare = totalCustomers ? Math.round(returningCustomers / totalCustomers * 100) : 0;
+                const customerGrid = make('div', 'customer-insight-grid');
+                [
+                    ['fa-users', totalCustomers, 'Paid customers', 'Unique customers with a successful charge'],
+                    ['fa-user-plus', newCustomers, 'New this period', `${newPct}% of paid customers`],
+                    ['fa-repeat', returningCustomers, 'Returning', `${returningShare}% placed an earlier paid order`]
+                ].forEach(([iconClass, value, label, detail]) => {
+                    const tile = make('article', 'customer-insight-tile');
+                    const iconWrap = make('span', 'customer-insight-icon');
+                    const icon = make('i', `fa-solid ${iconClass}`); icon.setAttribute('aria-hidden', 'true'); iconWrap.appendChild(icon);
+                    tile.append(iconWrap, make('strong', '', Number(value).toLocaleString()), make('span', '', label));
+                    const note = make('span', '', detail); tile.appendChild(note);
+                    customerGrid.appendChild(tile);
+                });
+                customerHost.append(customerGrid, make('p', 'customer-analysis-note', 'Customer counts use successfully paid orders during the selected period. A customer can use both delivery and collection.'));
             }
             const statusLine = document.getElementById('liveReportStatus');
             if (statusLine) { statusLine.textContent = `Orders placed ${data.from} through ${data.to}. Sales count successfully charged orders.`; statusLine.hidden = false; statusLine.classList.remove('is-error'); }
