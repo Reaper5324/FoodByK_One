@@ -1,17 +1,61 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <!-- Must stay first: when the page is opened straight from disk (file://), browsers refuse
+       service workers and pwa.js logs an error. This skips registration quietly in that case only.
+       On your live https site and on localhost it does nothing. -->
+  <script>
+    (function () {
+      if (location.protocol !== 'file:' || !('serviceWorker' in navigator)) return;
+      try {
+        navigator.serviceWorker.register = function () {
+          console.info('Offline mode skipped on file://. Use http://localhost or the live site to test it.');
+          return new Promise(function () {}); // never settles, so no error and no half-run code
+        };
+      } catch (e) {}
+    })();
+  </script>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Support Tickets | Food by K Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"><link rel="stylesheet" href="../css/dashboard.css">
   <style>
-    /* ===== Support Tickets: matches the Food by K look (cream page, black + red, square edges) ===== */
-    .main-content {
+    /* =====================================================================
+       Support Tickets: Food by K look (cream page, black + red, square edges)
+
+       TYPE SYSTEM (one place to change everything)
+       - Anton    : display only (brand + page headings)
+       - Poppins  : everything else, in just three weights: 400 / 500 / 600
+       - Sizes    : 0.75 / 0.875 / 1 / 1.25 / 2.25 rem  (small, body, base, h-sm, h-lg)
+       - Tracking : ONE value for uppercase text (--ls-caps), none elsewhere
+
+       CASE RULE (one switch)
+       - Interface = CAPS : headings, menu, labels, chips, table headers, badges, buttons
+       - Content   = normal: descriptions, names, emails, subjects, messages, dates
+       - To go sentence-case everywhere instead, set  --tt: none;  and  --ls-caps: 0;
+       ===================================================================== */
+    :root {
+      --st-font-display: "Anton", "Impact", "Arial Narrow", sans-serif;
+      --st-font: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+      --fs-xs: 0.75rem;
+      --fs-sm: 0.875rem;
+      --fs-base: 1rem;
+      --fs-lg: 1.25rem;
+      --fs-xl: clamp(1.9rem, 3.6vw, 2.5rem);
+
+      --fw-regular: 400;
+      --fw-medium: 500;
+      --fw-semibold: 600;
+
+      --tt: uppercase;
+      --ls-caps: 0.08em;
+      --lh-body: 1.6;
+
       --st-red: #d71920;
       --st-red-dark: #b3131a;
-      --st-ink: #111111;
+      --st-ink: #1a1a1a;
       --st-cream: #fdf8f2;
       --st-tile: #faf5ee;
       --st-line: #e3dbd0;
@@ -19,24 +63,56 @@
       --st-gold: #f5b323;
     }
 
+    /* Force one font family across the page, including form controls and the sidebar,
+       which would otherwise fall back to the browser default (the Arial look). */
+    body, button, input, select, textarea,
+    .sidebar, .sidebar *, .topbar, .topbar *, .main-content, .main-content * {
+      font-family: var(--st-font);
+    }
+    .sidebar .brand h1, .main-content .menu-page-header h3 { font-family: var(--st-font-display); }
+    .main-content i.fa-solid, .sidebar i.fa-solid { font-family: "Font Awesome 6 Free"; }
+
+    /* sidebar + top bar: interface text, so caps like the rest of the chrome */
+    .sidebar .brand p,
+    .sidebar .menu-item,
+    .topbar .welcome-text {
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps);
+      text-transform: var(--tt);
+    }
+    .sidebar .menu-item span { text-transform: inherit; letter-spacing: inherit; }
+    .topbar h2 {
+      font-family: var(--st-font-display);
+      font-size: var(--fs-lg);
+      font-weight: 400;
+      letter-spacing: 0.02em;
+      text-transform: var(--tt);
+    }
+    .topbar .profile-info h4, .topbar .profile-info p { text-transform: none; letter-spacing: 0; } /* a person's name is content */
+
+    .main-content { font-size: var(--fs-sm); font-weight: var(--fw-regular); line-height: var(--lh-body); color: var(--st-ink); }
+
     /* ---------- page header ---------- */
     .main-content .menu-page-header { margin-bottom: 1.6rem; }
     .main-content .menu-page-header .card-label {
-      margin: 0 0 0.5rem;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
+      margin: 0 0 0.35rem;
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps);
+      text-transform: var(--tt);
       color: var(--st-red);
     }
     .main-content .menu-page-header h3 {
       margin: 0 0 0.4rem;
-      font-size: clamp(1.7rem, 3.4vw, 2.4rem);
-      font-weight: 700;
-      letter-spacing: -0.02em;
+      font-size: var(--fs-xl);
+      font-weight: 400;            /* Anton has a single weight */
+      line-height: 1.1;
+      letter-spacing: 0.02em;
+      text-transform: var(--tt);
       color: var(--st-ink);
     }
-    .main-content .menu-page-header .menu-description { margin: 0; color: var(--st-muted); font-size: 0.95rem; }
+    .main-content .menu-page-header .menu-description { margin: 0; font-size: var(--fs-base); color: var(--st-muted); }
 
     /* ---------- main card ---------- */
     .main-content .support-admin-layout {
@@ -57,25 +133,18 @@
       justify-content: space-between;
       gap: 1rem;
       flex-wrap: wrap;
-      padding: 1.3rem 1.6rem;
+      padding: 1.25rem 1.5rem;
       background: var(--st-tile);
       border-bottom: 1px solid var(--st-line);
     }
 
-    .main-content .support-admin-filter {
-      display: flex;
-      flex-direction: column;
-      gap: 0.7rem;
-      width: auto;
-      max-width: 100%;
-      margin: 0;
-    }
+    .main-content .support-admin-filter { display: flex; flex-direction: column; gap: 0.6rem; width: auto; max-width: 100%; margin: 0; }
 
     .support-admin-filter-label {
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps);
+      text-transform: var(--tt);
       color: var(--st-muted);
     }
 
@@ -84,80 +153,69 @@
     .st-chip {
       display: inline-flex;
       align-items: center;
-      gap: 0.55rem;
+      gap: 0.5rem;
       height: 40px;
-      padding: 0 1.15rem;
-      font: inherit;
-      font-size: 0.82rem;
-      font-weight: 600;
+      padding: 0 1.1rem;
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps);
+      text-transform: var(--tt);
+      line-height: 1;
       color: var(--st-ink);
       background: #fff;
       border: 1.5px solid var(--st-line);
       border-radius: 999px;
       cursor: pointer;
-      transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
-    .st-chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #b9b0a4; transition: background 0.2s; }
+    .st-chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #b9b0a4; }
     .st-chip[data-value="open"]::before        { background: var(--st-red); }
     .st-chip[data-value="in_progress"]::before { background: var(--st-gold); }
     .st-chip[data-value="resolved"]::before    { background: #2ea05a; }
     .st-chip[data-value="closed"]::before      { background: #8d867d; }
 
-    .st-chip:hover { border-color: var(--st-ink); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(20, 15, 10, 0.08); }
+    .st-chip:hover { border-color: var(--st-ink); }
     .st-chip:focus-visible { outline: 2px solid var(--st-red); outline-offset: 3px; }
-    .st-chip.is-active {
-      color: #fff;
-      background: var(--st-ink);
-      border-color: var(--st-ink);
-      box-shadow: 0 4px 12px rgba(20, 15, 10, 0.18);
-    }
-    .st-chip.is-active:hover { transform: none; }
+    .st-chip.is-active { color: #fff; background: var(--st-ink); border-color: var(--st-ink); }
 
-    /* the real dropdown stays in the page (so your script keeps working) but is hidden */
     .st-sr-only {
-      position: absolute !important;
-      width: 1px;
-      height: 1px;
-      margin: -1px;
-      padding: 0;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border: 0;
+      position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
     }
 
     .support-admin-count {
       display: inline-flex;
-      align-items: center;
+      align-items: baseline;
       gap: 0.5rem;
-      padding: 0.55rem 0.95rem;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
+      padding: 0.6rem 1rem;
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps);
+      text-transform: var(--tt);
       color: #fff;
       background: var(--st-ink);
     }
-    .support-admin-count b { color: var(--st-gold); font-size: 0.9rem; letter-spacing: 0; }
+    .support-admin-count b { font-size: var(--fs-base); font-weight: var(--fw-semibold); letter-spacing: 0; color: var(--st-gold); }
 
     /* ---------- table ---------- */
     .main-content .support-admin-table-wrap { overflow-x: auto; padding: 0; }
 
     .main-content .support-admin-table-wrap table {
       width: 100%;
-      min-width: 820px;
+      min-width: 900px;
       margin: 0;
       border-collapse: collapse;
+      table-layout: auto;
       background: #fff;
     }
 
     .main-content .support-admin-table-wrap thead th {
-      padding: 0.95rem 1.1rem;
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.18em;
+      padding: 0.9rem 1rem;
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps);
       text-align: left;
-      text-transform: uppercase;
+      text-transform: var(--tt);
       white-space: nowrap;
       color: var(--st-muted);
       background: #fff;
@@ -165,8 +223,10 @@
     }
 
     .main-content .support-admin-table-wrap tbody td {
-      padding: 1rem 1.1rem;
-      font-size: 0.9rem;
+      padding: 1rem;
+      font-size: var(--fs-sm);
+      font-weight: var(--fw-regular);
+      line-height: 1.4;
       color: var(--st-ink);
       vertical-align: middle;
       border-bottom: 1px solid var(--st-line);
@@ -176,33 +236,42 @@
     .main-content .support-admin-table-wrap tbody tr:hover { background: var(--st-tile); }
     .main-content .support-admin-table-wrap tbody tr:last-child td { border-bottom: 0; }
 
-    /* first column (ID) + subject stand out a little */
-    .main-content .support-admin-table-wrap tbody td:first-child { font-weight: 700; color: var(--st-red); white-space: nowrap; }
-    .main-content .support-admin-table-wrap tbody td:nth-child(5) { font-weight: 600; max-width: 260px; }
-    .main-content .support-admin-table-wrap tbody td:nth-child(3) { color: var(--st-muted); word-break: break-word; }
-    .main-content .support-admin-table-wrap tbody td:nth-child(7) { color: var(--st-muted); white-space: nowrap; font-size: 0.84rem; }
+    /* column roles: ID, customer, email, category, subject, status, updated, action */
+    .main-content .support-admin-table-wrap tbody td:nth-child(1) { font-weight: var(--fw-semibold); color: var(--st-red); white-space: nowrap; }
+    .main-content .support-admin-table-wrap tbody td:nth-child(2) { font-weight: var(--fw-medium); min-width: 140px; }
+    .main-content .support-admin-table-wrap tbody td:nth-child(3) {
+      color: var(--st-muted);
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;      /* no more "gshaun@gm / ail.com" mid-word breaks */
+      white-space: nowrap;
+    }
+    .main-content .support-admin-table-wrap tbody td:nth-child(4) { text-transform: capitalize; } /* content: normal case */
+    .main-content .support-admin-table-wrap tbody td:nth-child(5) { font-weight: var(--fw-medium); max-width: 260px; }
+    .main-content .support-admin-table-wrap tbody td:nth-child(7) { color: var(--st-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-    /* empty / message row ("No open tickets.") */
     .main-content .support-admin-table-wrap tbody td[colspan] {
       padding: 3rem 1rem;
       text-align: center;
-      font-size: 0.95rem;
-      font-weight: 500;
+      font-size: var(--fs-base);
       color: var(--st-muted);
+      white-space: normal;
+      max-width: none;
       background: #fff;
     }
     .main-content .support-admin-table-wrap tbody tr:has(td[colspan]):hover { background: #fff; }
 
-    /* status badges (added by the small script at the bottom) */
+    /* status badges (added by the script at the bottom) */
     .st-badge {
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
       padding: 0.3rem 0.7rem;
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-semibold);
+      line-height: 1.2;
+      text-transform: var(--tt);
+      letter-spacing: var(--ls-caps);
       white-space: nowrap;
       border: 1px solid currentColor;
     }
@@ -212,15 +281,16 @@
     .st-resolved    { color: #14532d; background: #eaf6ef; }
     .st-closed      { color: #4b4640; background: #efebe5; }
 
-    /* action buttons inside the table */
-    .main-content .support-admin-table-wrap button {
-      height: 38px;
-      padding: 0 1.1rem;
-      font: inherit;
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
+    /* buttons: one shared style (sentence case, same size everywhere) */
+    .main-content .support-admin-table-wrap button,
+    .main-content .support-admin-detail button {
+      height: 40px;
+      padding: 0 1.25rem;
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps);
+      text-transform: var(--tt);
+      line-height: 1;
       white-space: nowrap;
       color: #fff;
       background: var(--st-ink);
@@ -235,7 +305,7 @@
     /* ---------- ticket detail panel ---------- */
     .main-content .support-admin-detail {
       margin-top: 1.6rem;
-      padding: 2rem 2.2rem;
+      padding: 2rem;
       background: #fff;
       border: 1px solid var(--st-line);
       border-top: 4px solid var(--st-red);
@@ -244,37 +314,37 @@
       animation: st-in 0.25s ease-out;
     }
     .main-content .support-admin-detail[hidden] { display: none; }
-
     @keyframes st-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
     .main-content .support-admin-detail h3,
     .main-content .support-admin-detail h2 {
       margin: 0 0 0.9rem;
       padding-bottom: 0.9rem;
-      font-size: 1.15rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      font-family: var(--st-font-display);
+      font-size: var(--fs-lg);
+      font-weight: 400;
+      letter-spacing: 0.02em;
+      text-transform: var(--tt);
       color: var(--st-ink);
       border-bottom: 1px solid var(--st-line);
     }
 
     .main-content .support-admin-detail h4 {
-      margin: 1.6rem 0 0.8rem;
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
+      margin: 1.6rem 0 0.7rem;
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps);
+      text-transform: var(--tt);
       color: var(--st-red);
     }
 
-    .main-content .support-admin-detail p { color: var(--st-muted); font-size: 0.92rem; line-height: 1.6; }
-    .main-content .support-admin-detail strong { color: var(--st-ink); }
+    .main-content .support-admin-detail p { margin: 0 0 0.5rem; font-size: var(--fs-sm); line-height: var(--lh-body); color: var(--st-muted); }
+    .main-content .support-admin-detail strong { font-weight: var(--fw-semibold); color: var(--st-ink); }
 
     .main-content .support-admin-message {
       margin: 0;
       padding: 1.1rem 1.3rem;
-      font-size: 0.95rem;
+      font-size: var(--fs-base);
       line-height: 1.7;
       color: var(--st-ink);
       background: var(--st-tile);
@@ -293,18 +363,18 @@
       border-left: 4px solid var(--st-ink);
       border-radius: 0;
     }
-    .main-content .support-admin-replies article strong { font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; }
-    .main-content .support-admin-replies p { margin: 0.4rem 0 0; color: var(--st-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .main-content .support-admin-replies article strong { font-size: var(--fs-xs); letter-spacing: var(--ls-caps); text-transform: var(--tt); }
+    .main-content .support-admin-replies p { margin: 0.4rem 0 0; font-size: var(--fs-sm); color: var(--st-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 
     .main-content .support-admin-detail form { display: grid; gap: 1rem; margin: 1.6rem 0 0; }
 
     .main-content .support-admin-detail label {
       display: grid;
-      gap: 0.5rem;
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
+      gap: 0.45rem;
+      font-size: var(--fs-xs);
+      font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps);
+      text-transform: var(--tt);
       color: var(--st-ink);
     }
 
@@ -312,10 +382,9 @@
     .main-content .support-admin-detail select {
       width: 100%;
       box-sizing: border-box;
-      padding: 0.85rem 1rem;
-      font: inherit;
-      font-size: 0.95rem;
-      font-weight: 400;
+      padding: 0.8rem 1rem;
+      font-size: var(--fs-base);
+      font-weight: var(--fw-regular);
       letter-spacing: normal;
       text-transform: none;
       color: var(--st-ink);
@@ -325,27 +394,12 @@
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .main-content .support-admin-detail textarea { min-height: 130px; resize: vertical; line-height: 1.6; }
+    .main-content .support-admin-detail textarea { min-height: 130px; resize: vertical; line-height: var(--lh-body); }
     .main-content .support-admin-detail select { height: 46px; padding-top: 0; padding-bottom: 0; cursor: pointer; }
     .main-content .support-admin-detail textarea:focus,
     .main-content .support-admin-detail select:focus { border-color: var(--st-ink); box-shadow: 0 0 0 3px rgba(215, 25, 32, 0.18); }
 
-    .main-content .support-admin-detail button {
-      width: max-content;
-      height: 48px;
-      padding: 0 1.8rem;
-      font: inherit;
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: #fff;
-      background: var(--st-red);
-      border: 0;
-      border-radius: 0;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
+    .main-content .support-admin-detail button { width: max-content; height: 46px; padding: 0 1.8rem; background: var(--st-red); }
     .main-content .support-admin-detail button:hover { background: var(--st-red-dark); }
     .main-content .support-admin-detail button:focus-visible { outline: 2px solid var(--st-ink); outline-offset: 3px; }
     .main-content .support-admin-detail button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -353,7 +407,6 @@
     /* ---------- responsive ---------- */
     @media (max-width: 700px) {
       .support-admin-toolbar { padding: 1rem; }
-      .main-content .support-admin-filter { max-width: 100%; }
       .main-content .support-admin-detail { padding: 1.4rem 1.1rem; }
       .main-content .support-admin-detail button { width: 100%; }
     }
@@ -369,8 +422,8 @@
   <div class="admin-page-skeleton" id="adminLoadingState" aria-label="Loading support tickets"><div class="admin-skeleton-app" aria-hidden="true"><aside class="admin-skeleton-sidebar"><span class="admin-skeleton-logo"></span><i></i><i></i><i></i><i></i></aside><main class="admin-skeleton-main"><div class="admin-skeleton-top"><i></i><i></i></div><div class="admin-skeleton-panel"><i></i><i></i><i></i><i></i></div></main></div><div class="admin-loading-feedback"><p role="status" aria-live="polite" data-admin-loading-message>Loading support tickets…</p><button type="button" data-admin-loading-retry hidden>Try again</button></div></div>
   <aside class="sidebar"><div class="brand"><h1>FOOD <span>BY K</span></h1><p>ADMIN PANEL</p></div><nav class="sidebar-menu"></nav><div class="sidebar-bottom"><a href="#" class="menu-item logout"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></a></div></aside>
   <main class="main-content">
-    <header class="topbar"><div class="topbar-left"><button class="sidebar-toggle" id="sidebarToggle"><i class="fa-solid fa-bars"></i></button><div><p class="welcome-text">CUSTOMER CARE</p><h2>Support Tickets</h2></div></div><div class="topbar-right"><div class="admin-profile"><div class="profile-image">A</div><div class="profile-info"><h4>Admin</h4><p>Administrator</p></div></div></div></header>
-    <section class="dashboard-content"><div class="menu-page-header"><div><p class="card-label">CUSTOMER SUPPORT</p><h3>Incoming requests</h3><p class="menu-description">Read customer reports, reply, and update each ticket’s status.</p></div></div>
+    <header class="topbar"><div class="topbar-left"><button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar"><i class="fa-solid fa-bars"></i></button><div><p class="welcome-text">CUSTOMER CARE</p><h2>Support Tickets</h2></div></div><div class="topbar-right"><div class="admin-profile"><div class="profile-image">A</div><div class="profile-info"><h4>Admin</h4><p>Administrator</p></div></div></div></header>
+    <section class="dashboard-content"><div class="menu-page-header"><div><p class="card-label">Customer support</p><h3>Incoming requests</h3><p class="menu-description">Read customer reports, reply, and update each ticket’s status.</p></div></div>
       <div class="dashboard-card support-admin-layout">
         <div class="support-admin-toolbar">
           <div class="support-admin-filter" role="group" aria-label="Filter by status">
@@ -393,8 +446,8 @@
   </main>
   <script src="../js/dashboard.js"></script>
 
-  <!-- Visual only: colours the Status column and updates the ticket count.
-       It only reads the table, it never changes ticket data or sends anything. -->
+  <!-- Visual only: styles the Status column, sets full-email tooltips and updates the
+       ticket count. It only reads the table; it never changes ticket data. -->
   <script>
     (function () {
       var body = document.getElementById('supportTicketRows');
@@ -411,6 +464,10 @@
           if (row.cells.length < 6) return;
           tickets++;
 
+          // show the full email on hover since the cell is truncated with an ellipsis
+          var email = row.cells[2];
+          if (email && !email.title) email.title = (email.textContent || '').trim();
+
           var cell = row.cells[5];
           if (cell.querySelector('.st-badge') || cell.children.length) return;
 
@@ -420,7 +477,8 @@
           var key = raw.toLowerCase().replace(/[\s-]+/g, '_');
           var badge = document.createElement('span');
           badge.className = 'st-badge st-' + key;
-          badge.textContent = raw.replace(/_/g, ' ');
+          var label = raw.replace(/_/g, ' ').toLowerCase();
+          badge.textContent = label.charAt(0).toUpperCase() + label.slice(1);
           cell.textContent = '';
           cell.appendChild(badge);
         });
@@ -429,9 +487,7 @@
         if (observer) observer.observe(body, { childList: true, subtree: true });
       }
 
-      if (window.MutationObserver) {
-        observer = new MutationObserver(decorate);
-      }
+      if (window.MutationObserver) observer = new MutationObserver(decorate);
       decorate();
 
       // filter chips: click a chip -> set the hidden dropdown -> fire its normal change event
