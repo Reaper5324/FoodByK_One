@@ -182,7 +182,7 @@ class AnalyticsService {
         $newCustomers = (int) $customerSummary['new_customers'];
 
         $topProducts = $db->prepare(
-            "SELECT oi.product_name AS name, SUM(oi.quantity) AS units,
+            "SELECT oi.product_name AS name, MAX(oi.product_id) AS product_id, SUM(oi.quantity) AS units,
                     COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS sales
              FROM order_items oi
              JOIN orders o ON o.id = oi.order_id
@@ -193,6 +193,14 @@ class AnalyticsService {
              LIMIT 5"
         );
         $topProducts->execute([$from, $until]);
+        $topProductRows = $topProducts->fetchAll();
+        $productService = new ProductService();
+        foreach ($topProductRows as &$topProduct) {
+            $product = Product::findById((int) ($topProduct['product_id'] ?? 0));
+            $topProduct['image_url'] = $product ? $productService->imageUrlForOrderItem($product) : null;
+            unset($topProduct['product_id']);
+        }
+        unset($topProduct);
 
         $topPromotions = $db->prepare(
             "SELECT pr.code, pr.discount_type, COUNT(DISTINCT o.id) AS uses,
@@ -232,7 +240,7 @@ class AnalyticsService {
                 'new_customers' => $newCustomers,
                 'returning_customers' => max(0, $uniqueCustomers - $newCustomers),
             ],
-            'top_products' => $topProducts->fetchAll(),
+            'top_products' => $topProductRows,
             'top_promotions' => $topPromotions->fetchAll(),
         ]);
     }

@@ -10,6 +10,38 @@
 const loginForm =
     document.getElementById("loginForm");
 
+async function finishLoginAndRedirect() {
+    const userResult = await getCurrentUser();
+    if (!userResult.success) {
+        showMessage(userResult.error || "Login succeeded, but we could not retrieve your account details.", "error");
+        return;
+    }
+    if (userResult.data?.policy_acceptance_required) {
+        window.location.href = "account.html?review-policies=1";
+        return;
+    }
+    const user = userResult.data;
+    localStorage.setItem("foodByKUser", JSON.stringify({ id: user.id, role: user.role }));
+    showMessage("Login successful! Redirecting...", "success");
+    const destination = {
+        admin: "../../admin/dashboard.html",
+        staff: "../../admin/orders.html",
+        customer: "../customer/menu.html"
+    }[user?.role];
+    if (!destination) {
+        showMessage("Your account role could not be recognised.", "error");
+        return;
+    }
+    setTimeout(() => { window.location.href = destination; }, 1000);
+}
+
+let adminLoginChallengeToken = sessionStorage.getItem("foodByKAdminLoginChallenge") || "";
+if (adminLoginChallengeToken) {
+    const panel = document.getElementById("adminLoginVerification");
+    if (panel) panel.hidden = false;
+    if (loginForm) loginForm.hidden = true;
+}
+
 if (loginForm) {
 
     loginForm.addEventListener(
@@ -97,84 +129,20 @@ if (loginForm) {
                     return;
                 }
 
-
-                /* ---------- Get Current User ---------- */
-
-                const userResult =
-                    await getCurrentUser();
-
-
-                if (!userResult.success) {
-
-                    showMessage(
-                        userResult.error ||
-                        "Login succeeded, but we could not retrieve your account details.",
-                        "error"
-                    );
-
-                    return;
-                }
-
-                if (userResult.data?.policy_acceptance_required) {
-                    window.location.href = "account.html?review-policies=1";
+                if (loginResult.data?.admin_verification_required) {
+                    adminLoginChallengeToken = loginResult.data.challenge_token;
+                    sessionStorage.setItem("foodByKAdminLoginChallenge", adminLoginChallengeToken);
+                    loginForm.hidden = true;
+                    const panel = document.getElementById("adminLoginVerification");
+                    if (panel) panel.hidden = false;
+                    const hint = document.getElementById("adminLoginEmailHint");
+                    if (hint) hint.textContent = loginResult.data.email_hint || "your admin email";
+                    showMessage("A verification code has been sent to your administrator email.", "success");
                     return;
                 }
 
 
-                /* ---------- Store User Information ---------- */
-
-                const user =
-                    userResult.data;
-
-                localStorage.setItem(
-                    "foodByKUser",
-                    JSON.stringify({ id: user.id, role: user.role })
-                );
-
-
-                showMessage(
-                    "Login successful! Redirecting...",
-                    "success"
-                );
-
-
-                /* ---------- Role-Based Redirect ---------- */
-
-                const roleDestinations = {
-
-                    admin:
-                        "../../admin/dashboard.html",
-
-                    staff:
-                        "../../admin/orders.html",
-
-                    customer:
-                        "../customer/menu.html"
-
-                };
-
-
-                const destination =
-                    roleDestinations[user?.role];
-
-
-                if (!destination) {
-
-                    showMessage(
-                        "Your account role could not be recognised.",
-                        "error"
-                    );
-
-                    return;
-                }
-
-
-                setTimeout(function () {
-
-                    window.location.href =
-                        destination;
-
-                }, 1000);
+                await finishLoginAndRedirect();
 
 
             } catch (error) {
@@ -201,6 +169,54 @@ if (loginForm) {
     );
 
 }
+
+const adminVerifyButton = document.getElementById("verifyAdminLoginCode");
+adminVerifyButton?.addEventListener("click", async () => {
+    const codeInput = document.getElementById("adminLoginCode");
+    const code = codeInput?.value.trim() || "";
+    if (!adminLoginChallengeToken || !/^[0-9]{6}$/.test(code)) {
+        showMessage("Enter the six-digit code sent to your administrator email.", "error");
+        return;
+    }
+    adminVerifyButton.disabled = true;
+    try {
+        const result = await verifyAdminLoginCode(adminLoginChallengeToken, code);
+        if (!result.success) {
+            showMessage(result.error || "The code could not be verified.", "error");
+            return;
+        }
+        sessionStorage.removeItem("foodByKAdminLoginChallenge");
+        adminLoginChallengeToken = "";
+        document.getElementById("adminLoginVerification").hidden = true;
+        await finishLoginAndRedirect();
+    } catch (error) {
+        showMessage("We could not verify the code. Check your connection and try again.", "error");
+    } finally {
+        adminVerifyButton.disabled = false;
+    }
+});
+
+document.getElementById("resendAdminLoginCode")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (!adminLoginChallengeToken) return;
+    button.disabled = true;
+    try {
+        const result = await resendAdminLoginCode(adminLoginChallengeToken);
+        showMessage(result.success ? result.data?.message : (result.error || "Could not resend the code."), result.success ? "success" : "error");
+    } catch (error) {
+        showMessage("Could not resend the code. Check your connection and try again.", "error");
+    } finally {
+        button.disabled = false;
+    }
+});
+
+document.getElementById("restartAdminLogin")?.addEventListener("click", () => {
+    sessionStorage.removeItem("foodByKAdminLoginChallenge");
+    adminLoginChallengeToken = "";
+    document.getElementById("adminLoginVerification").hidden = true;
+    if (loginForm) loginForm.hidden = false;
+    showMessage("Enter your email and password to start again.", "info");
+});
 
 
 /* =========================================

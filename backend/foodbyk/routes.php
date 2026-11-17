@@ -3,6 +3,8 @@
 function registerRoutes(Router $router): void {
     $router->post('/auth/register', [AuthController::class, 'register']);
     $router->post('/auth/login', [AuthController::class, 'login'], [new RateLimitMiddleware('login')]);
+    $router->post('/auth/admin-login/verify', [AuthController::class, 'verifyAdminLoginCode'], [new RateLimitMiddleware('admin_verification', 5, 900)]);
+    $router->post('/auth/admin-login/resend', [AuthController::class, 'resendAdminLoginCode'], [new RateLimitMiddleware('admin_verification', 3, 900)]);
     $router->post('/auth/verify-email', [AuthController::class, 'verifyEmail']);
     $router->post('/auth/resend-verification', [AuthController::class, 'resendVerificationEmail'], [new RateLimitMiddleware('verification', 3, 900)]);
     $router->post('/auth/forgot-password', [AuthController::class, 'requestPasswordReset'], [new RateLimitMiddleware('request')]);
@@ -10,6 +12,7 @@ function registerRoutes(Router $router): void {
     
 
     $router->get('/health', [HealthController::class, 'check']);
+    $router->get('/business/settings', [BusinessSettingsController::class, 'publicSettings']);
     $router->get('/products', [ProductController::class, 'index']);
     $router->get('/products/search', [ProductController::class, 'search']);
     $router->get('/products/{id}', [ProductController::class, 'show']);
@@ -18,7 +21,8 @@ function registerRoutes(Router $router): void {
     $router->get('/categories/{id}/products', [CategoryController::class, 'products']);
     $router->get('/products/category/{id}', [ProductController::class, 'byCategory']);
     $router->get('/promotions/active', [PromotionController::class, 'active']);
-    $router->post('/assistant/ask', [AssistantController::class, 'ask'], [new RateLimitMiddleware('assistant', 10, 300)]);
+    // Keep expensive retrieval calls to one question per client every four minutes.
+    $router->post('/assistant/ask', [AssistantController::class, 'ask'], [new RateLimitMiddleware('assistant', 1, 240)]);
 
     $customer = [new AuthMiddleware(), RoleMiddleware::customer(), new CsrfMiddleware()];
     $customerProtected = [new AuthMiddleware(), RoleMiddleware::customer(), new CsrfMiddleware(), new CustomerPolicyMiddleware()];

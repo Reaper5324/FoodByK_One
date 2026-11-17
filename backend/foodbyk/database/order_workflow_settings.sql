@@ -1,0 +1,3 @@
+-- Superseded by railway_schema_upgrade.sql, which consolidates required
+-- existing-Railway schema upgrades into one ordinary-SQL migration.
+-- Run database/railway_schema_upgrade.sql instead of this partial migration.

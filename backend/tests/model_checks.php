@@ -7,12 +7,46 @@ require_once __DIR__ . '/../foodbyk/models/Product.php';
 require_once __DIR__ . '/../foodbyk/models/Promotion.php';
 require_once __DIR__ . '/../foodbyk/services/AuthService.php';
 require_once __DIR__ . '/../foodbyk/services/ProductService.php';
+require_once __DIR__ . '/../foodbyk/services/ProductOptionService.php';
+require_once __DIR__ . '/../foodbyk/services/InputValidator.php';
+require_once __DIR__ . '/../foodbyk/services/CartService.php';
+require_once __DIR__ . '/../foodbyk/services/CheckoutQuote.php';
 
 function expect(bool $condition, string $message): void {
     if (!$condition) {
         throw new RuntimeException($message);
     }
 }
+
+foreach ([1 => 1, 6 => 6, '1' => 1, '6' => 6] as $input => $expected) {
+    expect(InputValidator::positiveInteger($input) === $expected, 'Positive integer validator rejected a valid whole-number quantity.');
+}
+foreach ([0, -1, 1.5, 1.0, '1.5', '1e3', 'abc', '', ' ', '+1', '0006', '999999999999999999999999999999'] as $input) {
+    expect(InputValidator::positiveInteger($input) === null, 'Positive integer validator accepted malformed or out-of-range input.');
+}
+$cartService = new CartService();
+foreach ([0, -1, 1.5, 1.0, '1.5', 'abc', '', '1e3', '999999999999999999999999999999'] as $invalidQuantity) {
+    expect(!$cartService->addItem(1, 1, $invalidQuantity)['success'], 'Cart additions must reject malformed quantities before touching persistence.');
+    expect(!$cartService->updateQuantity(1, 1, $invalidQuantity)['success'], 'Cart updates must reject malformed quantities before touching persistence.');
+}
+expect(InputValidator::nonNegativeMoney('49.99') === 49.99, 'Currency values with two decimal places must be accepted.');
+expect(InputValidator::nonNegativeMoney(0) === 0.0, 'Zero currency values must be accepted.');
+foreach (['-0.01', '1.001', '1e3', '100000.01', 'free'] as $invalidAmount) {
+    expect(InputValidator::nonNegativeMoney($invalidAmount) === null, 'Invalid or over-precision currency values must be rejected.');
+}
+expect(InputValidator::nonNegativeMoney(1.005) === null, 'Floating currency values with more than two decimal places must be rejected.');
+
+$quoteItems = [[
+    'cart_item_id' => 7, 'product_id' => 3, 'product_name' => 'Burger', 'quantity' => 2,
+    'unit_price' => 25.50, 'customizations' => [['id' => 9, 'name' => 'Cheese', 'price_delta' => 2.00]],
+]];
+$quoteFingerprint = CheckoutQuote::fingerprint(4, Order::TYPE_COLLECTION, null, $quoteItems, [], 55.00, 0.0, null, 0.0, 0.0, 0.0, 55.00);
+expect($quoteFingerprint === CheckoutQuote::fingerprint(4, Order::TYPE_COLLECTION, null, $quoteItems, [], 55.00, 0.0, null, 0.0, 0.0, 0.0, 55.00),
+    'Identical server-calculated checkout quotes must have the same fingerprint.');
+$changedQuoteItems = $quoteItems;
+$changedQuoteItems[0]['unit_price'] = 26.50;
+expect($quoteFingerprint !== CheckoutQuote::fingerprint(4, Order::TYPE_COLLECTION, null, $changedQuoteItems, [], 57.00, 0.0, null, 0.0, 0.0, 0.0, 57.00),
+    'A product price change must invalidate the previously reviewed checkout quote.');
 
 $order = new Order(subtotal: 100.0, locked_discount: 15.0, delivery_fee: 10.0);
 expect($order->total() === 95.0, 'Order total must apply the locked discount.');
@@ -21,7 +55,9 @@ expect(!$order->canTransitionTo(Order::STATUS_PAID), 'Submitted order cannot be 
 $completedOrder = new Order(status: Order::STATUS_COMPLETED);
 expect(!$completedOrder->canTransitionTo(Order::STATUS_PREPARING), 'Completed orders must be terminal.');
 $paidOrder = new Order(status: Order::STATUS_PAID);
-expect(!$paidOrder->canTransitionTo(Order::STATUS_CANCELLED), 'Paid orders must not be cancelled through the normal state machine.');
+expect(!$paidOrder->canTransitionTo(Order::STATUS_CANCELLED), 'The general state machine must not allow paid-order cancellation without the guarded refund workflow.');
+$preparingOrder = new Order(status: Order::STATUS_PREPARING);
+expect(!$preparingOrder->canTransitionTo(Order::STATUS_CANCELLED), 'Preparing-order cancellation must also go through the guarded refund workflow.');
 
 $address = new Address(latitude: -26.2041, longitude: 28.0473);
 expect($address->hasCoordinates(), 'Valid coordinates must be accepted.');
@@ -45,7 +81,7 @@ $fixed = new Promotion(discount_type: Promotion::TYPE_FIXED_AMOUNT, discount_val
 expect($fixed->calculateDiscount(100.0) === 25.0, 'Fixed promotion calculation failed.');
 
 $bogo = new Promotion(discount_type: Promotion::TYPE_BUY_ONE_GET_ONE);
-expect($bogo->calculateDiscount(90.0, $items) === 35.0, 'BOGO promotion calculation failed.');
+expect($bogo->calculateDiscount(90.0, $items) === 0.0, 'BOGO without exactly one target item must fail closed.');
 
 $delivery = new Promotion(discount_type: Promotion::TYPE_FREE_DELIVERY);
 expect($delivery->calculateDiscount(100.0, [], 15.0) === 15.0, 'Free-delivery promotion calculation failed.');
@@ -63,8 +99,18 @@ $targetedFixed->target_product_ids = [2];
 expect($targetedFixed->calculateDiscount(80.0, $targetedItems) === 20.0, 'Targeted fixed discount must cap at selected product subtotal.');
 $targetedBogo = new Promotion(discount_type: Promotion::TYPE_BUY_ONE_GET_ONE);
 $targetedBogo->target_product_ids = [1];
-expect($targetedBogo->calculateDiscount(80.0, $targetedItems) === 30.0, 'Targeted BOGO must discount pairs only for selected products.');
-expect($targetedBogo->appliedProductNames($targetedItems) === ['Kota'], 'BOGO checkout details must name only products with a qualifying pair.');
+expect($targetedBogo->calculateDiscount(80.0, $targetedItems) === 60.0, 'Targeted BOGO must discount one free unit for every paid target unit.');
+expect($targetedBogo->appliedProductNames($targetedItems) === ['Kota'], 'BOGO checkout details must name the qualifying target product.');
+$bogoCartLines = [
+    ['cart_item_id' => 20, 'product_id' => 1, 'product_name' => 'Kota', 'quantity' => 1, 'unit_price' => 30.0],
+    ['cart_item_id' => 22, 'product_id' => 1, 'product_name' => 'Kota', 'quantity' => 3, 'unit_price' => 25.0],
+    ['cart_item_id' => 21, 'product_id' => 2, 'product_name' => 'Burger', 'quantity' => 4, 'unit_price' => 20.0],
+];
+expect($targetedBogo->freeQuantitiesByCartItem($bogoCartLines) === [20 => 1, 22 => 3], 'BOGO must add one matching free unit per paid target unit and never a non-target item.');
+$noTargetQuantity = $targetedBogo->freeQuantitiesByCartItem([[
+    'cart_item_id' => 22, 'product_id' => 2, 'product_name' => 'Burger', 'quantity' => 1, 'unit_price' => 20.0,
+]]);
+expect($noTargetQuantity === [], 'BOGO must not add a free item when the targeted item is absent.');
 $targetedDelivery = new Promotion(discount_type: Promotion::TYPE_FREE_DELIVERY);
 $targetedDelivery->target_product_ids = [1];
 expect($targetedDelivery->calculateDiscount(80.0, $targetedItems, 18.0) === 18.0, 'Targeted free delivery must apply when an eligible product is present.');
@@ -86,6 +132,30 @@ expect(
 );
 
 $productService = new ProductService();
+$optionService = new ProductOptionService();
+$validOptions = $optionService->validateList([
+    ['name' => ' Extra cheese ', 'price_delta' => '8.00'],
+    ['name' => 'Extra egg', 'price_delta' => 0],
+]);
+expect($validOptions['success'], 'Valid free and paid product options must be accepted.');
+expect($validOptions['data'][0] === ['name' => 'Extra cheese', 'price_delta' => 8.0], 'Option names must be trimmed and valid prices preserved to cents.');
+expect($validOptions['data'][1]['price_delta'] === 0.0, 'Free options must be accepted at zero cost.');
+expect(!$optionService->validateList('not an array')['success'], 'Non-array option collections must be rejected.');
+expect(!$optionService->validateList([['name' => ['invalid'], 'price_delta' => 1]])['success'], 'Non-text option names must be rejected.');
+expect(!$optionService->validateList([['name' => '', 'price_delta' => 1]])['success'], 'Empty option names must be rejected.');
+expect(!$optionService->validateList([['name' => 'Cheese', 'price_delta' => -0.01]])['success'], 'Negative option prices must be rejected.');
+expect(!$optionService->validateList([['name' => 'Cheese', 'price_delta' => 'free']])['success'], 'Non-numeric option prices must be rejected.');
+expect(!$optionService->validateList([['name' => 'Cheese', 'price_delta' => '8.005']])['success'], 'Option prices with more than two decimal places must be rejected, not rounded.');
+expect(!$optionService->validateList([['name' => 'Cheese', 'price_delta' => 100000.01]])['success'], 'Option prices over the supported limit must be rejected.');
+expect(!$optionService->validateList([['name' => str_repeat('x', 81), 'price_delta' => 1]])['success'], 'Option names over 80 characters must be rejected.');
+$duplicateOptions = $optionService->validateList([
+    ['name' => 'Cheese', 'price_delta' => 1],
+    ['name' => ' cheese ', 'price_delta' => 2],
+]);
+expect(!$duplicateOptions['success'], 'Duplicate option names must be rejected case-insensitively.');
+$tooManyOptions = $optionService->validateList(array_fill(0, 31, ['name' => 'Extra', 'price_delta' => 1]));
+expect(!$tooManyOptions['success'], 'More than 30 options must be rejected.');
+
 $validProduct = $productService->validateProductInput([
     'category_id' => 1,
     'name' => 'Classic Burger',
@@ -140,6 +210,17 @@ $invalidProduct = $productService->validateProductInput([
     'price' => '-1',
 ]);
 expect(!$invalidProduct['success'], 'Negative product prices must be rejected.');
+expect(!$productService->validateProductInput([
+    'category_id' => 1,
+    'name' => str_repeat('x', 151),
+    'price' => '1.00',
+])['success'], 'Product names over the supported limit must be rejected.');
+expect(!$productService->validateProductInput([
+    'category_id' => 1,
+    'name' => 'Large description',
+    'description' => str_repeat('x', 2001),
+    'price' => '1.00',
+])['success'], 'Product descriptions over the supported limit must be rejected.');
 $invalidImageProduct = $productService->validateProductInput([
     'category_id' => 1,
     'name' => 'Classic Burger',
@@ -155,6 +236,11 @@ $invalidCategoryProduct = $productService->validateProductInput([
     'price' => '49.99',
 ]);
 expect(!$invalidCategoryProduct['success'], 'Invalid product category identifiers must be rejected.');
+expect(!$productService->validateProductInput([
+    'category_id' => 1,
+    'name' => 'Fractional cent product',
+    'price' => '10.005',
+])['success'], 'Product prices with more than two decimal places must be rejected.');
 
 expect($auth->validateRegistrationInput('Customer', 'bad-email', 'Str0ng!Passw0rd', null) !== null, 'Malformed registration email must be rejected.');
 expect($auth->validateRegistrationInput('Customer', 'customer@example.com', 'Str0ng!Passw0rd', '12345') !== null, 'Malformed international phone numbers must be rejected.');

@@ -1,0 +1,7 @@
+# Minimal dependencies for deterministic routing and retrieval tests.
+# Chroma and the sentence-transformer model are intentionally not installed;
+# tests stub the vector client and never invoke embedding generation.
+fastapi
+requests
+groq
+python-dotenv

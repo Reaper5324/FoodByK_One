@@ -11,6 +11,7 @@
                 <button class="foodbyk-assistant-close" type="button" aria-label="Close assistant">×</button>
             </header>
             <p class="foodbyk-assistant-intro">Looking for something tasty or have a question about Food by K? Ask away. For help with an order or payment, our team can help directly. Please keep personal details out of this chat.</p>
+            <p class="foodbyk-assistant-beta"><strong>Beta version:</strong> We’re still checking answer accuracy and building out menu and FAQ coverage. Please confirm important details with our team.</p>
             <div class="foodbyk-assistant-prompts" aria-label="Suggested questions">
                 <button type="button">What is on the menu?</button>
                 <button type="button">Where are you located?</button>

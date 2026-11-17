@@ -103,19 +103,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     const price = document.createElement("p");
     price.className = "menu-item-price";
     const basePrice = Number(product.price || 0);
-    const pricePromotion = eligiblePromotions.find((promotion) => promotion.discount_type === "percentage");
-    const discount = pricePromotion ? Math.min(100, Math.max(0, Number(pricePromotion.discount_value || 0))) : 0;
+    const pricePromotion = eligiblePromotions.find((promotion) =>
+        ["percentage", "fixed_amount"].includes(promotion.discount_type));
     function updatePrice() {
         const selectedOptions = optionPicker ? [...optionPicker.querySelectorAll("input:checked")] : [];
         const customizationTotal = selectedOptions.reduce((sum, input) => sum + Number(input.dataset.priceDelta || 0), 0);
         const currentBase = basePrice + customizationTotal;
+        const discount = pricePromotion
+            ? (pricePromotion.discount_type === "percentage"
+                ? currentBase * Math.min(100, Math.max(0, Number(pricePromotion.discount_value || 0))) / 100
+                : Math.min(currentBase, Math.max(0, Number(pricePromotion.discount_value || 0))))
+            : 0;
         price.replaceChildren();
         if (pricePromotion) {
         const original = document.createElement("span");
         original.className = "menu-price-original";
         original.textContent = `Was R${currentBase.toFixed(2)}`;
         const current = document.createElement("span");
-        current.textContent = `Now R${(currentBase * (1 - discount / 100)).toFixed(2)}`;
+        current.textContent = `Now R${(Math.round((currentBase - discount) * 100) / 100).toFixed(2)}`;
         const terms = document.createElement("small");
         terms.className = "menu-price-condition";
         terms.textContent = pricePromotion.code
@@ -136,7 +141,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             badge.className = "menu-promotion-badge";
             const value = Number(promotion.discount_value || 0);
             const label = promotion.discount_type === "percentage" ? `${value}% off`
-                : promotion.discount_type === "buy_one_get_one" ? "Buy one, get one free"
+                : promotion.discount_type === "buy_one_get_one" ? "Buy one, get one free per paid item"
                     : `R${value.toFixed(2)} off eligible items`;
             badge.textContent = promotion.code ? `${label} · code ${String(promotion.code).toUpperCase()}` : label;
             promotionList.appendChild(badge);
@@ -168,6 +173,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                 addButton.textContent = "Add to cart";
                 addButton.disabled = false;
             }, 1200);
+            return;
+        }
+
+        if (addResult?.status === 0 || addResult?.status >= 500) {
+            addButton.textContent = "Checking cart…";
+            const cart = await apiGet("/cart");
+            if (cart?.success && Array.isArray(cart.data?.items)) {
+                addButton.disabled = false;
+                addButton.textContent = "Add to cart";
+                showMessage("We couldn't confirm that addition. Your cart has been refreshed; check it before trying again.", true);
+            } else {
+                addButton.textContent = "Cart status unavailable";
+                showMessage("We couldn't confirm that addition or refresh your cart. Refresh this page before trying again.", true);
+            }
             return;
         }
 

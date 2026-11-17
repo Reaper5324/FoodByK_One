@@ -116,7 +116,7 @@ public static function lockById(int $id): ?static {
     public static function countActiveForSlotLocked(string $windowStart, ?int $excludeOrderId = null): int {
         $db = Database::getConnection();
         $sql =
-            "SELECT COUNT(*) FROM `orders`
+            "SELECT id FROM `orders`
              WHERE COALESCE(confirmed_window_start, requested_window_start) = ?
                AND status NOT IN (?, ?)";
         $params = [
@@ -128,9 +128,13 @@ public static function lockById(int $id): ?static {
             $sql .= ' AND id <> ?';
             $params[] = $excludeOrderId;
         }
+        // A locking read is a current read in MySQL REPEATABLE READ. A plain
+        // COUNT can keep using a snapshot taken before waiting on the settings
+        // row lock, allowing a concurrent checkout to miss the committed order.
+        $sql .= ' ORDER BY id FOR UPDATE';
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
-        return (int) $stmt->fetchColumn();
+        return count($stmt->fetchAll(PDO::FETCH_COLUMN));
     }
 
 protected function toArray(): array {

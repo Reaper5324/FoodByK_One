@@ -40,6 +40,7 @@
         <option value="collection">Collection</option>
         <option value="delivery">Delivery</option>
       </select>
+      <span id="fulfilmentAvailabilityMessage" class="checkout-field-hint" role="status" aria-live="polite" hidden></span>
     </label>
     <div id="addressField" class="checkout-field" hidden>
       <label for="addressId">Delivery address</label>
@@ -101,6 +102,11 @@
       </div>
     </div>
 
+    <section class="checkout-cart-preview" aria-label="Cart item summary">
+      <h2>Your items</h2>
+      <div id="checkoutCartPreview" aria-live="polite"></div>
+    </section>
+
     <section class="checkout-time-panel" aria-labelledby="checkoutTimeTitle">
       <div class="checkout-panel-heading">
         <p class="checkout-panel-kicker">Set your fulfilment time</p>
@@ -110,6 +116,7 @@
       <div class="checkout-time-fields">
         <label class="checkout-field" for="slotDate">Date
           <input id="slotDate" type="date" required>
+          <span id="slotDateMessage" class="checkout-field-hint" role="status" aria-live="polite" hidden></span>
         </label>
         <label class="checkout-field" for="slotSelect">Available time
           <select id="slotSelect" required aria-busy="true"><option value="">Loading available times…</option></select>
@@ -144,7 +151,6 @@
             aria-live="assertive"
             hidden
     ></div>
-    <button id="previewButton" class="btn btn-secondary checkout-review-button" type="button">Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
     <section id="checkoutSummary" class="checkout-summary" aria-live="polite">
       <div class="checkout-summary-heading">
         <p>Live price breakdown</p>
@@ -152,6 +158,7 @@
       </div>
       <p class="checkout-summary-note" id="checkoutSummaryMessage">Choose collection or delivery, a time, and any offer or rewards to see your total.</p>
     </section>
+    <button id="previewButton" class="btn btn-secondary checkout-review-button" type="button">Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
     <button id="submitButton" class="btn btn-primary checkout-submit-button" type="submit" hidden>Place order <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span></button>
   </form>
 </main>

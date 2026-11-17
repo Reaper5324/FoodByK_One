@@ -32,17 +32,20 @@ class ProductOptionService {
         $validated = [];
         $names = [];
         foreach ($options as $option) {
-            if (!is_array($option)) return $this->failure('Each customization needs a name and price.');
-            $name = trim((string) ($option['name'] ?? ''));
+            if (!is_array($option) || !is_string($option['name'] ?? null)) {
+                return $this->failure('Each customization needs a text name and price.');
+            }
+            $name = trim($option['name']);
             $price = $option['price_delta'] ?? null;
             $nameLength = function_exists('mb_strlen') ? mb_strlen($name) : strlen($name);
-            if ($name === '' || $nameLength > 80 || !is_numeric($price) || (float) $price < 0 || (float) $price > 100000) {
+            $validatedPrice = InputValidator::nonNegativeMoney($price);
+            if ($name === '' || $nameLength > 80 || $validatedPrice === null) {
                 return $this->failure('Customization names must be 1–80 characters and prices must be non-negative.');
             }
             $key = function_exists('mb_strtolower') ? mb_strtolower($name) : strtolower($name);
             if (isset($names[$key])) return $this->failure('Customization names must be unique for each menu item.');
             $names[$key] = true;
-            $validated[] = ['name' => $name, 'price_delta' => round((float) $price, 2)];
+            $validated[] = ['name' => $name, 'price_delta' => $validatedPrice];
         }
         return $this->success($validated);
     }
@@ -68,7 +71,7 @@ class ProductOptionService {
         }
     }
 
-    public function resolveSelection(int $productId, array $optionIds): array {
+    public function resolveSelection(int $productId, array $optionIds, bool $forUpdate = false): array {
         if (count($optionIds) > 30) return $this->failure('Invalid menu customizations.');
         $ids = [];
         foreach ($optionIds as $optionId) {
@@ -83,10 +86,11 @@ class ProductOptionService {
         sort($ids, SORT_NUMERIC);
         if ($ids === []) return $this->success([]);
         $placeholders = implode(', ', array_fill(0, count($ids), '?'));
-        $stmt = Database::getConnection()->prepare(
+        $sql =
             "SELECT id, name, price_delta FROM product_options
-             WHERE product_id = ? AND is_available = 1 AND id IN ({$placeholders}) ORDER BY id"
-        );
+             WHERE product_id = ? AND is_available = 1 AND id IN ({$placeholders}) ORDER BY id";
+        if ($forUpdate) $sql .= ' FOR UPDATE';
+        $stmt = Database::getConnection()->prepare($sql);
         $stmt->execute([$productId, ...$ids]);
         $rows = array_map(static fn(array $row): array => [
             'id' => (int) $row['id'],
@@ -95,6 +99,43 @@ class ProductOptionService {
         ], $stmt->fetchAll());
         if (count($rows) !== count($ids)) return $this->failure('One or more selected customizations are no longer available. Please review your cart.');
         return $this->success($rows);
+    }
+
+    /** Re-resolve the cart's saved option IDs and reject stale price/name snapshots. */
+    public function validateCartSelection(CartItem $item, bool $forUpdate = false): array {
+        $saved = $item->customizations;
+        if (!array_is_list($saved) || count($saved) > 30) {
+            return $this->failure('Cart customizations are invalid. Please review your cart.');
+        }
+
+        $ids = [];
+        $savedById = [];
+        foreach ($saved as $customization) {
+            if (!is_array($customization)) {
+                return $this->failure('Cart customizations are invalid. Please review your cart.');
+            }
+            $id = InputValidator::positiveInteger($customization['id'] ?? null);
+            $price = InputValidator::nonNegativeMoney($customization['price_delta'] ?? null);
+            if ($id === null || $price === null || isset($savedById[$id]) || !is_string($customization['name'] ?? null)) {
+                return $this->failure('Cart customizations are invalid. Please review your cart.');
+            }
+            $ids[] = $id;
+            $savedById[$id] = ['name' => $customization['name'], 'price_delta' => $price];
+        }
+
+        $resolved = $this->resolveSelection($item->product_id, $ids, $forUpdate);
+        if (!$resolved['success']) return $resolved;
+        foreach ($resolved['data'] as $option) {
+            $old = $savedById[$option['id']] ?? null;
+            if ($old === null || $old['name'] !== $option['name']
+                || abs($old['price_delta'] - $option['price_delta']) > 0.00001) {
+                return $this->failure('A customization changed after it was added. Please review your cart and select it again.');
+            }
+        }
+
+        $item->customizations = $resolved['data'];
+        $item->customization_json = json_encode($resolved['data'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        return $this->success($resolved['data']);
     }
 
     private function success(mixed $data): array { return ['success' => true, 'data' => $data, 'error' => null]; }

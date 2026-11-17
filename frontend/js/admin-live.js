@@ -1,4 +1,4 @@
-﻿const ADMIN_ONLY_PAGES = new Set([
+const ADMIN_ONLY_PAGES = new Set([
     "categories.html",
     "promotions.html",
     "customers.html",
@@ -94,6 +94,27 @@ const initializeAdminLive = async () => {
     loadingState?.querySelector("[data-admin-loading-retry]")?.addEventListener("click", () => location.reload());
     let initialDataLoadError = false;
     let isInitialPageLoad = true;
+    let settingsActionInFlight = false;
+    let settingsAction = null;
+    const saveSettingsButton = document.getElementById("saveBtn");
+    const discardSettingsButton = document.getElementById("discardBtn");
+    const updateSettingsActionState = () => {
+        const form = document.getElementById("adminApiSettingsForm");
+        if (form) {
+            form.inert = settingsActionInFlight;
+            form.setAttribute("aria-busy", String(settingsActionInFlight));
+        }
+        if (saveSettingsButton) {
+            saveSettingsButton.disabled = settingsActionInFlight || !form;
+            saveSettingsButton.innerHTML = settingsAction === "saving"
+                ? '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Saving…'
+                : '<i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save changes';
+        }
+        if (discardSettingsButton) {
+            discardSettingsButton.disabled = settingsActionInFlight || !form;
+            discardSettingsButton.textContent = settingsAction === "discarding" ? "Reloading…" : "Discard";
+        }
+    };
     const loadScript = (src) => new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src = src;
@@ -307,6 +328,7 @@ const initializeAdminLive = async () => {
             const link = document.createElement("a");
             link.className = "menu-item" + (paths[label] === page ? " active" : "");
             link.href = paths[label];
+            if (paths[label] === page) link.setAttribute("aria-current", "page");
             const name = document.createElement("span");
             name.textContent = label;
             link.appendChild(name);
@@ -501,7 +523,21 @@ const initializeAdminLive = async () => {
         const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
         setText("reportSales", "R" + Number(data.sales || 0).toFixed(2));
         setText("reportOrders", String(Number(data.orders || 0)));
+        setText("reportOrdersCopy", String(Number(data.orders || 0)));
         setText("reportAverage", "R" + Number(data.average_paid_order || 0).toFixed(2));
+        setText("reportPaidOrders", String(Number(data.paid_orders || 0)));
+        const totalOrders = Math.max(0, Number(data.orders || 0));
+        const paidOrders = Math.max(0, Number(data.paid_orders || 0));
+        const conversionRate = totalOrders > 0 ? Math.min(100, Math.round(paidOrders / totalOrders * 100)) : 0;
+        setText("reportUnpaidOrders", String(Math.max(0, totalOrders - paidOrders)));
+        setText("reportConversionRate", `${conversionRate}%`);
+        setText("reportConversionRateCopy", `${conversionRate}%`);
+        const conversionRing = document.getElementById("reportConversionRing");
+        if (conversionRing) {
+            conversionRing.style.setProperty("--conversion-rate", `${conversionRate}%`);
+            conversionRing.setAttribute("aria-label", `Payment completion: ${conversionRate} percent, ${paidOrders} successfully paid orders out of ${totalOrders}.`);
+        }
+        setText("reportPeriodRange", `${data.from || ""} – ${data.to || ""}`);
 
         const sales = data.sales_buckets || data.daily_sales || [];
         const chart = document.getElementById("salesChartBars");
@@ -516,6 +552,8 @@ const initializeAdminLive = async () => {
                 const column = document.createElement("div");
                 column.className = "chart-column";
                 column.title = `${bucket}: R${amount.toFixed(2)} sales, ${Number(item.paid_orders || 0)} paid orders`;
+                column.tabIndex = 0;
+                column.setAttribute("aria-label", `${bucket}: R${amount.toFixed(2)} paid revenue from ${Number(item.paid_orders || 0)} successful charges`);
                 const bar = document.createElement("div");
                 bar.className = "chart-bar";
                 bar.style.height = `${peak > 0 ? Math.max(amount > 0 ? 2 : 0, amount / (scale * 4) * 100) : 0}%`;
@@ -542,30 +580,76 @@ const initializeAdminLive = async () => {
         const productList = document.getElementById("topProductsList");
         if (productList) {
             productList.replaceChildren();
-            (data.top_products || []).forEach((product, index) => {
-                const item = document.createElement("p");
-                item.textContent = `${index + 1}. ${product.name} - ${product.units} sold (R${Number(product.sales || 0).toFixed(2)})`;
-                productList.appendChild(item);
+            const topProducts = data.top_products || [];
+            const maximumUnits = Math.max(1, ...topProducts.map((product) => Number(product.units || 0)));
+            topProducts.forEach((product, index) => {
+                const item = document.createElement("article"); item.className = "report-ranking-item";
+                const rank = document.createElement("span"); rank.className = "report-rank"; rank.textContent = String(index + 1); rank.setAttribute("aria-label", `Rank ${index + 1}`);
+                const media = document.createElement("div"); media.className = "report-product-media";
+                const fallbackIcon = document.createElement("i"); fallbackIcon.className = "fa-solid fa-burger"; fallbackIcon.setAttribute("aria-hidden", "true"); media.appendChild(fallbackIcon);
+                const imageUrl = String(product.image_url || "").trim();
+                if (imageUrl) {
+                    try {
+                        const safeImageUrl = new URL(imageUrl, window.location.href);
+                        if (["http:", "https:"].includes(safeImageUrl.protocol)) {
+                            const image = document.createElement("img"); image.src = safeImageUrl.href; image.alt = ""; image.loading = "lazy"; image.decoding = "async"; image.referrerPolicy = "no-referrer";
+                            image.addEventListener("error", () => { image.remove(); media.appendChild(fallbackIcon); }, { once: true });
+                            media.replaceChildren(image);
+                        }
+                    } catch (_) {}
+                }
+                const copy = document.createElement("div"); copy.className = "report-item-copy";
+                const name = document.createElement("strong"); name.textContent = String(product.name || "Menu item");
+                const units = Number(product.units || 0); const sales = Number(product.sales || 0);
+                const details = document.createElement("span"); details.textContent = `${units.toLocaleString()} ${units === 1 ? "unit" : "units"} sold`;
+                copy.append(name, details);
+                const value = document.createElement("div"); value.className = "report-item-value";
+                const valueAmount = document.createElement("strong"); valueAmount.textContent = `R${sales.toFixed(2)}`;
+                const valueLabel = document.createElement("span"); valueLabel.textContent = "item sales";
+                value.append(valueAmount, valueLabel);
+                const track = document.createElement("div"); track.className = "report-rank-track"; track.setAttribute("role", "meter"); track.setAttribute("aria-label", `${units} units sold`); track.setAttribute("aria-valuemin", "0"); track.setAttribute("aria-valuemax", String(maximumUnits)); track.setAttribute("aria-valuenow", String(units));
+                const fill = document.createElement("div"); fill.className = "report-rank-fill"; fill.style.width = `${Math.max(0, Math.min(100, units / maximumUnits * 100))}%`; track.appendChild(fill);
+                item.append(rank, media, copy, value, track); productList.appendChild(item);
             });
-            if (!(data.top_products || []).length) {
-                const empty = document.createElement("p"); empty.className = "sf-empty"; empty.textContent = "No paid orders in this period."; productList.appendChild(empty);
+            if (!topProducts.length) {
+                const empty = document.createElement("div"); empty.className = "report-section-empty";
+                const icon = document.createElement("i"); icon.className = "fa-solid fa-burger"; icon.setAttribute("aria-hidden", "true");
+                const text = document.createElement("span"); text.textContent = "No paid menu item sales in this period.";
+                empty.append(icon, text); productList.appendChild(empty);
             }
         }
+
         const promotionList = document.getElementById("topPromotionsList");
         if (promotionList) {
             promotionList.replaceChildren();
-            (data.top_promotions || []).forEach((promotion, index) => {
-                const item = document.createElement("p");
-                const uses = Number(promotion.uses || 0);
-                const saved = Number(promotion.discounts_given || 0);
-                item.textContent = `${index + 1}. ${promotion.code} - ${uses} paid uses · R${saved.toFixed(2)} discounts · R${Number(promotion.sales || 0).toFixed(2)} sales`;
-                promotionList.appendChild(item);
+            const promotions = data.top_promotions || [];
+            const maximumPromotionSales = Math.max(1, ...promotions.map((promotion) => Number(promotion.sales || 0)));
+            const promotionTypes = { percentage: "Percentage off", fixed_amount: "Fixed amount off", buy_one_get_one: "Buy one, get one", free_delivery: "Free delivery" };
+            promotions.forEach((promotion) => {
+                const item = document.createElement("article"); item.className = "promotion-report-item";
+                const head = document.createElement("div"); head.className = "promotion-report-head";
+                const icon = document.createElement("span"); icon.className = "promotion-report-icon";
+                const glyph = document.createElement("i"); glyph.className = "fa-solid fa-ticket"; glyph.setAttribute("aria-hidden", "true"); icon.appendChild(glyph);
+                const name = document.createElement("div"); name.className = "promotion-report-name";
+                const code = document.createElement("strong"); code.textContent = String(promotion.code || "Promotion");
+                const type = document.createElement("span"); type.textContent = promotionTypes[promotion.discount_type] || "Promotion offer";
+                name.append(code, type);
+                const badge = document.createElement("span"); badge.className = "promotion-report-badge"; badge.textContent = "PAID ORDERS";
+                head.append(icon, name, badge);
+                const metrics = document.createElement("div"); metrics.className = "promotion-report-metrics";
+                [["Paid uses", Number(promotion.uses || 0).toLocaleString()], ["Customer savings", `R${Number(promotion.discounts_given || 0).toFixed(2)}`], ["Charged sales", `R${Number(promotion.sales || 0).toFixed(2)}`]].forEach(([labelText, valueText]) => {
+                    const metric = document.createElement("div"); const label = document.createElement("span"); label.textContent = labelText; const value = document.createElement("strong"); value.textContent = valueText; metric.append(label, value); metrics.appendChild(metric);
+                });
+                const sales = Number(promotion.sales || 0);
+                const track = document.createElement("div"); track.className = "promotion-report-track"; track.setAttribute("role", "meter"); track.setAttribute("aria-label", `Charged sales R${sales.toFixed(2)}`); track.setAttribute("aria-valuemin", "0"); track.setAttribute("aria-valuemax", String(maximumPromotionSales)); track.setAttribute("aria-valuenow", String(sales));
+                const fill = document.createElement("div"); fill.className = "promotion-report-fill"; fill.style.width = `${Math.max(0, Math.min(100, sales / maximumPromotionSales * 100))}%`; track.appendChild(fill);
+                item.append(head, metrics, track); promotionList.appendChild(item);
             });
-            if (!(data.top_promotions || []).length) {
-                const empty = document.createElement("p");
-                empty.className = "sf-empty";
-                empty.textContent = "No paid promotion uses in this period.";
-                promotionList.appendChild(empty);
+            if (!promotions.length) {
+                const empty = document.createElement("div"); empty.className = "report-section-empty";
+                const icon = document.createElement("i"); icon.className = "fa-solid fa-ticket"; icon.setAttribute("aria-hidden", "true");
+                const text = document.createElement("span"); text.textContent = "No paid promotion uses in this period.";
+                empty.append(icon, text); promotionList.appendChild(empty);
             }
         }
         if (typeof window.renderAdditionalReports === "function") window.renderAdditionalReports(data);
@@ -723,7 +807,7 @@ const initializeAdminLive = async () => {
             const value = Number(promo.discount_value || 0);
             const offer = promo.discount_type === "percentage" ? `${value}% off`
                 : promo.discount_type === "fixed_amount" ? `${money(value)} off`
-                : promo.discount_type === "buy_one_get_one" ? "Buy one, get one free"
+                : promo.discount_type === "buy_one_get_one" ? "Buy one, get one free per paid item"
                 : promo.discount_type === "free_delivery" ? "Free delivery" : promo.discount_type;
             makeCell(row, offer);
             makeCell(row, promo.target_product_names?.length ? promo.target_product_names.join(", ") : "Whole order");
@@ -1205,7 +1289,8 @@ const initializeAdminLive = async () => {
                 extras.textContent = `Extras: ${item.customizations.map((option) => option.name).join(", ")}`;
                 name.appendChild(extras);
             }
-            const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} Ã— ${money(item.unit_price ?? item.price)}`; name.appendChild(detail);
+            const freeQuantity = Math.max(0, Number(item.free_quantity || 0));
+            const detail = document.createElement("span"); detail.textContent = `${Number(item.quantity || 0)} Ã— ${money(item.unit_price ?? item.price)}${freeQuantity ? ` (${freeQuantity} free)` : ""}`; name.appendChild(detail);
             if (isProductPromotion && (promoTargets.length === 0 || promoTargets.includes(Number(item.product_id)))) {
                 const promoBadge = document.createElement("span");
                 promoBadge.className = "order-promo-eligible";
@@ -1215,7 +1300,15 @@ const initializeAdminLive = async () => {
             if (canEditItems) {
                 const controls = document.createElement("div"); controls.className = "order-item-edit-controls";
                 const quantity = document.createElement("input");
-                quantity.type = "number"; quantity.min = "1"; quantity.max = "99"; quantity.step = "1";
+                const limits = currentReviewData?.limits || { max_item_quantity: 6, max_cart_items: 10 };
+                const productQuantity = items.filter((other) => Number(other.product_id) === Number(item.product_id))
+                    .reduce((sum, other) => sum + Number(other.quantity || 0), 0);
+                const cartQuantity = items.reduce((sum, other) => sum + Number(other.quantity || 0), 0);
+                const maxForRow = Math.max(Number(item.quantity || 1), Math.min(
+                    Number(limits.max_item_quantity) - (productQuantity - Number(item.quantity || 0)),
+                    Number(limits.max_cart_items) - (cartQuantity - Number(item.quantity || 0))
+                ));
+                quantity.type = "number"; quantity.min = "1"; quantity.max = String(Math.min(99, maxForRow)); quantity.step = "1";
                 quantity.value = String(item.quantity || 1); quantity.setAttribute("aria-label", `Quantity for ${title.textContent}`);
                 const remove = document.createElement("button"); remove.type = "button"; remove.dataset.removeOrderItem = "true"; remove.textContent = "Remove";
                 controls.append(quantity, remove); name.appendChild(controls);
@@ -1235,7 +1328,7 @@ const initializeAdminLive = async () => {
         const value = Number(promotion.discount_value || 0);
         const label = promotion.discount_type === "percentage" ? `${value}% off`
             : promotion.discount_type === "fixed_amount" ? `${money(value)} off`
-                : promotion.discount_type === "buy_one_get_one" ? "Buy one, get one free"
+                : promotion.discount_type === "buy_one_get_one" ? "Buy one, get one free per paid item"
                     : promotion.discount_type === "free_delivery" ? "Free delivery"
                         : "Promotion";
         setText("modalPromotionName", `${promotion.code || "Promotion"} - ${label}`);
@@ -1375,57 +1468,262 @@ const initializeAdminLive = async () => {
 
     const loadSettings = async () => {
         const result = await apiGet("/admin/settings");
-        if (!showResult(result)) return;
+        if (!showResult(result)) return false;
         const content = document.querySelector(".dashboard-content");
-        if (!content) return;
+        if (!content) return false;
         content.replaceChildren();
         const form = document.createElement("form");
         form.id = "adminApiSettingsForm";
-        form.className = "content-card settings-card";
-        const title = document.createElement("h3");
-        title.textContent = "Ordering and Delivery Settings";
-        form.appendChild(title);
-        const fields = [
-            ["business_lat", "Business latitude", "number", "0.000001"],
-            ["business_long", "Business longitude", "number", "0.000001"],
-            ["delivery_radius_km", "Delivery radius (km)", "number", "0.01"],
-            ["collection_radius_km", "Collection radius (km)", "number", "0.01"],
-            ["delivery_fee", "Delivery fee (R)", "number", "0.01"],
-            ["trading_hours_start", "Trading starts", "time", ""],
-            ["trading_hours_end", "Trading ends", "time", ""],
-            ["slot_duration_minutes", "Slot length (minutes)", "number", "1"],
-            ["max_orders_per_slot", "Maximum orders per slot", "number", "1"]
+        form.className = "fbk-settings-form";
+        const settings = result.data;
+        const nav = document.getElementById("fbkNav");
+        const sectionDefinitions = [
+            ["business", "fa-store", "Business contact", "Public address and phone customers use to reach the store."],
+            ["trading", "fa-clock", "Trading hours", "Choose which days you trade and set each day’s opening window."],
+            ["orders", "fa-bag-shopping", "Order handling", "Control order acceptance, minimums, slot capacity, and cart limits."],
+            ["delivery", "fa-truck-fast", "Delivery & collection", "Set service areas, fees, free delivery, and fulfilment availability."],
+            ["security", "fa-shield-halved", "Admin security", "Add an email verification step to administrator sign-in."]
         ];
-        fields.forEach(([name, labelText, type, step]) => {
+        nav?.replaceChildren();
+        const sections = {};
+        sectionDefinitions.forEach(([id, icon, titleText, descriptionText], index) => {
+            const section = document.createElement("section");
+            section.className = "fbk-card";
+            section.id = `settings-${id}`;
+            const header = document.createElement("div");
+            header.className = "card-h";
+            const iconBox = document.createElement("span");
+            iconBox.className = "ic";
+            const iconNode = document.createElement("i");
+            iconNode.className = `fa-solid ${icon}`;
+            iconNode.setAttribute("aria-hidden", "true");
+            const heading = document.createElement("div");
+            const title = document.createElement("h4");
+            title.textContent = titleText;
+            const description = document.createElement("p");
+            description.textContent = descriptionText;
+            iconBox.appendChild(iconNode);
+            heading.append(title, description);
+            header.append(iconBox, heading);
+            section.appendChild(header);
+            sections[id] = section;
+            form.appendChild(section);
+
+            if (nav) {
+                const link = document.createElement("a");
+                link.href = `#${section.id}`;
+                if (index === 0) link.classList.add("on");
+                const navIcon = document.createElement("i");
+                navIcon.className = `fa-solid ${icon}`;
+                navIcon.setAttribute("aria-hidden", "true");
+                link.append(navIcon, document.createTextNode(titleText));
+                nav.appendChild(link);
+            }
+        });
+
+        const addField = (sectionId, name, labelText, options = {}) => {
+            const field = document.createElement("div");
+            field.className = `fld${options.wide ? " wide" : ""}`;
+            const id = `setting-${name}`;
             const label = document.createElement("label");
-            label.className = "form-group";
+            label.htmlFor = id;
             label.textContent = labelText;
             const input = document.createElement("input");
+            input.id = id;
             input.name = name;
-            input.type = type;
-            if (step) input.step = step;
+            input.type = options.type || "number";
             input.required = true;
-            const value = result.data[name];
-            input.value = type === "time" ? String(value || "").slice(0, 5) : String(value ?? "");
-            label.appendChild(input);
-            form.appendChild(label);
-        });
-        ["delivery_enabled", "collection_enabled"].forEach((name) => {
-            const label = document.createElement("label");
+            if (options.step) input.step = options.step;
+            if (options.min !== undefined) input.min = String(options.min);
+            if (options.max !== undefined) input.max = String(options.max);
+            if (options.maxLength) input.maxLength = options.maxLength;
+            if (options.autocomplete) input.autocomplete = options.autocomplete;
+            input.value = String(settings[name] ?? "");
+            const inputWrap = document.createElement("div");
+            inputWrap.className = "inp";
+            inputWrap.appendChild(input);
+            if (options.unit) {
+                const unit = document.createElement("em");
+                unit.textContent = options.unit;
+                inputWrap.appendChild(unit);
+            }
+            field.append(label, inputWrap);
+            if (options.help) {
+                const help = document.createElement("small");
+                help.textContent = options.help;
+                field.appendChild(help);
+            }
+            sections[sectionId].appendChild(field);
+            return input;
+        };
+        const addToggle = (sectionId, name, labelText, helpText) => {
+            const row = document.createElement("label");
+            row.className = "row";
+            const text = document.createElement("span");
+            text.className = "row-t";
+            const title = document.createElement("b");
+            title.textContent = labelText;
+            const help = document.createElement("small");
+            help.textContent = helpText;
+            text.append(title, help);
+            const switchWrap = document.createElement("span");
+            switchWrap.className = "sw";
             const input = document.createElement("input");
             input.type = "checkbox";
             input.name = name;
-            input.checked = Boolean(Number(result.data[name]));
-            label.append(input, document.createTextNode(name === "delivery_enabled" ? " Delivery enabled" : " Collection enabled"));
-            form.appendChild(label);
+            input.checked = Boolean(Number(settings[name]));
+            input.setAttribute("aria-label", labelText);
+            const track = document.createElement("i");
+            switchWrap.append(input, track);
+            row.append(text, switchWrap);
+            sections[sectionId].appendChild(row);
+        };
+        const addGrid = (sectionId, fields) => {
+            const grid = document.createElement("div");
+            grid.className = "grid";
+            sections[sectionId].appendChild(grid);
+            fields.forEach(([name, label, options]) => {
+                addField(sectionId, name, label, options);
+                grid.appendChild(sections[sectionId].lastElementChild);
+            });
+        };
+
+        addGrid("business", [
+            ["business_phone", "Customer contact phone / WhatsApp", { type: "tel", maxLength: 30, autocomplete: "tel", help: "Shown on the customer home page." }],
+            ["business_address", "Public business address", { type: "text", maxLength: 255, autocomplete: "street-address", help: "Shown in the customer contact section." }]
+        ]);
+
+        const schedule = Array.isArray(settings.trading_hours) ? settings.trading_hours : [];
+        const hoursByDay = new Map(schedule.map((hours) => [Number(hours.weekday), hours]));
+        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+        const hoursRoot = document.createElement("div");
+        hoursRoot.className = "hours";
+        sections.trading.appendChild(hoursRoot);
+        days.forEach((dayName, index) => {
+            const weekday = index + 1;
+            const day = hoursByDay.get(weekday) || { is_open: weekday < 7, open_time: "11:00", close_time: "18:00" };
+            const row = document.createElement("div");
+            row.className = `hr${day.is_open ? "" : " off"}`;
+            const dayLabel = document.createElement("b");
+            dayLabel.textContent = dayName;
+            const times = document.createElement("div");
+            times.className = "tm";
+            const open = document.createElement("input");
+            open.type = "time";
+            open.value = String(day.open_time || "11:00").slice(0, 5);
+            open.dataset.weekday = String(weekday);
+            open.dataset.hourField = "open_time";
+            open.disabled = !day.is_open;
+            open.required = Boolean(day.is_open);
+            open.setAttribute("aria-label", `${dayName} opening time`);
+            const to = document.createElement("span");
+            to.textContent = "to";
+            const close = document.createElement("input");
+            close.type = "time";
+            close.value = String(day.close_time || "18:00").slice(0, 5);
+            close.dataset.weekday = String(weekday);
+            close.dataset.hourField = "close_time";
+            close.disabled = !day.is_open;
+            close.required = Boolean(day.is_open);
+            close.setAttribute("aria-label", `${dayName} closing time`);
+            times.append(open, to, close);
+            const closed = document.createElement("span");
+            closed.className = "cl";
+            closed.textContent = "Closed";
+            const switchWrap = document.createElement("span");
+            switchWrap.className = "sw";
+            const toggle = document.createElement("input");
+            toggle.type = "checkbox";
+            toggle.checked = Boolean(day.is_open);
+            toggle.dataset.openWeekday = String(weekday);
+            toggle.setAttribute("aria-label", `${dayName} open for ordering`);
+            const track = document.createElement("i");
+            switchWrap.append(toggle, track);
+            toggle.addEventListener("change", () => {
+                row.classList.toggle("off", !toggle.checked);
+                open.disabled = close.disabled = !toggle.checked;
+                open.required = close.required = toggle.checked;
+            });
+            row.append(dayLabel, times, closed, switchWrap);
+            hoursRoot.appendChild(row);
         });
-        const save = document.createElement("button");
-        save.type = "submit";
-        save.className = "save-menu-btn";
-        save.textContent = "Save settings";
-        form.appendChild(save);
+
+        addGrid("orders", [
+            ["minimum_order_amount", "Minimum order amount", { min: 0, max: 100000, step: "0.01", unit: "R", help: "Measured against item subtotal before promo-code discounts and delivery." }],
+            ["slot_duration_minutes", "Slot length", { min: 5, max: 240, step: "1", unit: "min" }],
+            ["max_orders_per_slot", "Maximum orders per time slot", { min: 1, max: 4294967295, step: "1", unit: "orders" }],
+            ["max_advance_booking_days", "Maximum days ahead customers can book", { min: 1, max: 365, step: "1", unit: "days" }],
+            ["max_item_quantity", "Maximum quantity of one menu item", { min: 1, max: 99, step: "1", unit: "items" }],
+            ["max_cart_items", "Maximum cart quantity, including item quantities", { min: 1, max: 500, step: "1", unit: "items" }]
+        ]);
+
+        addToggle("security", "admin_email_2fa_enabled", "Require email code for admin login", "When enabled, administrators must enter a one-time code sent to their account email after entering their password. This setting is off by default.");
+        addToggle("orders", "enforce_minimum_order", "Enforce minimum order amount", "When enabled, customers must meet the amount above before placing an order. Turn this off to show it as guidance only.");
+        addToggle("orders", "ordering_enabled", "Accept new orders", "Pause checkout for both delivery and collection.");
+
+        addGrid("delivery", [
+            ["business_lat", "Store latitude", { min: -90, max: 90, step: "0.000001", help: "Used as the origin when checking customer delivery distance." }],
+            ["business_long", "Store longitude", { min: -180, max: 180, step: "0.000001", help: "Used as the origin when checking customer delivery distance." }],
+            ["delivery_radius_km", "Maximum delivery distance", { min: 0, max: 9999.99, step: "0.01", unit: "km", help: "Delivery orders beyond this distance are not accepted." }],
+            ["collection_radius_km", "Suggest collection up to", { min: 0, max: 9999.99, step: "0.01", unit: "km", help: "For a delivery address beyond delivery range, show the collection suggestion up to this distance." }],
+            ["delivery_fee", "Delivery fee", { min: 0, max: 999999.99, step: "0.01", unit: "R" }],
+            ["free_delivery_threshold", "Free delivery above", { min: 0, max: 99999999.99, step: "0.01", unit: "R", help: "Set to R0 to disable the automatic threshold. The threshold uses the item subtotal before promo-code discounts." }]
+        ]);
+        addToggle("delivery", "delivery_enabled", "Offer delivery", "Customers can choose delivery at checkout.");
+        addToggle("delivery", "collection_enabled", "Offer collection", "Customers can collect orders from the store.");
+
+        const getCurrentState = () => {
+            const state = {};
+            new FormData(form).forEach((value, key) => { state[key] = value; });
+            ["ordering_enabled", "delivery_enabled", "collection_enabled", "enforce_minimum_order", "admin_email_2fa_enabled"].forEach((key) => {
+                state[key] = Boolean(form.elements.namedItem(key).checked);
+            });
+            state.trading_hours = [...form.querySelectorAll(".hr")].map((row, index) => ({
+                weekday: index + 1,
+                is_open: row.querySelector("[data-open-weekday]").checked,
+                open_time: row.querySelector('[data-hour-field="open_time"]').value,
+                close_time: row.querySelector('[data-hour-field="close_time"]').value
+            }));
+            return JSON.stringify(state);
+        };
+        const originalState = getCurrentState();
+        const saveBar = document.getElementById("saveBar");
+        const updateDirtyState = () => saveBar?.classList.toggle("show", getCurrentState() !== originalState);
+        form.addEventListener("input", updateDirtyState);
+        form.addEventListener("change", updateDirtyState);
+        form.querySelectorAll(".hr [data-open-weekday]").forEach((toggle) => {
+            toggle.addEventListener("change", updateDirtyState);
+        });
         content.appendChild(form);
+        saveBar?.classList.remove("show");
+        updateSettingsActionState();
+        return true;
     };
+
+    saveSettingsButton?.addEventListener("click", () => {
+        if (settingsActionInFlight) return;
+        document.getElementById("adminApiSettingsForm")?.requestSubmit();
+    });
+    discardSettingsButton?.addEventListener("click", async () => {
+        if (settingsActionInFlight || !document.getElementById("adminApiSettingsForm")) return;
+        settingsActionInFlight = true;
+        settingsAction = "discarding";
+        updateSettingsActionState();
+        try {
+            if (await loadSettings()) {
+                const toast = document.getElementById("toast");
+                if (toast) {
+                    toast.querySelector("span").textContent = "Changes discarded";
+                    toast.classList.add("show");
+                    window.setTimeout(() => toast.classList.remove("show"), 2500);
+                }
+            }
+        } finally {
+            settingsActionInFlight = false;
+            settingsAction = null;
+            updateSettingsActionState();
+        }
+    });
 
     const pageLoaders = {
         "dashboard.html": loadDashboard,
@@ -1499,6 +1797,14 @@ const initializeAdminLive = async () => {
             if (!product || !Array.isArray(currentReviewData?.items)) return alert("Choose an available menu item first.");
             const existing = currentReviewData.items.find((item) => Number(item.product_id) === productId
                 && (!Array.isArray(item.customizations) || item.customizations.length === 0));
+            const limits = currentReviewData.limits || { max_item_quantity: 6, max_cart_items: 10 };
+            const productTotal = currentReviewData.items
+                .filter((item) => Number(item.product_id) === productId)
+                .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+            const cartTotal = currentReviewData.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+            if (productTotal >= Number(limits.max_item_quantity) || cartTotal >= Number(limits.max_cart_items)) {
+                return alert(`Current settings allow up to ${limits.max_item_quantity} of one menu item and ${limits.max_cart_items} total items. Reduce the order before adding another.`);
+            }
             if (existing) {
                 if (Number(existing.quantity) >= 99) return alert("An item quantity cannot exceed 99.");
                 existing.quantity = Number(existing.quantity) + 1;
@@ -1515,7 +1821,7 @@ const initializeAdminLive = async () => {
                 const productId = Number(row.dataset.productId);
                 const quantity = Number(row.querySelector('input[type="number"]')?.value);
                 if (!Number.isInteger(productId) || productId < 1 || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
-                    return alert("Each item needs a quantity between 1 and 99.");
+                    return alert("Each item needs a whole-number quantity between 1 and 99.");
                 }
                 let optionIds = [];
                 try { optionIds = JSON.parse(row.dataset.optionIds || "[]"); } catch (_) {}
@@ -1783,16 +2089,45 @@ const initializeAdminLive = async () => {
         let result;
         if (form.id === "adminApiSettingsForm") {
             event.preventDefault(); event.stopImmediatePropagation();
+            if (settingsActionInFlight) return;
             const body = {};
             new FormData(form).forEach((value, key) => {
                 const input = form.elements.namedItem(key);
                 body[key] = input.type === "checkbox" ? input.checked : input.type === "number" ? Number(value) : value;
             });
-            ["delivery_enabled", "collection_enabled"].forEach((key) => {
+            ["ordering_enabled", "delivery_enabled", "collection_enabled", "enforce_minimum_order"].forEach((key) => {
                 body[key] = Boolean(form.elements.namedItem(key).checked);
             });
-            result = await apiPut("/admin/settings", body);
-            if (showResult(result)) alert("Ordering and delivery settings saved.");
+            body.trading_hours = [...form.querySelectorAll(".hr")].map((row, index) => ({
+                weekday: index + 1,
+                is_open: row.querySelector("[data-open-weekday]").checked,
+                open_time: row.querySelector('[data-hour-field="open_time"]').value,
+                close_time: row.querySelector('[data-hour-field="close_time"]').value
+            }));
+            settingsActionInFlight = true;
+            settingsAction = "saving";
+            updateSettingsActionState();
+            try {
+                result = await apiPut("/admin/settings", body);
+                if (showResult(result)) {
+                    await loadSettings();
+                    const toast = document.getElementById("toast");
+                    if (toast) {
+                        toast.querySelector("span").textContent = "Settings saved";
+                        toast.classList.add("show");
+                        window.setTimeout(() => toast.classList.remove("show"), 2500);
+                    }
+                } else if (result?.status === 0 || result?.status >= 500) {
+                    if (await loadSettings()) {
+                        window.foodByKNotify?.("The save result was uncertain. Settings were reloaded from the server; review the current values.", "error", 0);
+                    }
+                }
+            } finally {
+                settingsActionInFlight = false;
+                settingsAction = null;
+                updateSettingsActionState();
+            }
+            return;
         } else if (form.id === "categoryForm") {
             event.preventDefault(); event.stopImmediatePropagation();
             const category = window.adminCategories?.find((item) => Number(item.id) === Number(id));

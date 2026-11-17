@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             case "fixed_amount":
                 return `R${value.toFixed(2)} off`;
             case "buy_one_get_one":
-                return "Buy one, get one free";
+                return "Buy one, get one free per paid item";
             case "free_delivery":
                 return "Free delivery";
             default:
@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const targets = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
         const appliesTo = targets.length ? `Applies to: ${targets.join(", ")}. ` : "Applies across eligible orders. ";
         const terms = promotion.discount_type === "buy_one_get_one"
-            ? "Buy two of the same eligible item; the lower-priced one is free."
+            ? "Get one matching free item for every paid eligible item. One promotion code may be used per order."
             : promotion.discount_type === "free_delivery"
                 ? "For delivery orders only."
                 : "Discount is calculated at checkout.";
@@ -122,10 +122,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         apply.addEventListener("click", () => {
             try {
                 sessionStorage.setItem("foodbykSelectedPromotion", String(promotion.code || "").toUpperCase());
-                window.location.assign("/pages/customer/checkout.html");
             } catch (error) {
                 setMessage("Your browser could not save the offer. Please copy the code and enter it at checkout.", true);
+                return;
             }
+            apply.disabled = true;
+            apiGet("/cart").then((cart) => {
+                apply.disabled = false;
+                if (!cart?.success) {
+                    setMessage("Sign in and add menu items to your cart before applying this offer at checkout.", true);
+                    return;
+                }
+                if (Number(cart.data?.item_count || 0) < 1) {
+                    setMessage("Your offer is saved. Add menu items to your cart, then continue to checkout to apply it.");
+                    return;
+                }
+                window.location.assign("/pages/customer/checkout.html");
+            }).catch(() => {
+                apply.disabled = false;
+                setMessage("We could not check your cart. Please try again before applying this offer.", true);
+            });
         });
 
         article.append(kicker, title);

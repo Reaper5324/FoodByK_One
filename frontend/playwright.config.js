@@ -10,6 +10,8 @@ module.exports = defineConfig({
     baseURL: 'http://127.0.0.1:4173',
     browserName: 'chromium',
     trace: 'retain-on-failure',
+    serviceWorkers: 'block',
+    actionTimeout: 6000,
   },
   webServer: {
     command: 'python -m http.server 4173 --directory .',

@@ -6,7 +6,7 @@ class RateLimitMiddleware implements Middleware {
         private int $maxAttempts = 5,
         private int $windowSeconds = 300
     ) {
-        if (!in_array($this->scope, ['login', 'reset', 'request', 'assistant', 'verification'], true)
+        if (!in_array($this->scope, ['login', 'reset', 'request', 'assistant', 'verification', 'admin_verification'], true)
             || $this->maxAttempts < 1 || $this->windowSeconds < 1) {
             throw new InvalidArgumentException('Invalid rate-limit configuration.');
         }
@@ -15,21 +15,44 @@ class RateLimitMiddleware implements Middleware {
     public function handle(Request $request): ?Response {
         $keys = $this->keysFor($request);
         $db = Database::getConnection();
-        $cutoff = date('Y-m-d H:i:s', time() - $this->windowSeconds);
-        $db->prepare('DELETE FROM login_attempts WHERE attempted_at <= ?')->execute([$cutoff]);
-
-        foreach ($keys as $key) {
-            $stmt = $db->prepare('SELECT COUNT(*) FROM login_attempts WHERE identifier = ? AND attempted_at > ?');
-            $stmt->execute([$key, $cutoff]);
-            $limit = str_starts_with($key, 'login:ip:') ? max(25, $this->maxAttempts) : $this->maxAttempts;
-            if ((int) $stmt->fetchColumn() >= $limit) {
-                return Response::error('Too many attempts. Please try again later.', 429);
+        // Serialize assistant checks by IP; otherwise simultaneous requests can
+        // both observe an empty window and exceed the one-request cooldown.
+        $lockName = $this->scope === 'assistant'
+            ? 'fbk_rl_' . substr(hash('sha256', implode('|', $keys)), 0, 56)
+            : null;
+        if ($lockName !== null) {
+            $lock = $db->prepare('SELECT GET_LOCK(?, 3)');
+            $lock->execute([$lockName]);
+            if ((int) $lock->fetchColumn() !== 1) {
+                return Response::error('The assistant is busy. Please try again shortly.', 429);
             }
         }
 
-        // Limit reset requests so the endpoint cannot be used to spam email addresses.
-        if (in_array($this->scope, ['request', 'assistant', 'verification'], true)) {
-            self::storeKeys($db, $keys);
+        try {
+            $cutoff = date('Y-m-d H:i:s', time() - $this->windowSeconds);
+            $db->prepare('DELETE FROM login_attempts WHERE attempted_at <= ?')->execute([$cutoff]);
+
+            foreach ($keys as $key) {
+                $stmt = $db->prepare('SELECT COUNT(*) FROM login_attempts WHERE identifier = ? AND attempted_at > ?');
+                $stmt->execute([$key, $cutoff]);
+                $limit = str_starts_with($key, 'login:ip:') ? max(25, $this->maxAttempts) : $this->maxAttempts;
+                if ((int) $stmt->fetchColumn() >= $limit) {
+                    $message = $this->scope === 'assistant'
+                        ? 'Please wait four minutes between Food by K assistant questions.'
+                        : 'Too many attempts. Please try again later.';
+                    return Response::error($message, 429);
+                }
+            }
+
+            // Limit reset requests and assistant calls so these endpoints cannot
+            // be spammed by repeating requests from the same client.
+            if (in_array($this->scope, ['request', 'assistant', 'verification', 'admin_verification'], true)) {
+                self::storeKeys($db, $keys);
+            }
+        } finally {
+            if ($lockName !== null) {
+                $db->prepare('SELECT RELEASE_LOCK(?)')->execute([$lockName]);
+            }
         }
         return null;
     }
@@ -58,6 +81,14 @@ class RateLimitMiddleware implements Middleware {
             if ($email !== '') $keys[] = 'verification:email:' . hash('sha256', $email);
             return $keys;
         }
+        if ($this->scope === 'admin_verification') {
+            $challenge = strtolower(trim((string) $request->input('challenge_token', '')));
+            $keys = ['admin-verification:ip:' . $ip];
+            if (preg_match('/^[a-f0-9]{64}$/D', $challenge) === 1) {
+                $keys[] = 'admin-verification:challenge:' . hash('sha256', $challenge);
+            }
+            return $keys;
+        }
 
         $email = strtolower(trim((string) $request->input('email', '')));
         $keys = ['login:ip:' . $ip];
@@ -66,7 +97,13 @@ class RateLimitMiddleware implements Middleware {
     }
 
     private static function clientIp(): string {
-        return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        // Railway's public HTTP edge sets X-Real-IP to the actual client IP.
+        // Use it when valid so all customers are not grouped under the app
+        // proxy's REMOTE_ADDR; local/direct deployments fall back to the peer.
+        $realIp = trim((string) ($_SERVER['HTTP_X_REAL_IP'] ?? ''));
+        if (filter_var($realIp, FILTER_VALIDATE_IP) !== false) return $realIp;
+        $remoteIp = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+        return filter_var($remoteIp, FILTER_VALIDATE_IP) !== false ? $remoteIp : 'unknown';
     }
 
     private static function storeKeys(PDO $db, array $keys): void {

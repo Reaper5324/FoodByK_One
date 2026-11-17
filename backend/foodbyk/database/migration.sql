@@ -35,17 +35,57 @@ CREATE TABLE business_settings (
     delivery_radius_km     DECIMAL(6,2)  NOT NULL DEFAULT 5.00,
     collection_radius_km   DECIMAL(6,2)  NOT NULL DEFAULT 15.00,
     delivery_fee           DECIMAL(8,2)  NOT NULL DEFAULT 0.00,
+    free_delivery_threshold DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     trading_hours_start    TIME          NOT NULL DEFAULT '09:00:00',
     trading_hours_end      TIME          NOT NULL DEFAULT '20:00:00',
     delivery_enabled       TINYINT(1)    NOT NULL DEFAULT 1,
     collection_enabled     TINYINT(1)    NOT NULL DEFAULT 1,
     slot_duration_minutes  INT UNSIGNED  NOT NULL DEFAULT 30,
     max_orders_per_slot    INT UNSIGNED  NOT NULL DEFAULT 10,
+    max_advance_booking_days INT UNSIGNED NOT NULL DEFAULT 30,
+    max_item_quantity      INT UNSIGNED  NOT NULL DEFAULT 6,
+    max_cart_items         INT UNSIGNED  NOT NULL DEFAULT 10,
+    minimum_order_amount   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    enforce_minimum_order  TINYINT(1)    NOT NULL DEFAULT 0,
+    ordering_enabled       TINYINT(1)    NOT NULL DEFAULT 1,
+    admin_email_2fa_enabled TINYINT(1)   NOT NULL DEFAULT 0,
+    business_phone        VARCHAR(30)   NOT NULL DEFAULT '081 447 8365',
+    business_address      VARCHAR(255)  NOT NULL DEFAULT '8513 Goshawk Street, Lenasia South, Gauteng',
     updated_at             TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT chk_settings_singleton CHECK (id = 1)
 ) ENGINE=InnoDB;
 
 INSERT INTO business_settings (id) VALUES (1);
+
+CREATE TABLE admin_login_challenges (
+    id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    token_hash    CHAR(64) NOT NULL UNIQUE,
+    user_id       INT UNSIGNED NOT NULL,
+    code_hash     VARCHAR(255) NOT NULL,
+    expires_at    DATETIME NOT NULL,
+    resend_after  DATETIME NOT NULL,
+    attempts      TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_admin_login_challenges_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_admin_login_challenges_expiry (expires_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE business_trading_hours (
+    weekday    TINYINT UNSIGNED PRIMARY KEY,
+    is_open    TINYINT(1) NOT NULL DEFAULT 1,
+    open_time  TIME NOT NULL DEFAULT '11:00:00',
+    close_time TIME NOT NULL DEFAULT '18:00:00',
+    CONSTRAINT chk_trading_hours_weekday CHECK (weekday BETWEEN 1 AND 7),
+    CONSTRAINT chk_trading_hours_order CHECK (close_time > open_time)
+) ENGINE=InnoDB;
+
+INSERT INTO business_trading_hours (weekday, is_open, open_time, close_time)
+SELECT days.weekday, days.weekday < 7, settings.trading_hours_start, settings.trading_hours_end
+FROM business_settings settings
+CROSS JOIN (
+    SELECT 1 AS weekday UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL
+    SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+) days;
 
 CREATE TABLE categories (
     id             INT          UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -219,11 +259,13 @@ CREATE TABLE order_items (
     product_id    INT            UNSIGNED NOT NULL,
     product_name  VARCHAR(150)   NOT NULL,
     quantity      INT            UNSIGNED NOT NULL,
+    free_quantity INT            UNSIGNED NOT NULL DEFAULT 0,
     unit_price    DECIMAL(8,2)   NOT NULL,
     customization_json LONGTEXT DEFAULT NULL,
     CONSTRAINT fk_items_order   FOREIGN KEY (order_id)   REFERENCES orders(id)   ON DELETE CASCADE,
     CONSTRAINT fk_items_product FOREIGN KEY (product_id) REFERENCES products(id),
     CONSTRAINT chk_order_items_quantity_positive CHECK (quantity > 0),
+    CONSTRAINT chk_order_items_free_quantity CHECK (free_quantity <= quantity),
     CONSTRAINT chk_order_items_price_nonnegative CHECK (unit_price >= 0),
     INDEX idx_items_order (order_id)
 ) ENGINE=InnoDB;

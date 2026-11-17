@@ -16,8 +16,19 @@ const sidebarToggle = document.querySelector(".sidebar-toggle");
 const sidebar = document.querySelector(".sidebar");
 
 if (sidebarToggle && sidebar) {
+    if (!sidebar.id) sidebar.id = "adminSidebar";
+    sidebarToggle.setAttribute("aria-controls", sidebar.id);
+    sidebarToggle.setAttribute("aria-label", "Toggle navigation");
+    sidebarToggle.setAttribute("aria-expanded", sidebar.classList.contains("active") ? "true" : "false");
     sidebarToggle.addEventListener("click", () => {
-        sidebar.classList.toggle("active");
+        const isOpen = sidebar.classList.toggle("active");
+        sidebarToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    });
+    document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || !sidebar.classList.contains("active")) return;
+        sidebar.classList.remove("active");
+        sidebarToggle.setAttribute("aria-expanded", "false");
+        sidebarToggle.focus();
     });
 }
 

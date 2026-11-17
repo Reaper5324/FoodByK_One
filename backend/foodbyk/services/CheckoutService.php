@@ -23,6 +23,9 @@ class CheckoutService {
         }
         $cartItems = $cartValidation['data']['items'];
         $productsById = $cartValidation['data']['products'];
+        $minimumOrderAmount = $cartValidation['data']['minimum_order_amount'];
+        $minimumOrderMet = $cartValidation['data']['minimum_order_met'];
+        $minimumOrderEnforced = $cartValidation['data']['enforce_minimum_order'];
 
         // Use current prices for the preview; submission saves a price snapshot.
         $subtotal = 0.0;
@@ -32,16 +35,19 @@ class CheckoutService {
             $lineTotal = $cartItem->quantity * ($product->price + $cartItem->getCustomizationTotal());
             $subtotal += $lineTotal;
             $lineItems[] = [
+                'cart_item_id' => $cartItem->id,
                 'product_id' => $cartItem->product_id,
                 'product_name' => $product->name,
                 'quantity' => $cartItem->quantity,
                 'unit_price' => $product->price + $cartItem->getCustomizationTotal(),
+                'line_total' => $lineTotal,
+                'customizations' => $cartItem->customizations,
             ];
         }
         $subtotal = round($subtotal, 2);
 
         $deliveryService = new DeliveryService();
-        $address = $addressId ? Address::findById($addressId) : null;
+        $address = $fulfilmentType === Order::TYPE_DELIVERY && $addressId ? Address::findById($addressId) : null;
         if ($fulfilmentType === Order::TYPE_DELIVERY && (!$address || $address->customer_id !== $customerId)) {
             return $this->failure('Delivery address not found.');
         }
@@ -51,15 +57,22 @@ class CheckoutService {
         }
 
         $deliveryFee = 0.0;
+        $freeDeliveryApplied = false;
         $distanceKm = 0.0;
         if ($fulfilmentType === Order::TYPE_DELIVERY) {
             $deliveryFee = $eligibility['data']['fee'];
             $distanceKm = $eligibility['data']['distance_km'];
+            $settings = BusinessSettings::current();
+            if ($settings->free_delivery_threshold > 0 && $subtotal >= $settings->free_delivery_threshold) {
+                $deliveryFee = 0.0;
+                $freeDeliveryApplied = true;
+            }
         }
 
         $discount = 0.0;
         $promotionId = null;
         $promotionDetails = null;
+        $freeQuantitiesByCartItem = [];
         if ($promotionCode) {
             $promotionService = new PromotionService();
             $promoResult = $promotionService->validateAndCalculate(
@@ -82,21 +95,53 @@ class CheckoutService {
                 'eligible_product_names' => $promoResult['data']['eligible_product_names'],
                 'applied_product_names' => $promoResult['data']['applied_product_names'],
             ];
+            $freeQuantitiesByCartItem = $promoResult['data']['free_quantities_by_cart_item'] ?? [];
         }
+
+        $fulfillmentSubtotal = $subtotal;
+        foreach ($lineItems as $item) {
+            $freeQuantity = (int) ($freeQuantitiesByCartItem[$item['cart_item_id']] ?? 0);
+            $fulfillmentSubtotal += $freeQuantity * $item['unit_price'];
+        }
+        $fulfillmentSubtotal = round($fulfillmentSubtotal, 2);
 
         $redemption = (new LoyaltyService())->previewRedemption(
             $customerId,
             $loyaltyPointsToRedeem,
-            max(0.0, $subtotal + $deliveryFee - $discount)
+            max(0.0, $fulfillmentSubtotal + $deliveryFee - $discount)
         );
         if (!$redemption['success']) return $redemption;
 
         $loyaltyDiscount = $redemption['data']['discount'];
-        $total = round(max(0.0, $subtotal + $deliveryFee - $discount - $loyaltyDiscount), 2);
+        $total = round(max(0.0, $fulfillmentSubtotal + $deliveryFee - $discount - $loyaltyDiscount), 2);
+        $quoteFingerprint = CheckoutQuote::fingerprint(
+            $customerId,
+            $fulfilmentType,
+            $fulfilmentType === Order::TYPE_DELIVERY ? $addressId : null,
+            $lineItems,
+            $freeQuantitiesByCartItem,
+            $fulfillmentSubtotal,
+            $deliveryFee,
+            $promotionId,
+            $discount,
+            $redemption['data']['points_to_redeem'],
+            $loyaltyDiscount,
+            $total
+        );
 
         return $this->success([
             'items_count' => count($cartItems),
-            'subtotal' => $subtotal,
+            'items' => array_map(static fn(array $item): array => [
+                'product_id' => $item['product_id'],
+                'name' => $item['product_name'],
+                'quantity' => $item['quantity'] + (int) ($freeQuantitiesByCartItem[$item['cart_item_id']] ?? 0),
+                'paid_quantity' => $item['quantity'],
+                'free_quantity' => (int) ($freeQuantitiesByCartItem[$item['cart_item_id']] ?? 0),
+                'unit_price' => round($item['unit_price'], 2),
+                'line_total' => round($item['line_total'] + ($freeQuantitiesByCartItem[$item['cart_item_id']] ?? 0) * $item['unit_price'], 2),
+                'customizations' => $item['customizations'],
+            ], $lineItems),
+            'subtotal' => $fulfillmentSubtotal,
             'discount' => $discount,
             'discount_reason' => $promotionDetails
                 ? match ($promotionDetails['discount_type']) {
@@ -110,6 +155,7 @@ class CheckoutService {
                 }
                 : null,
             'promotion' => $promotionDetails,
+            'free_delivery_applied' => $freeDeliveryApplied,
             'loyalty_points_redeemed' => $redemption['data']['points_to_redeem'],
             'loyalty_discount' => $loyaltyDiscount,
             'loyalty_points_balance' => $redemption['data']['available_points'],
@@ -117,7 +163,12 @@ class CheckoutService {
             'distance_km' => $distanceKm,
             'fulfillment_type' => $fulfilmentType,
             'total' => $total,
-            'can_proceed' => true,
+            'quote_fingerprint' => $quoteFingerprint,
+            'minimum_order_amount' => $minimumOrderAmount,
+            'minimum_order_subtotal' => $cartValidation['data']['minimum_order_subtotal'],
+            'minimum_order_met' => $minimumOrderMet,
+            'minimum_order_enforced' => $minimumOrderEnforced,
+            'can_proceed' => !$minimumOrderEnforced || $minimumOrderMet,
         ]);
     }
 
@@ -132,18 +183,23 @@ class CheckoutService {
             fn(CartItem $item) => $item->product_id,
             $cartItems
         ));
+        $settings = BusinessSettings::current();
+        $cartQuantity = array_sum(array_map(fn(CartItem $item) => $item->quantity, $cartItems));
+        if ($cartQuantity > $settings->max_cart_items) {
+            return $this->failure('Your cart can contain up to ' . $settings->max_cart_items . ' items, including quantities. Reduce your cart to continue.');
+        }
         $quantitiesByProduct = [];
         foreach ($cartItems as $item) {
             $quantitiesByProduct[$item->product_id] = ($quantitiesByProduct[$item->product_id] ?? 0) + $item->quantity;
         }
         foreach ($quantitiesByProduct as $quantity) {
-            if ($quantity > CartService::MAX_ITEM_QUANTITY) {
-                return $this->failure('A menu item exceeds the limit of 99 across its customizations. Reduce its quantity to continue.');
+            if ($quantity > $settings->max_item_quantity) {
+                return $this->failure('A menu item exceeds the limit of ' . $settings->max_item_quantity . ' across its customizations. Reduce its quantity to continue.');
             }
         }
         foreach ($cartItems as $item) {
-            if ($item->quantity > CartService::MAX_ITEM_QUANTITY) {
-                return $this->failure('A menu item quantity exceeds the limit of 99. Reduce the quantity in your cart to continue.');
+            if ($item->quantity > $settings->max_item_quantity) {
+                return $this->failure('A menu item quantity exceeds the limit of ' . $settings->max_item_quantity . '. Reduce the quantity in your cart to continue.');
             }
             $product = $productsById[$item->product_id] ?? null;
             if (!$product || $product->status !== Product::STATUS_ACTIVE || !$product->is_available) {
@@ -152,15 +208,34 @@ class CheckoutService {
                 );
             }
 
+            $customizationValidation = (new ProductOptionService())->validateCartSelection($item);
+            if (!$customizationValidation['success']) return $customizationValidation;
+
         }
 
-        return $this->success(['items' => $cartItems, 'products' => $productsById]);
+        // Keep the advisory amount based on the paid cart subtotal before
+        // promotions, so the customer sees the same basis as the admin setting.
+        $subtotal = 0.0;
+        foreach ($cartItems as $item) {
+            $product = $productsById[$item->product_id];
+            $subtotal += ($product->price + $item->getCustomizationTotal()) * $item->quantity;
+        }
+        $subtotal = round($subtotal, 2);
+
+        return $this->success([
+            'items' => $cartItems,
+            'products' => $productsById,
+            'minimum_order_amount' => $settings->minimum_order_amount,
+            'minimum_order_subtotal' => $subtotal,
+            'minimum_order_met' => $subtotal >= $settings->minimum_order_amount,
+            'enforce_minimum_order' => $settings->enforce_minimum_order,
+        ]);
     }
 
     /** Geocodes the address if needed and checks delivery eligibility. */
-    public function validateDeliveryAddress(int $addressId): array {
+    public function validateDeliveryAddress(int $customerId, int $addressId): array {
         $address = Address::findById($addressId);
-        if (!$address) {
+        if (!$address || $address->customer_id !== $customerId) {
             return $this->failure('Address not found.');
         }
 
@@ -193,7 +268,8 @@ class CheckoutService {
         string $requestedWindowStart,
         string $requestedWindowEnd,
         ?string $promotionCode = null,
-        float $loyaltyPointsToRedeem = 0.0
+        float $loyaltyPointsToRedeem = 0.0,
+        string $quoteFingerprint = ''
     ): array {
         $orderService = new OrderService();
         return $orderService->submitOrder(
@@ -203,7 +279,8 @@ class CheckoutService {
             $requestedWindowStart,
             $requestedWindowEnd,
             $promotionCode,
-            $loyaltyPointsToRedeem
+            $loyaltyPointsToRedeem,
+            $quoteFingerprint
         );
     }
 

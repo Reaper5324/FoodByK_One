@@ -1,6 +1,7 @@
 ﻿document.addEventListener("DOMContentLoaded", async () => {
     const form = document.getElementById("checkoutForm");
     const fulfilment = document.getElementById("fulfilmentType");
+    const fulfilmentAvailabilityMessage = document.getElementById("fulfilmentAvailabilityMessage");
     const addressField = document.getElementById("addressField");
     const addressSelect = document.getElementById("addressId");
 
@@ -18,6 +19,7 @@
 
     const deliveryMessage = document.getElementById("deliveryMessage");
     const dateInput = document.getElementById("slotDate");
+    const dateMessage = document.getElementById("slotDateMessage");
     const slotSelect = document.getElementById("slotSelect");
     const promotionInput = document.getElementById("promotionCode");
     const message = document.getElementById("checkoutMessage");
@@ -28,11 +30,21 @@
     const loyaltyBalanceMessage = document.getElementById("loyaltyBalanceMessage");
 
     const selectedPromotionKey = "foodbykSelectedPromotion";
+    let cartPreviewItems = [];
+    let productImagesById = new Map();
+    let productCatalogPromise = null;
+    let pricedItemsActive = false;
+    let cartFingerprint = "";
+    let quoteFingerprint = "";
 
     let previewReady = false;
+    let minimumOrderBlocked = false;
     let addressesLoaded = false;
     let previewRequestId = 0;
     let previewTimer = null;
+    let slotRequestId = 0;
+    let tradingSchedule = null;
+    let submitInFlight = false;
 
     const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, {
         minimumFractionDigits: 2,
@@ -57,6 +69,63 @@
 
         loyaltyBalanceMessage.textContent =
             `You have ${formatPoints(balance)} points worth R${Number(result.data.estimated_value || 0).toFixed(2)}.`;
+    };
+
+    const loadBusinessAvailability = async () => {
+        const result = await apiGet("/business/settings").catch(() => null);
+        const settings = result?.success ? result.data : null;
+        if (!settings) return;
+        tradingSchedule = Array.isArray(settings.trading_hours) ? settings.trading_hours : null;
+
+        const orderingEnabled = settings.ordering_enabled !== false && Number(settings.ordering_enabled) !== 0;
+        const deliveryEnabled = settings.delivery_enabled !== false && Number(settings.delivery_enabled) !== 0;
+        const collectionEnabled = settings.collection_enabled !== false && Number(settings.collection_enabled) !== 0;
+        const deliveryOption = fulfilment.querySelector('option[value="delivery"]');
+        const collectionOption = fulfilment.querySelector('option[value="collection"]');
+
+        deliveryOption.disabled = !orderingEnabled || !deliveryEnabled;
+        collectionOption.disabled = !orderingEnabled || !collectionEnabled;
+        deliveryOption.textContent = deliveryEnabled ? "Delivery" : "Delivery (currently unavailable)";
+        collectionOption.textContent = collectionEnabled ? "Collection" : "Collection (currently unavailable)";
+        fulfilment.disabled = !orderingEnabled;
+
+        const messages = [];
+        if (!orderingEnabled) messages.push("Online ordering is temporarily paused.");
+        else if (!deliveryEnabled && !collectionEnabled) messages.push("Delivery and collection are currently unavailable.");
+        else {
+            if (!deliveryEnabled) messages.push("Delivery is currently unavailable.");
+            if (!collectionEnabled) messages.push("Collection is currently unavailable.");
+        }
+        if (fulfilmentAvailabilityMessage) {
+            fulfilmentAvailabilityMessage.textContent = messages.join(" ");
+            fulfilmentAvailabilityMessage.hidden = messages.length === 0;
+        }
+        if (fulfilment.value && (fulfilment.disabled || fulfilment.selectedOptions[0]?.disabled)) {
+            fulfilment.value = "";
+            addressField.hidden = true;
+            addressSelect.required = false;
+            clearPreview("Choose an available fulfilment option to review your total.");
+        }
+    };
+
+    const isOpenDate = (dateValue) => {
+        if (!tradingSchedule || !dateValue) return true;
+        const selectedDate = new Date(`${dateValue}T12:00:00`);
+        if (Number.isNaN(selectedDate.getTime())) return false;
+        const weekday = selectedDate.getDay() || 7;
+        const day = tradingSchedule.find((entry) => Number(entry.weekday) === weekday);
+        return Boolean(day && (day.is_open === true || Number(day.is_open) === 1));
+    };
+
+    const nextOpenDate = (dateValue) => {
+        const candidate = new Date(`${dateValue}T12:00:00`);
+        if (Number.isNaN(candidate.getTime())) return "";
+        for (let offset = 1; offset <= 366; offset++) {
+            candidate.setDate(candidate.getDate() + 1);
+            const formatted = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
+            if (isOpenDate(formatted)) return formatted;
+        }
+        return "";
     };
 
     try {
@@ -99,17 +168,103 @@
     const clearPreview = (prompt = "Update the checkout details to see your latest total.") => {
         previewRequestId++;
         previewReady = false;
+        minimumOrderBlocked = false;
+        pricedItemsActive = false;
+        quoteFingerprint = "";
         previewButton.disabled = false;
         previewButton.innerHTML = 'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
         submitButton.hidden = true;
         message.hidden = true;
         showDeliveryMessage("");
         showSummaryMessage(prompt);
+        renderCartPreview();
     };
 
     const schedulePreview = () => {
         window.clearTimeout(previewTimer);
         previewTimer = window.setTimeout(() => requestPreview({ silent: true }), 350);
+    };
+
+    const renderCartPreview = () => {
+        const host = document.getElementById("checkoutCartPreview");
+        if (!host) return;
+        host.replaceChildren();
+        cartPreviewItems.forEach((item) => {
+            const row = document.createElement("article");
+            row.className = "checkout-item-card";
+            const name = item.name || item.product_name || `Menu item ${item.product_id || ""}`;
+            const image = document.createElement("img");
+            image.className = "checkout-item-image";
+            image.src = productImagesById.get(Number(item.product_id)) || "../../images/foodbyk.png";
+            image.alt = `${name} from Food by K`;
+            image.loading = "lazy";
+            image.addEventListener("error", () => { image.hidden = true; }, { once: true });
+            const details = document.createElement("div");
+            details.className = "checkout-item-details";
+            const title = document.createElement("strong");
+            title.className = "checkout-item-name";
+            title.textContent = name;
+            const quantity = Number(item.quantity || 0);
+            const unitPrice = Number(item.unit_price || 0);
+            const lineTotal = Number(item.line_total || 0);
+            const price = document.createElement("span");
+            price.className = "checkout-item-price";
+            price.textContent = `${quantity} × R${unitPrice.toFixed(2)}${Number(item.free_quantity || 0) ? ` · ${item.paid_quantity} paid + ${item.free_quantity} free` : ""}`;
+            const line = document.createElement("strong");
+            line.className = "checkout-item-line-total";
+            line.textContent = `R${lineTotal.toFixed(2)}`;
+            details.append(title, price);
+            row.append(image, details, line);
+            host.appendChild(row);
+            (item.customizations || []).forEach((option) => {
+                const extra = document.createElement("p");
+                extra.className = "checkout-summary-note checkout-summary-customization";
+                extra.textContent = `Extras: ${option.name || "Selected extra"}`;
+                host.appendChild(extra);
+            });
+        });
+        if (!cartPreviewItems.length) {
+            const empty = document.createElement("p");
+            empty.className = "checkout-summary-note";
+            empty.textContent = "Your cart is empty. Add menu items to see your order total.";
+            host.appendChild(empty);
+        }
+    };
+
+    const renderPricedItems = (items) => {
+        const previous = cartPreviewItems;
+        cartPreviewItems = Array.isArray(items) ? items : [];
+        pricedItemsActive = true;
+        renderCartPreview();
+        cartPreviewItems = previous;
+    };
+
+    const loadCartPreview = async () => {
+        const host = document.getElementById("checkoutCartPreview");
+        if (host && cartPreviewItems.length === 0) host.textContent = "Loading your cart items…";
+        if (!productCatalogPromise) {
+            productCatalogPromise = apiGet("/products").then((result) => {
+                if (result?.success && Array.isArray(result.data)) {
+                    productImagesById = new Map(result.data.map((product) => [Number(product.id), product.image_url || ""]));
+                }
+            }).catch(() => {});
+        }
+        const [, result] = await Promise.all([productCatalogPromise, apiGet("/cart").catch(() => null)]);
+        if (!result?.success || !Array.isArray(result.data?.items)) {
+            if (host) host.textContent = result?.error || "Could not load your cart. Refresh the page to try again.";
+            return;
+        }
+        const nextFingerprint = JSON.stringify(result.data.items);
+        if (cartFingerprint && nextFingerprint !== cartFingerprint) {
+            pricedItemsActive = false;
+            previewReady = false;
+            quoteFingerprint = "";
+            submitButton.hidden = true;
+            showSummaryMessage("Your cart changed. Review the latest total before placing your order.");
+        }
+        cartFingerprint = nextFingerprint;
+        cartPreviewItems = result.data.items;
+        if (!pricedItemsActive) renderCartPreview();
     };
 
     // Show the new address form
@@ -238,7 +393,7 @@
 
         const result = await apiGet("/addresses");
 
-        if (!result.success) {
+        if (!result?.success || !result.data) {
             addressSelect.replaceChildren(
                 new Option("Unable to load addresses", "")
             );
@@ -289,8 +444,14 @@
 
     const loadSlots = async () => {
         const date = dateInput.value;
+        const requestId = ++slotRequestId;
 
         slotSelect.replaceChildren();
+        if (!date) {
+            slotSelect.appendChild(new Option("No open days are currently scheduled", ""));
+            slotSelect.setAttribute("aria-busy", "false");
+            return;
+        }
 
         const placeholder = document.createElement("option");
         placeholder.value = "";
@@ -299,21 +460,20 @@
         slotSelect.appendChild(placeholder);
         slotSelect.setAttribute("aria-busy", "true");
 
-        const result = await apiGet(
-            `/checkout/slots?date=${encodeURIComponent(date)}`
-        );
+        const result = await apiGet(`/checkout/slots?date=${encodeURIComponent(date)}`).catch(() => null);
+        if (requestId !== slotRequestId || date !== dateInput.value) return;
 
         slotSelect.replaceChildren();
         slotSelect.setAttribute("aria-busy", "false");
 
-        if (!result.success) {
+        if (!result?.success || !Array.isArray(result.data)) {
             const failed = document.createElement("option");
             failed.value = "";
             failed.textContent = "Unable to load times";
 
             slotSelect.appendChild(failed);
 
-            showMessage(result.error || "Unable to load available times.", true);
+            showMessage(result?.error || "Unable to load available times.", true);
             return;
         }
 
@@ -354,6 +514,8 @@
     const requestPreview = async ({ silent = false } = {}) => {
         message.hidden = true;
         previewReady = false;
+        quoteFingerprint = "";
+        minimumOrderBlocked = false;
         submitButton.hidden = true;
         const requestId = ++previewRequestId;
 
@@ -364,13 +526,13 @@
         };
 
         if (!fulfilment.value) {
-            explain("Choose collection or delivery to calculate your order total.");
+            explain("Choose collection or delivery to calculate your order total.", false);
             return;
         }
 
         if (!slotSelect.value) {
-            explain("Choose an available fulfilment time to calculate your total.");
-            return;
+            // Price totals do not depend on the selected time. Preview anyway;
+            // the submit action remains gated on a valid slot.
         }
 
         if (fulfilment.value === "delivery" && !addressSelect.value) {
@@ -395,14 +557,6 @@
 
         summary.setAttribute("aria-busy", "true");
 
-        summary.replaceChildren(...Array.from({ length: 4 }, () => {
-            const row = document.createElement("div");
-            row.className = "skeleton skeleton-line";
-            row.setAttribute("aria-hidden", "true");
-            return row;
-        }));
-
-        summary.hidden = false;
 
         const result = await apiPost("/checkout/preview", payload);
 
@@ -412,7 +566,9 @@
         previewButton.innerHTML =
             'Review total <span class="ui-arrow ui-arrow-right" aria-hidden="true"></span>';
 
-        if (!result.success) {
+        if (!result?.success || !result.data) {
+            pricedItemsActive = false;
+            renderCartPreview();
             summary.setAttribute("aria-busy", "false");
 
             const deliveryErrors = [
@@ -423,7 +579,7 @@
                 "Delivery address not found."
             ];
 
-            const errorMessage = result.error || "Unable to review this order.";
+            const errorMessage = result?.error || "Unable to review this order.";
 
             if (
                 fulfilment.value === "delivery" &&
@@ -440,6 +596,16 @@
         }
 
         const data = result.data;
+        if (typeof data.quote_fingerprint !== "string" || !/^[a-f0-9]{64}$/.test(data.quote_fingerprint)) {
+            explain("Unable to confirm the current order quote. Please review your total again.");
+            return;
+        }
+        quoteFingerprint = data.quote_fingerprint;
+        if (!Array.isArray(data.items) || data.items.length === 0) {
+            explain("Your cart is empty. Add menu items before continuing.");
+            return;
+        }
+        renderPricedItems(data.items);
 
         summary.replaceChildren();
         summary.setAttribute("aria-busy", "false");
@@ -456,25 +622,48 @@
         summaryHeading.append(summaryKicker, summaryTitle);
         summary.appendChild(summaryHeading);
 
-       // Build the main price breakdown
-       const priceRows = [
-           ["Subtotal", Number(data.subtotal || 0)]
-       ];
+        if (Array.isArray(data.items) && data.items.length) {
+            const itemsHeading = document.createElement("p");
+            itemsHeading.className = "checkout-summary-row checkout-summary-items-heading";
+            itemsHeading.textContent = "Items in your order";
+            summary.appendChild(itemsHeading);
+            data.items.forEach((item) => {
+                const row = document.createElement("p");
+                row.className = "checkout-summary-row";
+                const details = document.createElement("span");
+                const freeQuantity = Number(item.free_quantity || 0);
+                details.textContent = `${item.name} × ${item.quantity}${freeQuantity ? ` (${freeQuantity} free)` : ""}`;
+                const price = document.createElement("strong");
+                price.textContent = `R${Number(item.line_total || 0).toFixed(2)}`;
+                row.append(details, price);
+                summary.appendChild(row);
+                (item.customizations || []).forEach((customization) => {
+                    const option = document.createElement("p");
+                    option.className = "checkout-summary-note checkout-summary-customization";
+                    option.textContent = `↳ ${customization.name || customization.option_name || "Extra"}`;
+                    summary.appendChild(option);
+                });
+            });
+        }
 
-       // Only display a promotion discount when one was actually applied
-       if (Number(data.discount || 0) > 0) {
-           priceRows.push([
-               data.discount_reason || "Promotion discount",
-               -Number(data.discount)
-           ]);
+       // Keep delivery waivers attached to the delivery line so the customer
+       // sees the fee they will actually pay.
+       const discount = Number(data.discount || 0);
+       const isFreeDelivery = data.promotion?.discount_type === "free_delivery";
+       const deliveryFee = Number(data.delivery_fee || 0);
+       const deliveryDiscount = isFreeDelivery ? Math.min(deliveryFee, discount) : 0;
+       const itemDiscount = discount - deliveryDiscount;
+       const priceRows = [["Subtotal", Number(data.subtotal || 0)]];
+
+       if (itemDiscount > 0) {
+           priceRows.push([data.discount_reason || "Promotion discount", -itemDiscount]);
        }
 
-       // Display the appropriate fulfilment fee
        priceRows.push([
            data.fulfillment_type === "delivery"
-               ? "Delivery fee"
+               ? (deliveryDiscount > 0 || data.free_delivery_applied ? "Delivery fee (free delivery applied)" : "Delivery fee")
                : "Delivery fee (not applicable)",
-           Number(data.delivery_fee || 0)
+           data.fulfillment_type === "delivery" ? deliveryFee - deliveryDiscount : 0
        ]);
 
        priceRows.forEach(([label, amount]) => {
@@ -535,8 +724,8 @@
                 promoNote.textContent = `Free delivery applied with code ${data.promotion.code}.`;
             } else if (discountApplied && data.promotion.discount_type === "buy_one_get_one") {
                 promoNote.textContent = appliedNames.length
-                    ? `Buy-one-get-one offer applied to: ${appliedNames.join(", ")}.`
-                    : `Buy-one-get-one offer applied with code ${data.promotion.code}.`;
+                    ? `Buy-one-get-one applied to ${appliedNames.join(", ")}: each paid eligible item has one matching free item.`
+                    : `Buy-one-get-one applied with code ${data.promotion.code}: each paid eligible item has one matching free item.`;
             } else if (discountApplied && appliedNames.length) {
                 promoNote.textContent = `Promotion applied to: ${appliedNames.join(", ")}.`;
             } else if (discountApplied) {
@@ -544,7 +733,7 @@
             } else if (data.promotion.discount_type === "free_delivery" && data.fulfillment_type !== "delivery") {
                 promoNote.textContent = "Free-delivery offers apply to delivery orders only.";
             } else if (data.promotion.discount_type === "buy_one_get_one") {
-                promoNote.textContent = "Buy-one-get-one offers need two of the same eligible menu item.";
+                promoNote.textContent = "Add eligible items to receive one matching free unit for each paid eligible unit. Other menu items remain charged.";
             } else if (data.promotion.target_product_names?.length) {
                 promoNote.textContent =
                     `This offer applies to ${data.promotion.target_product_names.join(", ")}. Check that your basket meets the offer conditions.`;
@@ -555,6 +744,20 @@
             summary.appendChild(promoNote);
         }
 
+        if (data.minimum_order_met === false) {
+            const minimumNote = document.createElement("p");
+            minimumNote.className = "checkout-summary-note";
+            const minimum = Number(data.minimum_order_amount || 0);
+            const currentSubtotal = Number(data.minimum_order_subtotal || 0);
+            if (data.minimum_order_enforced) {
+                const remaining = Math.max(0, minimum - currentSubtotal);
+                minimumNote.textContent = `Your item subtotal is R${currentSubtotal.toFixed(2)}. Add at least R${remaining.toFixed(2)} in items to meet the R${minimum.toFixed(2)} minimum and place your order.`;
+            } else {
+                minimumNote.textContent = `Your order is below the R${minimum.toFixed(2)} suggested minimum. You can still continue.`;
+            }
+            summary.appendChild(minimumNote);
+        }
+
         const summaryNote = document.createElement("p");
         summaryNote.className = "checkout-summary-note";
         summaryNote.textContent =
@@ -563,7 +766,8 @@
         summary.appendChild(summaryNote);
 
         summary.hidden = false;
-        submitButton.hidden = false;
+        minimumOrderBlocked = data.can_proceed === false;
+        submitButton.hidden = !slotSelect.value || minimumOrderBlocked;
         previewReady = true;
 
         if (!silent) showMessage("Total updated. Check the breakdown before continuing.");
@@ -582,6 +786,28 @@
     });
 
     dateInput.addEventListener("change", async () => {
+        await loadBusinessAvailability();
+        if (!isOpenDate(dateInput.value)) {
+            const closedDate = dateInput.value;
+            dateInput.value = nextOpenDate(closedDate);
+            if (!dateInput.value) {
+                slotSelect.replaceChildren(new Option("No open days are currently scheduled", ""));
+                clearPreview("No collection or delivery days are currently available.");
+                if (dateMessage) {
+                    dateMessage.textContent = "No collection or delivery days are currently available.";
+                    dateMessage.hidden = false;
+                }
+                showMessage("The selected day is closed. Please contact support for assistance.", true);
+                return;
+            }
+            if (dateMessage) {
+                dateMessage.textContent = "That day is closed. The date has moved to the next open day.";
+                dateMessage.hidden = false;
+            }
+        } else if (dateMessage) {
+            dateMessage.textContent = "";
+            dateMessage.hidden = true;
+        }
         clearPreview();
         await loadSlots();
         schedulePreview();
@@ -593,6 +819,10 @@
             input.addEventListener("change", () => { clearPreview(); schedulePreview(); });
             input.addEventListener("input", () => { clearPreview(); schedulePreview(); });
         });
+
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) loadCartPreview();
+    });
 
     promotionInput.addEventListener("input", () => {
         try {
@@ -616,6 +846,12 @@
 
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
+        if (submitInFlight) return;
+
+        if (minimumOrderBlocked) {
+            showMessage("Add more items to meet the minimum order amount before continuing.", true);
+            return;
+        }
 
         if (!previewReady) {
             showMessage("Review the order total before continuing.", true);
@@ -629,6 +865,7 @@
 
         const selectedSlot = JSON.parse(slotSelect.value);
 
+        submitInFlight = true;
         submitButton.disabled = true;
 
         const result = await apiPost("/checkout/submit", {
@@ -637,11 +874,28 @@
             requested_window_start: selectedSlot.start,
             requested_window_end: selectedSlot.end,
             promotion_code: promotionInput.value.trim() || null,
-            loyalty_points_to_redeem: Number(loyaltyPointsInput?.value || 0)
+            loyalty_points_to_redeem: Number(loyaltyPointsInput?.value || 0),
+            quote_fingerprint: quoteFingerprint
         });
 
-        if (!result.success || !result.data?.order || !result.data?.payment_setup?.redirect_url || !result.data?.payment_setup?.fields) {
+        if (!result?.success || !result.data?.order || !result.data?.payment_setup?.redirect_url || !result.data?.payment_setup?.fields) {
+            if (result?.status === 0 || result?.status >= 500 || result?.success) {
+                await loadCartPreview();
+                submitInFlight = false;
+                submitButton.disabled = false;
+                clearPreview("We couldn't confirm whether the order was saved. Check your refreshed cart, then review the total before trying again.");
+                showMessage("We couldn't confirm the order result. Your cart has been refreshed from the server; review it before retrying.", true);
+                return;
+            }
+
+            submitInFlight = false;
             submitButton.disabled = false;
+
+            if (String(result.error || "").includes("changed after your review")) {
+                clearPreview("Order prices or details changed. Review the updated total before continuing.");
+                showMessage("Order details changed. Please review the updated total before continuing.", true);
+                return;
+            }
 
             showMessage(
                 result.error || "Unable to place your order. Please try again.",
@@ -677,9 +931,27 @@
     addressSelect.required = false;
 
     dateInput.min = getLocalDate();
-    dateInput.value = getLocalDate();
 
+    await loadBusinessAvailability();
+    dateInput.value = isOpenDate(getLocalDate())
+        ? getLocalDate()
+        : nextOpenDate(getLocalDate());
+    if (!dateInput.value) {
+        dateInput.disabled = true;
+        if (dateMessage) {
+            dateMessage.textContent = "No collection or delivery days are currently available.";
+            dateMessage.hidden = false;
+        }
+    } else if (dateInput.value !== getLocalDate() && dateMessage) {
+        dateMessage.textContent = "Today is closed. The date has moved to the next open day.";
+        dateMessage.hidden = false;
+    }
+    await loadCartPreview();
+    renderCartPreview();
+    const cartRefreshTimer = window.setInterval(loadCartPreview, 10000);
+    window.addEventListener("pagehide", () => window.clearInterval(cartRefreshTimer), { once: true });
     await loadSlots();
     await loadLoyaltyBalance();
     showSummaryMessage("Choose collection or delivery, an available time, and any offer or rewards to see your live total.");
+    schedulePreview();
 });

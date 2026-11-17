@@ -81,8 +81,8 @@ class Promotion extends Model {
     /**
      * Calculates the discount from immutable line-item prices. Each line item
      * must expose product_id, quantity, and unit_price as array keys or public
-     * properties. BOGO applies to matching product lines and makes the cheaper
-     * item in every pair free.
+     * properties. BOGO requires one targeted product and grants one free unit
+     * of that product for every paid qualifying unit.
      */
     public function calculateDiscount(
         float $subtotal,
@@ -137,6 +137,7 @@ class Promotion extends Model {
         if ($this->discount_type !== self::TYPE_BUY_ONE_GET_ONE) {
             return $this->eligibleProductNames($lineItems);
         }
+        if (count($this->target_product_ids) !== 1) return [];
         $quantities = [];
         $names = [];
         foreach ($this->eligibleLineItems($lineItems) as $item) {
@@ -147,8 +148,26 @@ class Promotion extends Model {
         }
         return array_values(array_map(
             static fn(int $id): string => $names[$id],
-            array_keys(array_filter($quantities, static fn(int $quantity): bool => $quantity >= 2))
+            array_keys(array_filter($quantities, static fn(int $quantity): bool => $quantity >= 1))
         ));
+    }
+
+    /** Returns one free unit per paid qualifying unit, preserving its options. */
+    public function freeQuantitiesByCartItem(array $lineItems): array {
+        if ($this->discount_type !== self::TYPE_BUY_ONE_GET_ONE || !$this->isActiveAt()
+            || count($this->target_product_ids) !== 1) return [];
+        $targetId = (int) $this->target_product_ids[0];
+        if ($targetId < 1) return [];
+        $freeQuantities = [];
+        foreach ($lineItems as $index => $item) {
+            $id = (int) $this->lineItemValue($item, 'product_id');
+            $quantity = max(0, (int) $this->lineItemValue($item, 'quantity'));
+            $unitPrice = (float) $this->lineItemValue($item, 'unit_price');
+            if ($id !== $targetId || $quantity < 1 || $unitPrice < 0.0) continue;
+            $lineId = $this->lineItemValue($item, 'cart_item_id') ?? $index;
+            $freeQuantities[$lineId] = ($freeQuantities[$lineId] ?? 0) + $quantity;
+        }
+        return $freeQuantities;
     }
 
     public function isValid(): bool {
@@ -197,35 +216,22 @@ class Promotion extends Model {
     }
 
     private function calculateBuyOneGetOneDiscount(array $lineItems): float {
-        $itemsByProduct = [];
+        // A BOGO offer must point to one specific product. Failing closed here
+        // prevents a legacy whole-order BOGO from discounting every cart item.
+        if (count($this->target_product_ids) !== 1) return 0.0;
 
+        $targetId = (int) $this->target_product_ids[0];
+        $discount = 0.0;
         foreach ($lineItems as $lineItem) {
-            $productId = $this->lineItemValue($lineItem, 'product_id');
+            $productId = (int) ($this->lineItemValue($lineItem, 'product_id') ?? 0);
             $quantity = (int) $this->lineItemValue($lineItem, 'quantity');
             $unitPrice = (float) $this->lineItemValue($lineItem, 'unit_price');
 
-            if ($productId === null || $quantity <= 0 || $unitPrice < 0.0) {
+            if ($productId !== $targetId || $quantity <= 0 || $unitPrice < 0.0) {
                 continue;
             }
 
-            $itemsByProduct[(string) $productId][] = [
-                'quantity' => $quantity,
-                'unit_price' => $unitPrice,
-            ];
-        }
-
-        $discount = 0.0;
-        foreach ($itemsByProduct as $productItems) {
-            $quantities = 0;
-            $prices = [];
-            foreach ($productItems as $item) {
-                $quantities += $item['quantity'];
-                $prices = array_merge($prices, array_fill(0, $item['quantity'], $item['unit_price']));
-            }
-
-            sort($prices, SORT_NUMERIC);
-            $freeItems = intdiv($quantities, 2);
-            $discount += array_sum(array_slice($prices, 0, $freeItems));
+            $discount += $quantity * $unitPrice;
         }
 
         return $discount;

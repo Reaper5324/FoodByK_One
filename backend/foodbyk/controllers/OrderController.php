@@ -93,7 +93,15 @@ public function staffShow(Request $request, array $params): Response {
 
     public function cancel(Request $request, array $params): Response {
         // A null staff ID marks a customer cancellation; the service checks ownership.
-        return $this->respond((new OrderService())->cancelOrder((int) $this->param($params, 'id'), $request->user()->id, null, $request->input('reason')));
+        $bankDetails = $request->input('bank_details', []);
+        if (!is_array($bankDetails)) return Response::error('Invalid bank payout details.', 400);
+        return $this->respond((new OrderService())->cancelOrder(
+            (int) $this->param($params, 'id'),
+            $request->user()->id,
+            null,
+            $request->input('reason'),
+            $bankDetails
+        ));
     }
 
     public function advance(Request $request, array $params): Response {

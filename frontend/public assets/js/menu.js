@@ -1,11 +1,20 @@
 document.addEventListener("DOMContentLoaded", async () => {
     const thanksModal = document.getElementById("orderThanksModal");
     const menuQuery = new URLSearchParams(window.location.search);
-    const completedOrderId = sessionStorage.getItem("foodByKCompletedOrder");
+    let completedOrderId = null;
+    try {
+        completedOrderId = sessionStorage.getItem("foodByKCompletedOrder");
+    } catch (error) {
+        // The menu remains usable when browser storage is restricted.
+    }
     if (thanksModal && menuQuery.get("order_complete") === "1"
         && completedOrderId && completedOrderId === menuQuery.get("order_id")) {
-        sessionStorage.removeItem("foodByKCompletedOrder");
-        sessionStorage.setItem("foodByKThankedOrder", completedOrderId);
+        try {
+            sessionStorage.removeItem("foodByKCompletedOrder");
+            sessionStorage.setItem("foodByKThankedOrder", completedOrderId);
+        } catch (error) {
+            // Showing the one-time modal is still safe when storage is unavailable.
+        }
         if (typeof thanksModal.showModal === "function") thanksModal.showModal();
         else thanksModal.setAttribute("open", "");
         document.getElementById("closeOrderThanks")?.addEventListener("click", () => thanksModal.close());
@@ -56,7 +65,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const value = Number(promotion.discount_value || 0);
         if (promotion.discount_type === "percentage") return `${value}% off`;
         if (promotion.discount_type === "fixed_amount") return `R${value.toFixed(2)} off eligible items`;
-        if (promotion.discount_type === "buy_one_get_one") return "Buy one, get one free";
+        if (promotion.discount_type === "buy_one_get_one") return "Buy one, get one free per paid item";
         if (promotion.discount_type === "free_delivery") return "Free delivery";
         return "Special offer";
     };
@@ -219,7 +228,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         description.textContent = product.description || "A Food by K favourite.";
         const hasOptions = Array.isArray(product.options) && product.options.length > 0;
         const eligiblePromotions = productPromotions(product, promotions);
-        const pricePromotion = eligiblePromotions.find((promotion) => promotion.discount_type === "percentage");
+        const pricePromotion = eligiblePromotions.find((promotion) =>
+            ["percentage", "fixed_amount"].includes(promotion.discount_type));
         let promotionList = null;
         if (eligiblePromotions.length) {
             promotionList = document.createElement("div");
@@ -241,10 +251,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const price = document.createElement("span");
         price.className = "menu-price";
         if (pricePromotion && Number.isFinite(basePrice)) {
+            const discount = pricePromotion.discount_type === "percentage"
+                ? basePrice * Math.min(100, Math.max(0, Number(pricePromotion.discount_value || 0))) / 100
+                : Math.min(basePrice, Math.max(0, Number(pricePromotion.discount_value || 0)));
             const originalPrice = document.createElement("del");
             originalPrice.className = "menu-price-original";
             originalPrice.textContent = `R${basePrice.toFixed(2)}`;
-            price.textContent = `R${(Math.round(basePrice * (1 - Number(pricePromotion.discount_value || 0) / 100) * 100) / 100).toFixed(2)}`;
+            price.textContent = `R${(Math.round((basePrice - discount) * 100) / 100).toFixed(2)}`;
             const condition = document.createElement("span");
             condition.className = "menu-price-condition";
             condition.textContent = `with code ${String(pricePromotion.code || "").toUpperCase()} at checkout`;
@@ -286,6 +299,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                     addButton.textContent = "Add to cart";
                     addButton.disabled = false;
                 }, 900);
+                return;
+            }
+
+            if (result.status === 0 || result.status >= 500) {
+                addButton.textContent = "Checking cart…";
+                const cart = await apiGet("/cart");
+                if (cart?.success && Array.isArray(cart.data?.items)) {
+                    addButton.disabled = false;
+                    addButton.textContent = "Add to cart";
+                    showMessage("We couldn't confirm that addition. Your cart has been refreshed; check it before trying again.", true);
+                } else {
+                    addButton.textContent = "Cart status unavailable";
+                    showMessage("We couldn't confirm that addition or refresh your cart. Refresh this page before trying again.", true);
+                }
                 return;
             }
 

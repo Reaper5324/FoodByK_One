@@ -39,6 +39,7 @@ function apiRequest(string $method, string $path, ?array $body = null, array $he
     curl_close($handle);
     $rawHeaders = substr($raw, 0, $headerSize);
     $responseHeaders = [];
+
     foreach (preg_split('/\r?\n/', trim($rawHeaders)) as $line) {
         if (str_contains($line, ':')) {
             [$name, $value] = explode(':', $line, 2);
@@ -56,6 +57,33 @@ function apiRequest(string $method, string $path, ?array $body = null, array $he
     return ['status' => $status, 'headers' => $responseHeaders, 'body' => $responseBody, 'json' => json_decode($responseBody, true)];
 }
 
+/** Dispatches requests together so final slot reservations contend in the API. */
+function apiConcurrentRequests(array $requests): array {
+    global $baseUrl;
+    $multi = curl_multi_init();
+    $handles = [];
+    foreach ($requests as $index => $request) {
+        $handle = curl_init($baseUrl . $request['path']);
+        $headers = array_merge(['Accept: application/json', 'Content-Type: application/json'], $request['headers']);
+        curl_setopt_array($handle, [
+            CURLOPT_CUSTOMREQUEST => 'POST', CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => $headers, CURLOPT_POSTFIELDS => json_encode($request['body'], JSON_THROW_ON_ERROR),
+            CURLOPT_TIMEOUT => 15, CURLOPT_COOKIEFILE => $request['cookie'], CURLOPT_COOKIEJAR => $request['cookie'],
+        ]);
+        curl_multi_add_handle($multi, $handle);
+        $handles[$index] = $handle;
+    }
+    do { $status = curl_multi_exec($multi, $running); if ($running) curl_multi_select($multi, 1.0); } while ($running && $status === CURLM_OK);
+    $results = [];
+    foreach ($handles as $index => $handle) {
+        $results[$index] = ['status' => (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE), 'json' => json_decode((string) curl_multi_getcontent($handle), true)];
+        curl_multi_remove_handle($multi, $handle);
+        curl_close($handle);
+    }
+    curl_multi_close($multi);
+    return $results;
+}
+
 /**
  * Returns the cookie name from a raw Set-Cookie header value.
  */
@@ -70,8 +98,18 @@ $pdo = new PDO(
     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
 );
 $email = 'api-check-' . bin2hex(random_bytes(8)) . '@example.test';
+$secondEmail = 'api-check-owner-' . bin2hex(random_bytes(8)) . '@example.test';
+$adminEmail = 'api-check-admin-' . bin2hex(random_bytes(8)) . '@example.test';
 $cookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
+$secondCookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
+$adminCookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
 $password = 'BlueRiver!9072';
+$productId = null;
+$createdCategoryId = null;
+$adminUserId = null;
+$originalAdminEmail2fa = null;
+$originalCapacity = null;
+$originalAdvance = null;
 
 try {
     $health = apiRequest('GET', '/health');
@@ -79,6 +117,21 @@ try {
 
     $products = apiRequest('GET', '/products');
     apiExpect($products['status'] === 200 && ($products['json']['success'] ?? false), 'Public products endpoint must be reachable.');
+    apiExpect(is_array($products['json']['data'] ?? null), 'Public products must return a JSON list.');
+    foreach ($products['json']['data'] as $product) {
+        apiExpect(isset($product['id'], $product['name'], $product['price']), 'Public product records must include stable identifiers, names, and prices.');
+        apiExpect(is_numeric($product['price']) && (float) $product['price'] >= 0, 'Public catalogue prices must be non-negative numeric values.');
+        apiExpect(is_array($product['options'] ?? null), 'Public products must return product options as a list.');
+    }
+
+    $categories = apiRequest('GET', '/categories');
+    apiExpect($categories['status'] === 200 && ($categories['json']['success'] ?? false)
+        && is_array($categories['json']['data'] ?? null), 'Public categories must return a successful JSON list.');
+    $promotions = apiRequest('GET', '/promotions/active');
+    apiExpect($promotions['status'] === 200 && ($promotions['json']['success'] ?? false)
+        && is_array($promotions['json']['data'] ?? null), 'Active promotions must return a successful JSON list.');
+    $missingProduct = apiRequest('GET', '/products/999999999');
+    apiExpect($missingProduct['status'] === 404, 'Unknown product identifiers must return not found.');
 
     $unauthenticatedCart = apiRequest('GET', '/cart');
     apiExpect($unauthenticatedCart['status'] === 401, 'Cart data must require authentication.');
@@ -112,6 +165,38 @@ try {
     $login = apiRequest('POST', '/auth/login', ['email' => $email, 'password' => $password], ['Origin: https://foodbyks.netlify.app'], $cookieFile);
     apiExpect($login['status'] === 200 && ($login['json']['success'] ?? false), 'Verified customer login must succeed.');
 
+    $originalAdminEmail2fa = (int) $pdo->query('SELECT admin_email_2fa_enabled FROM business_settings WHERE id = 1')->fetchColumn();
+    $adminRoleId = (int) $pdo->query("SELECT id FROM roles WHERE role_name = 'admin'")->fetchColumn();
+    $insertAdmin = $pdo->prepare('INSERT INTO users (name, email, password_hash, role_id) VALUES (?, ?, ?, ?)');
+    $insertAdmin->execute(['Integration Admin', $adminEmail, password_hash($password, PASSWORD_DEFAULT), $adminRoleId]);
+    $adminUserId = (int) $pdo->lastInsertId();
+    $challengeToken = bin2hex(random_bytes(32));
+    $pdo->prepare('INSERT INTO admin_login_challenges (token_hash, user_id, code_hash, expires_at, resend_after) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), DATE_ADD(NOW(), INTERVAL 60 SECOND))')
+        ->execute([hash('sha256', $challengeToken), $adminUserId, password_hash('482913', PASSWORD_DEFAULT)]);
+    $earlyAdminResend = apiRequest('POST', '/auth/admin-login/resend', ['challenge_token' => $challengeToken]);
+    apiExpect(($earlyAdminResend['json']['success'] ?? true) === false, 'Admin verification codes must not be resendable during the cooldown.');
+    $badAdminCode = apiRequest('POST', '/auth/admin-login/verify', ['challenge_token' => $challengeToken, 'code' => '111111'], [], $adminCookieFile);
+    apiExpect($badAdminCode['status'] === 401 && !isset($badAdminCode['headers']['set-cookie']), 'An incorrect admin code must not create an authenticated session.');
+    $verifiedAdmin = apiRequest('POST', '/auth/admin-login/verify', ['challenge_token' => $challengeToken, 'code' => '482913'], [], $adminCookieFile);
+    apiExpect($verifiedAdmin['status'] === 200 && ($verifiedAdmin['json']['success'] ?? false)
+        && ($verifiedAdmin['json']['data']['role'] ?? null) === 'admin', 'A valid admin email code must create the administrator session.');
+    $replayedAdminCode = apiRequest('POST', '/auth/admin-login/verify', ['challenge_token' => $challengeToken, 'code' => '482913'], [], $adminCookieFile);
+    apiExpect($replayedAdminCode['status'] === 401, 'A successful admin login code must be single-use.');
+    $adminMe = apiRequest('GET', '/auth/me', null, [], $adminCookieFile);
+    apiExpect(($adminMe['json']['data']['role'] ?? null) === 'admin' && isset($adminMe['headers']['x-csrf-token']), 'Verified admin login must establish the normal authenticated, CSRF-protected session.');
+    $enableAdminEmail2fa = apiRequest('PUT', '/admin/settings', ['admin_email_2fa_enabled' => true], [
+        'X-CSRF-Token: ' . $adminMe['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $adminCookieFile);
+    apiExpect(($enableAdminEmail2fa['json']['success'] ?? false)
+        && (bool) ($enableAdminEmail2fa['json']['data']['admin_email_2fa_enabled'] ?? false), 'An administrator must be able to enable the email-code login setting.');
+    $disableAdminEmail2fa = apiRequest('PUT', '/admin/settings', ['admin_email_2fa_enabled' => false], [
+        'X-CSRF-Token: ' . $adminMe['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $adminCookieFile);
+    apiExpect(($disableAdminEmail2fa['json']['success'] ?? false)
+        && !((bool) ($disableAdminEmail2fa['json']['data']['admin_email_2fa_enabled'] ?? true)), 'An administrator must be able to disable the email-code login setting.');
+
     // Every cookie the API sets, except a JS-readable CSRF cookie (if any), is
     // treated as an authentication cookie and must be HttpOnly with SameSite.
     $cookies = $login['headers']['set-cookie'] ?? [];
@@ -136,6 +221,11 @@ try {
 
     $missingCsrf = apiRequest('PUT', '/account/profile', ['full_name' => 'Integration Customer', 'email' => $email], [], $cookieFile);
     apiExpect($missingCsrf['status'] === 419, 'Authenticated writes must reject missing CSRF tokens.');
+    $invalidCsrf = apiRequest('PUT', '/account/profile', ['full_name' => 'Forged Update', 'email' => $email], [
+        'X-CSRF-Token: invalid-token',
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect($invalidCsrf['status'] === 419, 'Authenticated writes must reject invalid CSRF tokens.');
 
     $updated = apiRequest('PUT', '/account/profile', ['full_name' => 'Integration Customer Updated', 'email' => $email], [
         'X-CSRF-Token: ' . $me['headers']['x-csrf-token'],
@@ -145,6 +235,226 @@ try {
 
     $customerAdminAttempt = apiRequest('GET', '/admin/staff', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
     apiExpect($customerAdminAttempt['status'] === 403, 'Customer sessions must not access admin resources.');
+    $customerProductAdminAttempt = apiRequest('GET', '/admin/products', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    apiExpect($customerProductAdminAttempt['status'] === 403, 'Customer sessions must not access administrative product data.');
+    $profileAfterRejectedWrites = apiRequest('GET', '/auth/me', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    apiExpect(($profileAfterRejectedWrites['json']['data']['full_name'] ?? '') === 'Integration Customer Updated',
+        'Rejected CSRF attempts must not mutate customer profile data.');
+
+    // Exercise cart writes through the real router, middleware, controller,
+    // service, and test database using an isolated catalogue fixture.
+    $categoryId = (int) $pdo->query('SELECT id FROM categories ORDER BY id LIMIT 1')->fetchColumn();
+    if ($categoryId <= 0) {
+        $pdo->prepare('INSERT INTO categories (name) VALUES (?)')->execute(['Cart API fixture ' . bin2hex(random_bytes(4))]);
+        $categoryId = (int) $pdo->lastInsertId();
+        $createdCategoryId = $categoryId;
+    }
+    $minimumOrder = (float) $pdo->query('SELECT minimum_order_amount FROM business_settings WHERE id = 1')->fetchColumn();
+    $testProductPrice = max(10.00, $minimumOrder + 1.00);
+    $insertProduct = $pdo->prepare('INSERT INTO products (category_id, name, description, price, is_available, status) VALUES (?, ?, ?, ?, 1, ?)');
+    $insertProduct->execute([$categoryId, 'Cart API check ' . bin2hex(random_bytes(4)), 'Temporary cart integration fixture.', $testProductPrice, 'active']);
+    $productId = (int) $pdo->lastInsertId();
+
+    $cartAdd = apiRequest('POST', '/cart/items', [
+        'product_id' => $productId,
+        'quantity' => 1,
+        'unit_price' => 0.01,
+        'customer_id' => 999999999,
+    ], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect($cartAdd['status'] === 201 && ($cartAdd['json']['success'] ?? false), 'A valid positive whole-number cart quantity must succeed.');
+    $cartItemId = (int) ($cartAdd['json']['data']['id'] ?? 0);
+    apiExpect($cartItemId > 0, 'A successful cart add must return its cart item identifier.');
+    $cartViewAfterAdd = apiRequest('GET', '/cart', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    apiExpect((float) ($cartViewAfterAdd['json']['data']['items'][0]['unit_price'] ?? -1) === $testProductPrice,
+        'Client-supplied cart prices and ownership fields must not affect the server result.');
+
+    $maxItemQuantity = (int) $pdo->query('SELECT max_item_quantity FROM business_settings WHERE id = 1')->fetchColumn();
+    apiExpect($maxItemQuantity > 0, 'Business settings must contain a positive per-item cart limit.');
+    $overLimitUpdate = apiRequest('PUT', '/cart/items/' . $cartItemId, ['quantity' => $maxItemQuantity + 1], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($overLimitUpdate['json']['success'] ?? true) === false, 'The configured per-item cart limit must be enforced server-side.');
+
+    foreach ([0, -1, 1.5, 'abc', '', '1e3', '999999999999999999999999999999'] as $invalidQuantity) {
+        $invalidUpdate = apiRequest('PUT', '/cart/items/' . $cartItemId, ['quantity' => $invalidQuantity], [
+            'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+            'Origin: https://foodbyks.netlify.app',
+        ], $cookieFile);
+        apiExpect($invalidUpdate['status'] === 422, 'Malformed cart quantities must be rejected before service integer conversion.');
+        $cartAfterFailure = apiRequest('GET', '/cart', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+        apiExpect(($cartAfterFailure['json']['data']['items'][0]['quantity'] ?? null) === 1,
+            'A rejected cart quantity update must leave the existing row unchanged.');
+    }
+
+    $secondRegistration = apiRequest('POST', '/auth/register', [
+        'name' => 'Other Cart Customer',
+        'email' => $secondEmail,
+        'password' => $password,
+        'phone' => '+27820000001',
+        'terms_accepted' => true,
+        'privacy_notice_acknowledged' => true,
+    ], ['Origin: https://foodbyks.netlify.app'], $secondCookieFile);
+    apiExpect($secondRegistration['status'] === 201, 'A second customer fixture must register for cart ownership checks.');
+    $pdo->prepare('UPDATE users SET email_verified_at = NOW() WHERE email = ?')->execute([$secondEmail]);
+    $secondLogin = apiRequest('POST', '/auth/login', ['email' => $secondEmail, 'password' => $password], [
+        'Origin: https://foodbyks.netlify.app',
+    ], $secondCookieFile);
+    apiExpect($secondLogin['status'] === 200 && ($secondLogin['json']['success'] ?? false), 'The second customer fixture must sign in.');
+    $secondMe = apiRequest('GET', '/auth/me', null, ['Origin: https://foodbyks.netlify.app'], $secondCookieFile);
+    $secondUserIdQuery = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $secondUserIdQuery->execute([$secondEmail]);
+    $secondUserIdForAddress = (int) $secondUserIdQuery->fetchColumn();
+    $pdo->prepare('INSERT INTO addresses (customer_id, raw_address, street, city, postal_code) VALUES (?, ?, ?, ?, ?)')
+        ->execute([$secondUserIdForAddress, 'Private address ownership fixture', '1 Test Street', 'Lenasia', '1827']);
+    $foreignAddressId = (int) $pdo->lastInsertId();
+    $foreignAddressPreview = apiRequest('POST', '/checkout/preview', [
+        'fulfilment_type' => 'delivery', 'address_id' => $foreignAddressId,
+    ], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($foreignAddressPreview['json']['success'] ?? true) === false
+        && str_contains((string) ($foreignAddressPreview['json']['error'] ?? ''), 'address not found'),
+        'Delivery checkout must reject an address owned by another customer.');
+    $crossCustomerUpdate = apiRequest('PUT', '/cart/items/' . $cartItemId, ['quantity' => 2], [
+        'X-CSRF-Token: ' . ($secondMe['headers']['x-csrf-token'] ?? ''),
+        'Origin: https://foodbyks.netlify.app',
+    ], $secondCookieFile);
+    apiExpect(($crossCustomerUpdate['json']['success'] ?? true) === false,
+        'A customer must not modify a cart item owned by another customer.');
+
+    $baseCartRemoved = apiRequest('DELETE', '/cart/items/' . $cartItemId, null, [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($baseCartRemoved['json']['success'] ?? false), 'The base cart fixture must be removable before the customization check.');
+
+    $optionInsert = $pdo->prepare('INSERT INTO product_options (product_id, name, price_delta, is_available) VALUES (?, ?, ?, 1)');
+    $optionInsert->execute([$productId, 'Temporary cheese', 2.00]);
+    $optionId = (int) $pdo->lastInsertId();
+    $customizedAdd = apiRequest('POST', '/cart/items', ['product_id' => $productId, 'quantity' => 1, 'option_ids' => [$optionId]], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect($customizedAdd['status'] === 201 && ($customizedAdd['json']['success'] ?? false), 'A valid product customization must be added to the cart.');
+    $customizedCartItemId = (int) ($customizedAdd['json']['data']['id'] ?? 0);
+    $pdo->prepare('UPDATE product_options SET price_delta = 2.50 WHERE id = ?')->execute([$optionId]);
+    $staleCustomizationPreview = apiRequest('POST', '/checkout/preview', ['fulfilment_type' => 'collection'], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($staleCustomizationPreview['json']['success'] ?? true) === false
+        && str_contains((string) ($staleCustomizationPreview['json']['error'] ?? ''), 'customization changed'),
+        'Checkout must reject stale customization prices and ask the customer to review the cart.');
+
+    foreach ([$customizedCartItemId] as $itemToRemove) {
+        $removed = apiRequest('DELETE', '/cart/items/' . $itemToRemove, null, [
+            'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+            'Origin: https://foodbyks.netlify.app',
+        ], $cookieFile);
+        apiExpect(($removed['json']['success'] ?? false), 'Test cart fixtures must be explicitly removable.');
+    }
+
+    $quoteCartAdd = apiRequest('POST', '/cart/items', ['product_id' => $productId, 'quantity' => 1], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($quoteCartAdd['json']['success'] ?? false), 'A cart line must be available for quote change verification.');
+    $quoteCartItemId = (int) ($quoteCartAdd['json']['data']['id'] ?? 0);
+    $quotePreview = apiRequest('POST', '/checkout/preview', ['fulfilment_type' => 'collection'], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    $quoteFingerprint = $quotePreview['json']['data']['quote_fingerprint'] ?? null;
+    apiExpect(($quotePreview['json']['success'] ?? false) && is_string($quoteFingerprint)
+        && preg_match('/^[a-f0-9]{64}$/D', $quoteFingerprint) === 1,
+        'Checkout preview must return a current quote fingerprint.');
+    $pdo->prepare('UPDATE products SET price = price + 1.00 WHERE id = ?')->execute([$productId]);
+    $staleQuoteSubmit = apiRequest('POST', '/checkout/submit', [
+        'fulfilment_type' => 'collection',
+        'address_id' => null,
+        'requested_window_start' => '2099-01-01T12:00:00',
+        'requested_window_end' => '2099-01-01T12:30:00',
+        'quote_fingerprint' => $quoteFingerprint,
+    ], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($staleQuoteSubmit['json']['success'] ?? true) === false
+        && str_contains((string) ($staleQuoteSubmit['json']['error'] ?? ''), 'changed after your review'),
+        'A product price change after preview must require another customer review before order creation.');
+
+    // Two authenticated customers race for the final capacity of one real slot.
+    $secondCartAdd = apiRequest('POST', '/cart/items', ['product_id' => $productId, 'quantity' => 1], [
+        'X-CSRF-Token: ' . ($secondMe['headers']['x-csrf-token'] ?? ''), 'Origin: https://foodbyks.netlify.app',
+    ], $secondCookieFile);
+    apiExpect(($secondCartAdd['json']['success'] ?? false), 'Second customer must have a cart for the capacity race.');
+    $originalCapacity = (int) $pdo->query('SELECT max_orders_per_slot FROM business_settings WHERE id = 1')->fetchColumn();
+    $originalAdvance = (int) $pdo->query('SELECT max_advance_booking_days FROM business_settings WHERE id = 1')->fetchColumn();
+    $pdo->exec('UPDATE business_settings SET max_orders_per_slot = 1, max_advance_booking_days = 30 WHERE id = 1');
+    $beyondBookingWindow = (new DateTimeImmutable('today', new DateTimeZone('Africa/Johannesburg')))->modify('+31 days')->format('Y-m-d');
+    $rejectedDate = apiRequest('GET', '/checkout/slots?date=' . $beyondBookingWindow, null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    apiExpect(($rejectedDate['json']['success'] ?? true) === false,
+        'Customers must not retrieve slots beyond the configured advance-booking window.');
+    $selectedSlot = null;
+    for ($offset = 0; $offset <= 30 && $selectedSlot === null; $offset++) {
+        $date = (new DateTimeImmutable('today', new DateTimeZone('Africa/Johannesburg')))->modify('+' . $offset . ' days')->format('Y-m-d');
+        $available = apiRequest('GET', '/checkout/slots?date=' . $date, null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+        foreach (($available['json']['data'] ?? []) as $slot) {
+            if (($slot['available'] ?? false) && (int) ($slot['remaining'] ?? 0) > 0) { $selectedSlot = $slot; break; }
+        }
+    }
+    apiExpect(is_array($selectedSlot), 'The configured schedule must expose a future slot for capacity checks.');
+    $firstRacePreview = apiRequest('POST', '/checkout/preview', ['fulfilment_type' => 'collection', 'address_id' => 999999999], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'], 'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    $secondRacePreview = apiRequest('POST', '/checkout/preview', ['fulfilment_type' => 'collection'], [
+        'X-CSRF-Token: ' . $secondMe['headers']['x-csrf-token'], 'Origin: https://foodbyks.netlify.app',
+    ], $secondCookieFile);
+    apiExpect(($firstRacePreview['json']['success'] ?? false) && ($secondRacePreview['json']['success'] ?? false),
+        'Collection preview must ignore a supplied address ID and both customers must review valid quotes.');
+    $raceSubmits = apiConcurrentRequests([
+        ['path' => '/checkout/submit', 'cookie' => $cookieFile, 'headers' => ['X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'], 'Origin: https://foodbyks.netlify.app'], 'body' => ['fulfilment_type' => 'collection', 'address_id' => 999999999, 'requested_window_start' => $selectedSlot['start'], 'requested_window_end' => $selectedSlot['end'], 'quote_fingerprint' => $firstRacePreview['json']['data']['quote_fingerprint']]],
+        ['path' => '/checkout/submit', 'cookie' => $secondCookieFile, 'headers' => ['X-CSRF-Token: ' . $secondMe['headers']['x-csrf-token'], 'Origin: https://foodbyks.netlify.app'], 'body' => ['fulfilment_type' => 'collection', 'requested_window_start' => $selectedSlot['start'], 'requested_window_end' => $selectedSlot['end'], 'quote_fingerprint' => $secondRacePreview['json']['data']['quote_fingerprint']]],
+    ]);
+    $raceSuccesses = count(array_filter($raceSubmits, static fn(array $result): bool => ($result['json']['success'] ?? false) === true));
+    apiExpect($raceSuccesses === 1, 'With one slot remaining, exactly one of two simultaneous real checkout submissions must succeed. Responses: '
+        . json_encode(array_map(static fn(array $result): array => [
+            'status' => $result['status'],
+            'success' => $result['json']['success'] ?? null,
+            'error' => $result['json']['error'] ?? null,
+        ], $raceSubmits), JSON_UNESCAPED_SLASHES));
+    $raceCustomers = $pdo->prepare('SELECT id FROM users WHERE email IN (?, ?)');
+    $raceCustomers->execute([$email, $secondEmail]);
+    $raceCustomerIds = array_map('intval', $raceCustomers->fetchAll(PDO::FETCH_COLUMN));
+    $raceOrderCheck = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE requested_window_start = ? AND customer_id IN (?, ?) AND fulfilment_type = 'collection' AND address_id IS NULL");
+    $raceOrderCheck->execute([str_replace('T', ' ', $selectedSlot['start']), ...$raceCustomerIds]);
+    apiExpect((int) $raceOrderCheck->fetchColumn() === 1,
+        'Exactly one collection order must persist without an address, including when an address ID is supplied.');
+    $pdo->prepare('UPDATE business_settings SET max_orders_per_slot = ?, max_advance_booking_days = ? WHERE id = 1')->execute([$originalCapacity, $originalAdvance]);
+
+    // The first customer's cart may have been cleared by the successful race
+    // submission. Recreate the deletion fixture instead of reusing a stale ID.
+    $deleteCartAdd = apiRequest('POST', '/cart/items', ['product_id' => $productId, 'quantity' => 1], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect($deleteCartAdd['status'] === 201 && ($deleteCartAdd['json']['success'] ?? false)
+        && (int) ($deleteCartAdd['json']['data']['id'] ?? 0) > 0,
+        'A cart item must be available for explicit deletion after the checkout race.');
+    $quoteCartItemId = (int) $deleteCartAdd['json']['data']['id'];
+
+    $cartDelete = apiRequest('DELETE', '/cart/items/' . $quoteCartItemId, null, [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect($cartDelete['status'] === 200 && ($cartDelete['json']['success'] ?? false), 'Explicit cart deletion must succeed.');
+    $emptyCart = apiRequest('GET', '/cart', null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    apiExpect(($emptyCart['json']['data']['items'] ?? null) === [], 'Explicit cart deletion must remove the cart item.');
 
     $allowedCors = apiRequest('OPTIONS', '/products', null, [
         'Origin: https://foodbyks.netlify.app',
@@ -160,15 +470,52 @@ try {
 
     echo "API integration and security checks passed.\n";
 } finally {
+    if ($originalAdminEmail2fa !== null) {
+        $pdo->prepare('UPDATE business_settings SET admin_email_2fa_enabled = ? WHERE id = 1')->execute([$originalAdminEmail2fa]);
+    }
+    if ($adminUserId !== null) {
+        $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$adminUserId]);
+    }
+    if ($originalCapacity !== null && $originalAdvance !== null) {
+        $pdo->prepare('UPDATE business_settings SET max_orders_per_slot = ?, max_advance_booking_days = ? WHERE id = 1')->execute([$originalCapacity, $originalAdvance]);
+    }
     $userId = $pdo->prepare('SELECT id FROM users WHERE email = ?');
     $userId->execute([$email]);
     $existingUserId = $userId->fetchColumn();
 
+    $secondUserId = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $secondUserId->execute([$secondEmail]);
+    $existingSecondUserId = $secondUserId->fetchColumn();
+    $fixtureUserIds = array_values(array_filter([$existingUserId, $existingSecondUserId], static fn($id): bool => $id !== false));
+    if ($fixtureUserIds !== []) {
+        $placeholders = implode(',', array_fill(0, count($fixtureUserIds), '?'));
+        $fixtureOrders = $pdo->prepare("SELECT id FROM orders WHERE customer_id IN ({$placeholders})");
+        $fixtureOrders->execute($fixtureUserIds);
+        $orderIds = array_map('intval', $fixtureOrders->fetchAll(PDO::FETCH_COLUMN));
+        if ($orderIds !== []) {
+            $orderPlaceholders = implode(',', array_fill(0, count($orderIds), '?'));
+            $pdo->prepare("DELETE FROM payments WHERE order_id IN ({$orderPlaceholders})")->execute($orderIds);
+            $pdo->prepare("DELETE FROM orders WHERE id IN ({$orderPlaceholders})")->execute($orderIds);
+        }
+    }
+
     if ($existingUserId !== false) {
         $pdo->prepare('DELETE FROM customer_email_verifications WHERE user_id = ?')->execute([$existingUserId]);
         $pdo->prepare('DELETE FROM policy_acceptances WHERE user_id = ?')->execute([$existingUserId]);
+        $pdo->prepare('DELETE FROM cart_items WHERE customer_id = ?')->execute([$existingUserId]);
         $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$existingUserId]);
     }
 
+    if ($existingSecondUserId !== false) {
+        $pdo->prepare('DELETE FROM customer_email_verifications WHERE user_id = ?')->execute([$existingSecondUserId]);
+        $pdo->prepare('DELETE FROM policy_acceptances WHERE user_id = ?')->execute([$existingSecondUserId]);
+        $pdo->prepare('DELETE FROM cart_items WHERE customer_id = ?')->execute([$existingSecondUserId]);
+        $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$existingSecondUserId]);
+    }
+    if ($productId !== null) $pdo->prepare('DELETE FROM products WHERE id = ?')->execute([$productId]);
+    if ($createdCategoryId !== null) $pdo->prepare('DELETE FROM categories WHERE id = ?')->execute([$createdCategoryId]);
+
     if (is_file($cookieFile)) unlink($cookieFile);
+    if (is_file($secondCookieFile)) unlink($secondCookieFile);
+    if (is_file($adminCookieFile)) unlink($adminCookieFile);
 }

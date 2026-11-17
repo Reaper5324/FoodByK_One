@@ -40,9 +40,17 @@ $email = 'db-check-' . bin2hex(random_bytes(8)) . '@example.test';
 $categoryName = 'DB check ' . bin2hex(random_bytes(6));
 $userId = null;
 $categoryId = null;
+$productId = null;
+$promotionId = null;
 
 try {
     databaseExpect((int) $pdo->query('SELECT COUNT(*) FROM business_settings')->fetchColumn() === 1, 'Migration must seed exactly one business settings row.');
+    databaseExpect((int) $pdo->query('SELECT max_advance_booking_days FROM business_settings WHERE id = 1')->fetchColumn() === 30,
+        'Migration must configure a safe default booking window of 30 days.');
+    databaseExpect((int) $pdo->query('SELECT admin_email_2fa_enabled FROM business_settings WHERE id = 1')->fetchColumn() === 0,
+        'Admin email verification must be disabled by default.');
+    databaseExpect((int) $pdo->query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'admin_login_challenges'")->fetchColumn() === 1,
+        'Migration must create the expiring admin login challenge store.');
     $customerRoleId = (int) $pdo->query("SELECT id FROM roles WHERE role_name = 'customer'")->fetchColumn();
     databaseExpect($customerRoleId > 0, 'Migration must seed the customer role.');
 
@@ -59,6 +67,21 @@ try {
     $insertProduct = $pdo->prepare('INSERT INTO products (category_id, name, description, price) VALUES (?, ?, ?, ?)');
     expectConstraintViolation($pdo, fn() => $insertProduct->execute([$categoryId, 'Negative price', 'Invalid test row', -1]), 'Database must reject negative product prices.');
     expectConstraintViolation($pdo, fn() => $insertProduct->execute([999999, 'Bad category', 'Invalid test row', 10]), 'Database must enforce product category foreign keys.');
+    $insertProduct->execute([$categoryId, 'DB option check', 'Option integration fixture', 25.00]);
+    $productId = (int) $pdo->lastInsertId();
+
+    $insertOption = $pdo->prepare('INSERT INTO product_options (product_id, name, price_delta) VALUES (?, ?, ?)');
+    $insertOption->execute([$productId, 'Free extra', 0.00]);
+    databaseExpect((int) $pdo->lastInsertId() > 0, 'Database must persist a valid zero-price product option.');
+    expectConstraintViolation($pdo, fn() => $insertOption->execute([$productId, 'Negative extra', -0.01]), 'Database must reject negative option prices.');
+    expectConstraintViolation($pdo, fn() => $insertOption->execute([999999, 'Unknown product extra', 1.00]), 'Database must enforce product-option foreign keys.');
+
+    $insertPromotion = $pdo->prepare('INSERT INTO promotions (code, discount_type, discount_value) VALUES (?, ?, ?)');
+    $insertPromotion->execute(['DB' . strtoupper(bin2hex(random_bytes(4))), 'free_delivery', 0.00]);
+    $promotionId = (int) $pdo->lastInsertId();
+    $pdo->prepare('INSERT INTO promotion_products (promotion_id, product_id) VALUES (?, ?)')->execute([$promotionId, $productId]);
+    databaseExpect((int) $pdo->query('SELECT COUNT(*) FROM promotion_products WHERE promotion_id = ' . $promotionId . ' AND product_id = ' . $productId)->fetchColumn() === 1,
+        'Database must persist promotion target relationships.');
 
     $insertAddress = $pdo->prepare('INSERT INTO addresses (customer_id, raw_address, latitude, longitude) VALUES (?, ?, ?, ?)');
     expectConstraintViolation($pdo, fn() => $insertAddress->execute([$userId, 'Coordinate pair check', -26.2, null]), 'Database must reject half-populated address coordinates.');
@@ -75,6 +98,12 @@ try {
     echo "Database checks passed.\n";
 } finally {
     if ($pdo->inTransaction()) $pdo->rollBack();
+    if ($promotionId !== null) {
+        $pdo->prepare('DELETE FROM promotions WHERE id = ?')->execute([$promotionId]);
+    }
+    if ($productId !== null) {
+        $pdo->prepare('DELETE FROM products WHERE id = ?')->execute([$productId]);
+    }
     if ($userId !== null) {
         $deleteUser = $pdo->prepare('DELETE FROM users WHERE id = ?');
         $deleteUser->execute([$userId]);

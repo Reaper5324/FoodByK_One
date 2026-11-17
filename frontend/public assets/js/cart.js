@@ -43,6 +43,84 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
+    const renderRecommendations = (products) => {
+        const section = document.createElement("section");
+        section.className = "cart-recommendations";
+        section.setAttribute("aria-labelledby", "cartRecommendationsHeading");
+        const heading = document.createElement("div");
+        heading.className = "cart-recommendations-heading";
+        const title = document.createElement("h2");
+        title.id = "cartRecommendationsHeading";
+        title.textContent = "Meals you might like";
+        const intro = document.createElement("p");
+        intro.textContent = "Add a favourite to get your order started.";
+        heading.append(title, intro);
+        section.appendChild(heading);
+
+        const grid = document.createElement("div");
+        grid.className = "cart-recommendation-grid";
+        products.slice(0, 3).forEach((product) => {
+            const card = document.createElement("article");
+            card.className = "cart-recommendation-card";
+            const link = document.createElement("a");
+            link.className = "cart-recommendation-link";
+            link.href = `menu-item.html?id=${encodeURIComponent(product.id)}`;
+            const image = document.createElement("img");
+            image.src = product.image_url || "../../images/foodbyk.png";
+            image.alt = product.name ? `${product.name} from Food by K` : "Food by K meal";
+            image.addEventListener("error", () => { image.hidden = true; }, { once: true });
+            const name = document.createElement("strong");
+            name.textContent = product.name || "Menu favourite";
+            const description = document.createElement("span");
+            description.textContent = product.description || "Made fresh and ready to order.";
+            link.append(image, name, description);
+            const footer = document.createElement("div");
+            footer.className = "cart-recommendation-footer";
+            const price = document.createElement("strong");
+            price.textContent = `R${Number(product.price || 0).toFixed(2)}`;
+            const add = document.createElement("button");
+            add.type = "button";
+            add.className = "cart-recommendation-add";
+            add.textContent = "Add to cart";
+            add.addEventListener("click", async () => {
+                add.disabled = true;
+                add.textContent = "Adding…";
+                const result = await apiPost("/cart/items", { product_id: Number(product.id), quantity: 1 });
+                if (result?.success) {
+                    await loadCart();
+                    showMessage(`${product.name || "Meal"} added to your cart.`, false, true);
+                    return;
+                }
+                if (result?.status === 0 || result?.status >= 500) {
+                    await loadCart();
+                    showMessage("We couldn't confirm that addition. Your cart has been refreshed from the server.", true);
+                    return;
+                }
+                add.disabled = false;
+                add.textContent = "Add to cart";
+                showMessage(result?.error || "Unable to add this meal to your cart.", true);
+                if (result?.status === 401) {
+                    const login = document.createElement("a");
+                    login.href = "../auth/login.html";
+                    login.textContent = " Log in";
+                    cartMessage.appendChild(login);
+                }
+            });
+            footer.append(price, add);
+            card.append(link, footer);
+            grid.appendChild(card);
+        });
+        if (!products.length) {
+            const browse = document.createElement("a");
+            browse.className = "btn btn-primary";
+            browse.href = "menu.html";
+            browse.textContent = "Browse the menu";
+            grid.appendChild(browse);
+        }
+        section.appendChild(grid);
+        cartItems.appendChild(section);
+    };
+
     const loadCart = async () => {
         showCartSkeletons();
         cartTotal.hidden = true;
@@ -73,17 +151,31 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const products = new Map(productResult.data.map((product) => [Number(product.id), product]));
         const items = cartResult.data.items || [];
+        const limits = cartResult.data.limits || { max_item_quantity: 6, max_cart_items: 10 };
+        const maxItemQuantity = Number(limits.max_item_quantity) || 6;
+        const maxCartItems = Number(limits.max_cart_items) || 10;
+        const cartQuantity = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
 
         if (items.length === 0) {
             cartItems.replaceChildren();
             cartItems.setAttribute("aria-busy", "false");
             showMessage("Your cart is empty.");
+            const isAvailable = (value) => ![false, 0, "0", "false"].includes(
+                typeof value === "string" ? value.trim().toLowerCase() : value
+            );
+            renderRecommendations(productResult.data.filter((product) =>
+                isAvailable(product.is_available) && !["inactive", "removed"].includes(String(product.status || "").toLowerCase())
+            ));
             return;
         }
 
         cartMessage.hidden = true;
         cartItems.replaceChildren();
         cartItems.setAttribute("aria-busy", "false");
+        const cartLimitNote = document.createElement("p");
+        cartLimitNote.className = "cart-limit-note";
+        cartLimitNote.textContent = `${cartQuantity} of ${maxCartItems} items · Up to ${maxItemQuantity} of each menu item, including customizations.`;
+        cartItems.appendChild(cartLimitNote);
         let total = 0;
 
         items.forEach((item) => {
@@ -117,15 +209,27 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             const currentQuantity = Number(item.quantity) || 1;
+            const sameProductQuantity = items
+                .filter((other) => Number(other.product_id) === Number(item.product_id))
+                .reduce((sum, other) => sum + Number(other.quantity || 0), 0);
+            const otherProductQuantity = sameProductQuantity - currentQuantity;
+            const otherCartQuantity = cartQuantity - currentQuantity;
+            const rowMaximum = Math.max(1, Math.min(
+                maxItemQuantity - otherProductQuantity,
+                maxCartItems - otherCartQuantity
+            ));
             const quantity = document.createElement("input");
-            quantity.type = "number";
-            quantity.min = "1";
-            quantity.max = String(Math.max(99, currentQuantity));
-            quantity.step = "1";
+            // Use text so browsers do not retain an invalid step-mismatch value
+            // (for example 1.5) before our whole-quantity handler can restore it.
+            quantity.type = "text";
+            quantity.pattern = "[0-9]*";
             quantity.inputMode = "numeric";
+            quantity.maxLength = 3;
+            quantity.required = true;
             quantity.value = String(currentQuantity);
             quantity.id = `cart-quantity-${item.id}`;
             quantity.setAttribute("aria-label", `Quantity for ${name.textContent}`);
+            quantity.setAttribute("aria-description", `Enter a whole number from 1 to ${rowMaximum}.`);
             const quantityControl = document.createElement("div");
             quantityControl.className = "cart-quantity-control";
             const decrease = document.createElement("button");
@@ -139,7 +243,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             increase.className = "cart-quantity-button";
             increase.textContent = "+";
             increase.setAttribute("aria-label", `Increase ${name.textContent} quantity`);
-            increase.disabled = currentQuantity >= 99;
+            increase.disabled = currentQuantity >= rowMaximum;
             quantityControl.append(decrease, quantity, increase);
             const quantityLabel = document.createElement("div");
             quantityLabel.className = "cart-quantity-label";
@@ -165,32 +269,62 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await loadCart();
                     showMessage(`${name.textContent} removed from your cart.`, false, true);
                 }
+                else if (result.status === 0 || result.status >= 500) {
+                    await loadCart();
+                    showMessage("We couldn't confirm that removal. Your cart has been refreshed from the server.", true);
+                }
                 else {
                     remove.disabled = false;
                     showMessage(result.error || "Unable to remove this item.", true);
                 }
             });
 
-            const updateQuantity = async (newQuantity) => {
-                if (!Number.isInteger(newQuantity) || newQuantity < 1 || newQuantity > 99) {
+            let quantityUpdateTimer = null;
+            let quantityUpdateInFlight = false;
+            const updateQuantity = async (rawQuantity) => {
+                if (quantityUpdateInFlight) return;
+                const quantityText = String(rawQuantity);
+                if (!/^\d+$/.test(quantityText)) {
                     quantity.value = String(item.quantity);
-                    if (newQuantity > 99) showMessage("You can add up to 99 of the same menu item.", true);
+                    showMessage("Enter a whole-number quantity of at least 1.", true);
                     return;
                 }
+                const newQuantity = Number(quantityText);
+                if (!Number.isSafeInteger(newQuantity) || newQuantity < 1 || (newQuantity > currentQuantity && newQuantity > rowMaximum)) {
+                    quantity.value = String(item.quantity);
+                    showMessage(newQuantity > rowMaximum
+                        ? `This change exceeds your cart limit of ${maxCartItems} items or the per-item limit of ${maxItemQuantity}.`
+                        : "Enter a whole-number quantity of at least 1.", true);
+                    return;
+                }
+                if (newQuantity === currentQuantity) return;
+                // Keep the last server-confirmed value visible while this update
+                // is in flight. A failed or delayed request must never leave an
+                // unconfirmed quantity displayed as if the cart had accepted it.
+                quantity.value = String(item.quantity);
+                quantityUpdateInFlight = true;
                 decrease.disabled = true;
                 increase.disabled = true;
                 quantity.disabled = true;
-                const result = await apiPut(`/cart/items/${item.id}`, { quantity: newQuantity });
-                if (result.success) {
-                    await loadCart();
-                    showMessage("Cart quantity updated.", false, true);
-                }
-                else {
-                    quantity.disabled = false;
-                    decrease.disabled = newQuantity <= 1;
-                    increase.disabled = newQuantity >= 99;
-                    quantity.value = String(item.quantity);
-                    showMessage(result.error || "Unable to update the quantity.", true);
+                try {
+                    const result = await apiPut(`/cart/items/${item.id}`, { quantity: newQuantity });
+                    if (result.success) {
+                        await loadCart();
+                        showMessage("Cart quantity updated.", false, true);
+                    }
+                    else if (result.status === 0 || result.status >= 500) {
+                        await loadCart();
+                        showMessage("We couldn't confirm that update. Your cart has been refreshed from the server.", true);
+                    }
+                    else {
+                        quantity.disabled = false;
+                        decrease.disabled = currentQuantity <= 1;
+                        increase.disabled = currentQuantity >= rowMaximum;
+                        quantity.value = String(item.quantity);
+                        showMessage(result.error || "Unable to update the quantity.", true);
+                    }
+                } finally {
+                    quantityUpdateInFlight = false;
                 }
             };
 
@@ -199,11 +333,34 @@ document.addEventListener("DOMContentLoaded", async () => {
                 updateQuantity(current > 99 ? 99 : current - 1);
             });
             increase.addEventListener("click", () => updateQuantity(Number(quantity.value) + 1));
-            quantity.addEventListener("change", () => updateQuantity(Number(quantity.value)));
+            quantity.addEventListener("input", () => {
+                clearTimeout(quantityUpdateTimer);
+                if (quantity.value !== "" && !/^\d+$/.test(quantity.value)) {
+                    updateQuantity(quantity.value);
+                } else if (quantity.value !== "") {
+                    quantityUpdateTimer = setTimeout(() => updateQuantity(quantity.value), 300);
+                }
+            });
+            quantity.addEventListener("change", () => {
+                clearTimeout(quantityUpdateTimer);
+                updateQuantity(quantity.value);
+            });
 
             row.append(image, itemInfo, quantityLabel, subtotal, remove);
             cartItems.appendChild(row);
         });
+
+        try {
+            const selectedPromotion = String(sessionStorage.getItem("foodbykSelectedPromotion") || "").trim().toUpperCase();
+            if (selectedPromotion) {
+                const promotionNote = document.createElement("p");
+                promotionNote.className = "cart-promotion-note";
+                promotionNote.textContent = `Promotion ${selectedPromotion} is saved for checkout. Checkout will confirm which items qualify, any BOGO free quantities, and the exact discount. Only one promotion code can be used per order.`;
+                cartItems.appendChild(promotionNote);
+            }
+        } catch (error) {
+            // Cart contents remain usable when browser storage is unavailable.
+        }
 
         cartTotal.replaceChildren();
         const totalLabel = document.createElement("span");

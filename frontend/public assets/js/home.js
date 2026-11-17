@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+    loadBusinessDetails();
     loadHomeMeals();
     loadHomePromotions();
 
@@ -11,6 +12,35 @@ document.addEventListener("DOMContentLoaded", () => {
         modal?.close();
     });
 });
+
+async function loadBusinessDetails() {
+    if (typeof apiGet !== "function") return;
+    const result = await apiGet("/business/settings").catch(() => null);
+    if (!result?.success || !result.data) return;
+    const { business_address: address, business_phone: phone, trading_hours: schedule } = result.data;
+    const addressNode = document.getElementById("businessAddress");
+    if (addressNode && address) addressNode.textContent = address;
+    const hoursNode = document.getElementById("businessHours");
+    if (hoursNode && Array.isArray(schedule) && schedule.length) {
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        hoursNode.textContent = schedule.map((day) => {
+            const label = days[Number(day.weekday) - 1];
+            return label ? `${label}: ${day.is_open ? `${String(day.open_time).slice(0, 5)}–${String(day.close_time).slice(0, 5)}` : "Closed"}` : null;
+        }).filter(Boolean).join(" · ");
+    }
+    const phoneNode = document.getElementById("businessPhone");
+    const phoneLink = document.getElementById("businessPhoneLink");
+    const whatsappLink = document.getElementById("businessWhatsAppLink");
+    if (phone && phoneNode && phoneLink && whatsappLink) {
+        phoneNode.textContent = phone;
+        const digits = phone.replace(/\D/g, "");
+        const international = digits.startsWith("0") ? `27${digits.slice(1)}` : digits;
+        if (international) {
+            phoneLink.href = `https://wa.me/${international}`;
+            whatsappLink.href = `https://wa.me/${international}`;
+        }
+    }
+}
 
 const localMealImages = {
     "bbl": "../images/menu/BBL.jpeg",
@@ -147,7 +177,7 @@ function showLatestPromotion(promotion) {
     let title = "Food by K special";
     if (type === "percentage" && Number.isFinite(value)) title = `${value}% off`;
     else if (type === "fixed_amount" && Number.isFinite(value)) title = `R${value.toFixed(2).replace(/\.00$/, "")} off`;
-    else if (type === "buy_one_get_one") title = "Buy one, get one free";
+    else if (type === "buy_one_get_one") title = "Buy one, get one free per paid item";
     else if (type === "free_delivery") title = "Free delivery";
 
     document.getElementById("promotionModalTitle").textContent = title;
@@ -190,7 +220,7 @@ function createPromotionCard(promotion) {
     const type = promotion.discount_type;
     if (type === "percentage") title.textContent = `${value}% off`;
     else if (type === "fixed_amount") title.textContent = `R${value.toFixed(2).replace(/\.00$/, "")} off`;
-    else if (type === "buy_one_get_one") title.textContent = "Buy one, get one free";
+    else if (type === "buy_one_get_one") title.textContent = "Buy one, get one free per paid item";
     else if (type === "free_delivery") title.textContent = "Free delivery";
     else title.textContent = "Food by K special";
 
@@ -215,7 +245,7 @@ function promotionEligibilityText(promotion) {
     const targets = Array.isArray(promotion.target_product_names) ? promotion.target_product_names : [];
     const appliesTo = targets.length ? `Applies to ${targets.join(", ")}. ` : "Applies across eligible orders. ";
     const terms = promotion.discount_type === "buy_one_get_one"
-        ? "Buy two of the same eligible item; the lower-priced one is free."
+        ? "Get one matching free item for every paid eligible item. One promotion code may be used per order."
         : promotion.discount_type === "free_delivery"
             ? "For delivery orders only."
             : "Discount is calculated at checkout.";
