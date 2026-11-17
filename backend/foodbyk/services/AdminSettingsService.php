@@ -117,10 +117,11 @@ class AdminSettingsService {
         if ($type === Promotion::TYPE_BUY_ONE_GET_ONE && count($targetIds) !== 1) {
             return $this->failure('A buy-one-get-one promotion must target exactly one menu item.');
         }
-        if (!is_numeric($value) || (float) $value < 0 || ($type === Promotion::TYPE_PERCENTAGE && (float) $value > 100)) {
+        $discountValue = InputValidator::nonNegativeMoney($value, 999999.99);
+        if ($discountValue === null || ($type === Promotion::TYPE_PERCENTAGE && $discountValue > 100)) {
             return $this->failure('Invalid discount value.');
         }
-        if ($type === Promotion::TYPE_FIXED_AMOUNT && (float) $value <= 0) {
+        if ($type === Promotion::TYPE_FIXED_AMOUNT && $discountValue <= 0) {
             return $this->failure('Fixed discount value must be greater than zero.');
         }
         if (($start !== null && !$this->isValidDate($start)) || ($end !== null && !$this->isValidDate($end))) {
@@ -133,7 +134,7 @@ class AdminSettingsService {
             return $this->failure('A promotion with this code already exists.');
         }
 
-        $promo = new Promotion(code: $code, discount_type: $type, discount_value: (float) $value, start_date: $start, end_date: $end, is_active: $active);
+        $promo = new Promotion(code: $code, discount_type: $type, discount_value: $discountValue, start_date: $start, end_date: $end, is_active: $active);
         $db = Database::getConnection();
         try {
             $db->beginTransaction();
@@ -186,10 +187,11 @@ class AdminSettingsService {
         if ($type === Promotion::TYPE_BUY_ONE_GET_ONE && count($targetIds) !== 1) {
             return $this->failure('A buy-one-get-one promotion must target exactly one menu item.');
         }
-        if (!is_numeric($value) || (float) $value < 0 || ($type === Promotion::TYPE_PERCENTAGE && (float) $value > 100)) {
+        $discountValue = InputValidator::nonNegativeMoney($value, 999999.99);
+        if ($discountValue === null || ($type === Promotion::TYPE_PERCENTAGE && $discountValue > 100)) {
             return $this->failure('Invalid discount value.');
         }
-        if ($type === Promotion::TYPE_FIXED_AMOUNT && (float) $value <= 0) {
+        if ($type === Promotion::TYPE_FIXED_AMOUNT && $discountValue <= 0) {
             return $this->failure('Fixed discount value must be greater than zero.');
         }
         if (($start !== null && !$this->isValidDate($start)) || ($end !== null && !$this->isValidDate($end))) {
@@ -207,7 +209,7 @@ class AdminSettingsService {
 
         $promotion->code = $code;
         $promotion->discount_type = $type;
-        $promotion->discount_value = (float) $value;
+        $promotion->discount_value = $discountValue;
         $promotion->start_date = $start;
         $promotion->end_date = $end;
         $promotion->is_active = $active;

@@ -64,6 +64,7 @@ test('cart loading placeholders do not remain beside real cart items', async ({ 
   await expect(page.locator('#cartItems .cart-skeleton-row')).toHaveCount(0);
   await expect(page.getByText('Classic Burger')).toBeVisible();
   await expect(page.getByText('Fries')).toBeVisible();
+  await expect(page.locator('#cartTotal')).toContainText('R89.99');
 });
 
 test('cart rejects decimal quantities and restores the last valid value after a rejected update', async ({ page }) => {

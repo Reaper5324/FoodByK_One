@@ -214,8 +214,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 maxCartItems - otherCartQuantity
             ));
             const quantity = document.createElement("input");
-            quantity.type = "number";
-            quantity.min = "1";
+            // Use text so browsers do not retain an invalid step-mismatch value
+            // (for example 1.5) before our whole-quantity handler can restore it.
+            quantity.type = "text";
+            quantity.pattern = "[0-9]*";
             quantity.max = String(Math.max(currentQuantity, rowMaximum));
             quantity.step = "1";
             quantity.inputMode = "numeric";
