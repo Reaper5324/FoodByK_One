@@ -8,7 +8,7 @@ class AdminSettingsService {
         'delivery_fee', 'free_delivery_threshold', 'trading_hours_start', 'trading_hours_end',
         'delivery_enabled', 'collection_enabled', 'slot_duration_minutes', 'max_orders_per_slot', 'max_advance_booking_days',
         'max_item_quantity', 'max_cart_items', 'minimum_order_amount', 'enforce_minimum_order', 'ordering_enabled',
-        'business_phone', 'business_address',
+        'business_phone', 'business_address', 'admin_email_2fa_enabled',
     ];
 
     public function updateSettings(array $input): array {
@@ -350,6 +350,7 @@ class AdminSettingsService {
             'minimum_order_amount'  => (is_numeric($value) && is_finite((float) $value) && $value >= 0 && $value <= 100000) ? null : 'Minimum order amount must be between R0 and R100,000.',
             'enforce_minimum_order' => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== null ? null : 'Invalid minimum order enforcement setting.',
             'ordering_enabled'      => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== null ? null : 'Invalid order acceptance setting.',
+            'admin_email_2fa_enabled' => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) !== null ? null : 'Invalid admin email verification setting.',
             'business_phone'        => (is_string($value) && strlen(trim($value)) >= 7 && strlen($value) <= 30 && preg_match('/^[0-9+(). -]+$/', $value)) ? null : 'Enter a valid business phone number.',
             'business_address'      => (is_string($value) && trim($value) !== '' && strlen($value) <= 255) ? null : 'Business address must be between 1 and 255 characters.',
             'trading_hours_start', 'trading_hours_end' =>
@@ -362,7 +363,7 @@ class AdminSettingsService {
 
     private function castField(string $field, mixed $value): mixed {
         return match ($field) {
-            'delivery_enabled', 'collection_enabled', 'ordering_enabled', 'enforce_minimum_order' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+            'delivery_enabled', 'collection_enabled', 'ordering_enabled', 'enforce_minimum_order', 'admin_email_2fa_enabled' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
             'slot_duration_minutes', 'max_orders_per_slot', 'max_advance_booking_days', 'max_item_quantity', 'max_cart_items' => (int) $value,
             'trading_hours_start', 'trading_hours_end', 'business_phone', 'business_address' => trim((string) $value),
             default => (float) $value,

@@ -31,6 +31,14 @@ async function loginUser(email, password) {
 
 }
 
+async function verifyAdminLoginCode(challengeToken, code) {
+    return apiPost("/auth/admin-login/verify", { challenge_token: challengeToken, code });
+}
+
+async function resendAdminLoginCode(challengeToken) {
+    return apiPost("/auth/admin-login/resend", { challenge_token: challengeToken });
+}
+
 
 /* ---------- Logout ---------- */
 

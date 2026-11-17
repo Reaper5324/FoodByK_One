@@ -26,6 +26,17 @@ class AuthController extends Controller {
         return $this->respond((new AuthService())->login((string) $request->input('email', ''), (string) $request->input('password', '')), 200, 401);
     }
 
+    public function verifyAdminLoginCode(Request $request): Response {
+        return $this->respond((new AuthService())->verifyAdminLoginCode(
+            (string) $request->input('challenge_token', ''),
+            (string) $request->input('code', '')
+        ), 200, 401);
+    }
+
+    public function resendAdminLoginCode(Request $request): Response {
+        return $this->respond((new AuthService())->resendAdminLoginCode((string) $request->input('challenge_token', '')));
+    }
+
     public function logout(Request $request): Response {
         return $this->respond((new AuthService())->logout());
     }

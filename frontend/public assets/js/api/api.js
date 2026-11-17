@@ -12,6 +12,8 @@ const CSRF_EXEMPT_ENDPOINTS = [
     "/auth/register",
     "/auth/verify-email",
     "/auth/resend-verification",
+    "/auth/admin-login/verify",
+    "/auth/admin-login/resend",
     "/auth/forgot-password",
     "/auth/reset-password",
     "/assistant/ask"
@@ -176,6 +178,11 @@ async function apiRequest(endpoint, options = {}) {
            Capture session token from login/register
            (body, not a header - see AuthService::login/register)
            ----------------------------------------- */
+
+        if (result?.data?.clear_session_token) {
+            clearSessionToken();
+            localStorage.removeItem("foodByKUser");
+        }
 
         if (result?.data?.session_token) {
             storeSessionToken(result.data.session_token);

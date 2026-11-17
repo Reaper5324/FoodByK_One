@@ -23,6 +23,7 @@ public function __construct(
     public float   $minimum_order_amount  = 0.0,
     public bool    $enforce_minimum_order = false,
     public bool    $ordering_enabled      = true,
+    public bool    $admin_email_2fa_enabled = false,
     public string  $business_phone       = '081 447 8365',
     public string  $business_address     = '8513 Goshawk Street, Lenasia South, Gauteng',
     public array   $trading_hours        = [],
@@ -100,6 +101,7 @@ protected function toArray(): array {
         'minimum_order_amount'  => $this->minimum_order_amount,
         'enforce_minimum_order' => (int) $this->enforce_minimum_order,
         'ordering_enabled'      => (int) $this->ordering_enabled,
+        'admin_email_2fa_enabled' => (int) $this->admin_email_2fa_enabled,
         'business_phone'        => $this->business_phone,
         'business_address'      => $this->business_address,
     ];
@@ -126,6 +128,7 @@ protected static function fromRow(array $row): static {
     $s->minimum_order_amount  = (float) ($row['minimum_order_amount'] ?? 0);
     $s->enforce_minimum_order = (bool) ($row['enforce_minimum_order'] ?? false);
     $s->ordering_enabled      = (bool) ($row['ordering_enabled'] ?? true);
+    $s->admin_email_2fa_enabled = (bool) ($row['admin_email_2fa_enabled'] ?? false);
     $s->business_phone        = (string) ($row['business_phone'] ?? '081 447 8365');
     $s->business_address      = (string) ($row['business_address'] ?? '8513 Goshawk Street, Lenasia South, Gauteng');
     $s->updated_at            =         $row['updated_at'] ?? null;

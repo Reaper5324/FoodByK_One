@@ -6,7 +6,7 @@ class RateLimitMiddleware implements Middleware {
         private int $maxAttempts = 5,
         private int $windowSeconds = 300
     ) {
-        if (!in_array($this->scope, ['login', 'reset', 'request', 'assistant', 'verification'], true)
+        if (!in_array($this->scope, ['login', 'reset', 'request', 'assistant', 'verification', 'admin_verification'], true)
             || $this->maxAttempts < 1 || $this->windowSeconds < 1) {
             throw new InvalidArgumentException('Invalid rate-limit configuration.');
         }
@@ -46,7 +46,7 @@ class RateLimitMiddleware implements Middleware {
 
             // Limit reset requests and assistant calls so these endpoints cannot
             // be spammed by repeating requests from the same client.
-            if (in_array($this->scope, ['request', 'assistant', 'verification'], true)) {
+            if (in_array($this->scope, ['request', 'assistant', 'verification', 'admin_verification'], true)) {
                 self::storeKeys($db, $keys);
             }
         } finally {
@@ -79,6 +79,14 @@ class RateLimitMiddleware implements Middleware {
             $email = strtolower(trim((string) $request->input('email', '')));
             $keys = ['verification:ip:' . $ip];
             if ($email !== '') $keys[] = 'verification:email:' . hash('sha256', $email);
+            return $keys;
+        }
+        if ($this->scope === 'admin_verification') {
+            $challenge = strtolower(trim((string) $request->input('challenge_token', '')));
+            $keys = ['admin-verification:ip:' . $ip];
+            if (preg_match('/^[a-f0-9]{64}$/D', $challenge) === 1) {
+                $keys[] = 'admin-verification:challenge:' . hash('sha256', $challenge);
+            }
             return $keys;
         }
 

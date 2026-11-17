@@ -99,11 +99,15 @@ $pdo = new PDO(
 );
 $email = 'api-check-' . bin2hex(random_bytes(8)) . '@example.test';
 $secondEmail = 'api-check-owner-' . bin2hex(random_bytes(8)) . '@example.test';
+$adminEmail = 'api-check-admin-' . bin2hex(random_bytes(8)) . '@example.test';
 $cookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
 $secondCookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
+$adminCookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
 $password = 'BlueRiver!9072';
 $productId = null;
 $createdCategoryId = null;
+$adminUserId = null;
+$originalAdminEmail2fa = null;
 $originalCapacity = null;
 $originalAdvance = null;
 
@@ -160,6 +164,38 @@ try {
 
     $login = apiRequest('POST', '/auth/login', ['email' => $email, 'password' => $password], ['Origin: https://foodbyks.netlify.app'], $cookieFile);
     apiExpect($login['status'] === 200 && ($login['json']['success'] ?? false), 'Verified customer login must succeed.');
+
+    $originalAdminEmail2fa = (int) $pdo->query('SELECT admin_email_2fa_enabled FROM business_settings WHERE id = 1')->fetchColumn();
+    $adminRoleId = (int) $pdo->query("SELECT id FROM roles WHERE role_name = 'admin'")->fetchColumn();
+    $insertAdmin = $pdo->prepare('INSERT INTO users (name, email, password_hash, role_id) VALUES (?, ?, ?, ?)');
+    $insertAdmin->execute(['Integration Admin', $adminEmail, password_hash($password, PASSWORD_DEFAULT), $adminRoleId]);
+    $adminUserId = (int) $pdo->lastInsertId();
+    $challengeToken = bin2hex(random_bytes(32));
+    $pdo->prepare('INSERT INTO admin_login_challenges (token_hash, user_id, code_hash, expires_at, resend_after) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), DATE_ADD(NOW(), INTERVAL 60 SECOND))')
+        ->execute([hash('sha256', $challengeToken), $adminUserId, password_hash('482913', PASSWORD_DEFAULT)]);
+    $earlyAdminResend = apiRequest('POST', '/auth/admin-login/resend', ['challenge_token' => $challengeToken]);
+    apiExpect(($earlyAdminResend['json']['success'] ?? true) === false, 'Admin verification codes must not be resendable during the cooldown.');
+    $badAdminCode = apiRequest('POST', '/auth/admin-login/verify', ['challenge_token' => $challengeToken, 'code' => '111111'], [], $adminCookieFile);
+    apiExpect($badAdminCode['status'] === 401 && !isset($badAdminCode['headers']['set-cookie']), 'An incorrect admin code must not create an authenticated session.');
+    $verifiedAdmin = apiRequest('POST', '/auth/admin-login/verify', ['challenge_token' => $challengeToken, 'code' => '482913'], [], $adminCookieFile);
+    apiExpect($verifiedAdmin['status'] === 200 && ($verifiedAdmin['json']['success'] ?? false)
+        && ($verifiedAdmin['json']['data']['role'] ?? null) === 'admin', 'A valid admin email code must create the administrator session.');
+    $replayedAdminCode = apiRequest('POST', '/auth/admin-login/verify', ['challenge_token' => $challengeToken, 'code' => '482913'], [], $adminCookieFile);
+    apiExpect($replayedAdminCode['status'] === 401, 'A successful admin login code must be single-use.');
+    $adminMe = apiRequest('GET', '/auth/me', null, [], $adminCookieFile);
+    apiExpect(($adminMe['json']['data']['role'] ?? null) === 'admin' && isset($adminMe['headers']['x-csrf-token']), 'Verified admin login must establish the normal authenticated, CSRF-protected session.');
+    $enableAdminEmail2fa = apiRequest('PUT', '/admin/settings', ['admin_email_2fa_enabled' => true], [
+        'X-CSRF-Token: ' . $adminMe['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $adminCookieFile);
+    apiExpect(($enableAdminEmail2fa['json']['success'] ?? false)
+        && (bool) ($enableAdminEmail2fa['json']['data']['admin_email_2fa_enabled'] ?? false), 'An administrator must be able to enable the email-code login setting.');
+    $disableAdminEmail2fa = apiRequest('PUT', '/admin/settings', ['admin_email_2fa_enabled' => false], [
+        'X-CSRF-Token: ' . $adminMe['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $adminCookieFile);
+    apiExpect(($disableAdminEmail2fa['json']['success'] ?? false)
+        && !((bool) ($disableAdminEmail2fa['json']['data']['admin_email_2fa_enabled'] ?? true)), 'An administrator must be able to disable the email-code login setting.');
 
     // Every cookie the API sets, except a JS-readable CSRF cookie (if any), is
     // treated as an authentication cookie and must be HttpOnly with SameSite.
@@ -434,6 +470,12 @@ try {
 
     echo "API integration and security checks passed.\n";
 } finally {
+    if ($originalAdminEmail2fa !== null) {
+        $pdo->prepare('UPDATE business_settings SET admin_email_2fa_enabled = ? WHERE id = 1')->execute([$originalAdminEmail2fa]);
+    }
+    if ($adminUserId !== null) {
+        $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$adminUserId]);
+    }
     if ($originalCapacity !== null && $originalAdvance !== null) {
         $pdo->prepare('UPDATE business_settings SET max_orders_per_slot = ?, max_advance_booking_days = ? WHERE id = 1')->execute([$originalCapacity, $originalAdvance]);
     }
@@ -475,4 +517,5 @@ try {
 
     if (is_file($cookieFile)) unlink($cookieFile);
     if (is_file($secondCookieFile)) unlink($secondCookieFile);
+    if (is_file($adminCookieFile)) unlink($adminCookieFile);
 }

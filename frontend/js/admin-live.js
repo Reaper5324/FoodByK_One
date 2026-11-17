@@ -1424,7 +1424,8 @@ const initializeAdminLive = async () => {
             ["business", "fa-store", "Business contact", "Public address and phone customers use to reach the store."],
             ["trading", "fa-clock", "Trading hours", "Choose which days you trade and set each day’s opening window."],
             ["orders", "fa-bag-shopping", "Order handling", "Control order acceptance, minimums, slot capacity, and cart limits."],
-            ["delivery", "fa-truck-fast", "Delivery & collection", "Set service areas, fees, free delivery, and fulfilment availability."]
+            ["delivery", "fa-truck-fast", "Delivery & collection", "Set service areas, fees, free delivery, and fulfilment availability."],
+            ["security", "fa-shield-halved", "Admin security", "Add an email verification step to administrator sign-in."]
         ];
         nav?.replaceChildren();
         const sections = {};
@@ -1598,6 +1599,8 @@ const initializeAdminLive = async () => {
             ["max_item_quantity", "Maximum quantity of one menu item", { min: 1, max: 99, step: "1", unit: "items" }],
             ["max_cart_items", "Maximum cart quantity, including item quantities", { min: 1, max: 500, step: "1", unit: "items" }]
         ]);
+
+        addToggle("security", "admin_email_2fa_enabled", "Require email code for admin login", "When enabled, administrators must enter a one-time code sent to their account email after entering their password. This setting is off by default.");
         addToggle("orders", "enforce_minimum_order", "Enforce minimum order amount", "When enabled, customers must meet the amount above before placing an order. Turn this off to show it as guidance only.");
         addToggle("orders", "ordering_enabled", "Accept new orders", "Pause checkout for both delivery and collection.");
 
@@ -1615,7 +1618,7 @@ const initializeAdminLive = async () => {
         const getCurrentState = () => {
             const state = {};
             new FormData(form).forEach((value, key) => { state[key] = value; });
-            ["ordering_enabled", "delivery_enabled", "collection_enabled", "enforce_minimum_order"].forEach((key) => {
+            ["ordering_enabled", "delivery_enabled", "collection_enabled", "enforce_minimum_order", "admin_email_2fa_enabled"].forEach((key) => {
                 state[key] = Boolean(form.elements.namedItem(key).checked);
             });
             state.trading_hours = [...form.querySelectorAll(".hr")].map((row, index) => ({

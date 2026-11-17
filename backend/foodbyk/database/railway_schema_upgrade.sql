@@ -9,6 +9,7 @@
 -- window setting introduced by the current schema.
 -- Before running: if enforce_minimum_order or max_advance_booking_days is
 -- already in business_settings, comment out its corresponding ALTER statement.
+-- If admin_email_2fa_enabled already exists, skip its ALTER statement.
 -- Also check order_items.free_quantity
 -- and its named CHECK constraint and skip those statements if already present.
 -- CREATE TABLE IF NOT EXISTS and INSERT IGNORE preserve existing data.
@@ -19,6 +20,22 @@ ALTER TABLE business_settings
 -- Maximum inclusive booking window; skip this ALTER if already present.
 ALTER TABLE business_settings
     ADD COLUMN max_advance_booking_days INT UNSIGNED NOT NULL DEFAULT 30 AFTER max_orders_per_slot;
+
+ALTER TABLE business_settings
+    ADD COLUMN admin_email_2fa_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER ordering_enabled;
+
+CREATE TABLE IF NOT EXISTS admin_login_challenges (
+    id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    token_hash   CHAR(64) NOT NULL UNIQUE,
+    user_id      INT UNSIGNED NOT NULL,
+    code_hash    VARCHAR(255) NOT NULL,
+    expires_at   DATETIME NOT NULL,
+    resend_after DATETIME NOT NULL,
+    attempts     TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_admin_login_challenges_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_admin_login_challenges_expiry (expires_at)
+) ENGINE=InnoDB;
 
 -- Ensure the already-installed hours table has all weekday rows. Existing
 -- schedules are preserved by INSERT IGNORE.
@@ -84,7 +101,8 @@ WHERE ranked.item_rank = 1
 
 DROP TEMPORARY TABLE foodbyk_legacy_bogo_free_units;
 
--- Verification: expect enforce_minimum_order, both tables, free_quantity,
+-- Verification: expect enforce_minimum_order, admin_email_2fa_enabled,
+-- admin_login_challenges, both business tables, free_quantity,
 -- max_advance_booking_days, and seven trading-hour rows.
 SELECT COLUMN_NAME
 FROM information_schema.COLUMNS
@@ -99,10 +117,16 @@ WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = 'business_settings'
   AND COLUMN_NAME = 'max_advance_booking_days';
 
+SELECT COLUMN_NAME
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'business_settings'
+  AND COLUMN_NAME = 'admin_email_2fa_enabled';
+
 SELECT TABLE_NAME
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = DATABASE()
-  AND TABLE_NAME IN ('business_trading_hours', 'promotion_products');
+  AND TABLE_NAME IN ('business_trading_hours', 'promotion_products', 'admin_login_challenges');
 
 SELECT COLUMN_NAME
 FROM information_schema.COLUMNS

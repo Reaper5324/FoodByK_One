@@ -140,8 +140,152 @@ class AuthService {
             }
         }
 
+        if ($user->getRole()?->role_name === Role::ADMIN && BusinessSettings::current()->admin_email_2fa_enabled) {
+            return $this->startAdminLoginChallenge($user);
+        }
+
         $this->establishSession($user);
-return $this->success(array_merge($this->publicUser($user), ['session_token' => session_id()]));
+        return $this->success(array_merge($this->publicUser($user), ['session_token' => session_id()]));
+    }
+
+    private function startAdminLoginChallenge(User $user): array {
+        $token = bin2hex(random_bytes(32));
+        $code = (string) random_int(100000, 999999);
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            $db->prepare('DELETE FROM admin_login_challenges WHERE expires_at <= NOW()')->execute();
+            $db->prepare('DELETE FROM admin_login_challenges WHERE user_id = ?')->execute([(int) $user->id]);
+            $stmt = $db->prepare(
+                'INSERT INTO admin_login_challenges (token_hash, user_id, code_hash, expires_at, resend_after) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), DATE_ADD(NOW(), INTERVAL 60 SECOND))'
+            );
+            $stmt->execute([hash('sha256', $token), (int) $user->id, password_hash($code, PASSWORD_DEFAULT)]);
+            $db->commit();
+        } catch (Throwable) {
+            if ($db->inTransaction()) $db->rollBack();
+            return $this->failure('Unable to start admin email verification. Please try again.');
+        }
+
+        if (!$this->sendAdminLoginCode($user, $code)) {
+            $db->prepare('DELETE FROM admin_login_challenges WHERE token_hash = ?')->execute([hash('sha256', $token)]);
+            return $this->failure('We could not send the admin verification code. Please try again later.');
+        }
+
+        // A browser may still present an older customer or staff session while
+        // switching accounts. Do not leave that session usable during this challenge.
+        $this->clearCurrentAuthenticationSession();
+
+        return $this->success([
+            'admin_verification_required' => true,
+            'challenge_token' => $token,
+            'email_hint' => $this->maskedEmail($user->email),
+            'expires_in_seconds' => 600,
+            'clear_session_token' => true,
+        ]);
+    }
+
+    private function clearCurrentAuthenticationSession(): void {
+        if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+        $_SESSION = [];
+        session_regenerate_id(true);
+    }
+
+    public function verifyAdminLoginCode(string $challengeToken, string $code): array {
+        if (preg_match('/^[a-f0-9]{64}$/D', $challengeToken) !== 1 || preg_match('/^[0-9]{6}$/D', $code) !== 1) {
+            return $this->failure('Enter the six-digit code sent to the administrator email address.');
+        }
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            $stmt = $db->prepare('SELECT id, user_id, code_hash, expires_at > NOW() AS is_valid, attempts FROM admin_login_challenges WHERE token_hash = ? LIMIT 1 FOR UPDATE');
+            $stmt->execute([hash('sha256', $challengeToken)]);
+            $challenge = $stmt->fetch();
+            if (!$challenge || !(bool) $challenge['is_valid'] || (int) $challenge['attempts'] >= 5) {
+                if ($challenge) $db->prepare('DELETE FROM admin_login_challenges WHERE id = ?')->execute([(int) $challenge['id']]);
+                $db->commit();
+                return $this->failure('This admin verification code is invalid or expired. Sign in again to request a new code.');
+            }
+            if (!password_verify($code, (string) $challenge['code_hash'])) {
+                $attempts = (int) $challenge['attempts'] + 1;
+                if ($attempts >= 5) {
+                    $db->prepare('DELETE FROM admin_login_challenges WHERE id = ?')->execute([(int) $challenge['id']]);
+                } else {
+                    $db->prepare('UPDATE admin_login_challenges SET attempts = ? WHERE id = ?')->execute([$attempts, (int) $challenge['id']]);
+                }
+                $db->commit();
+                return $this->failure($attempts >= 5
+                    ? 'Too many incorrect codes. Sign in again to request a new code.'
+                    : 'That code is incorrect. Check the email and try again.');
+            }
+
+            $user = User::findById((int) $challenge['user_id']);
+            if (!$user || !$user->is_active || $user->getRole()?->role_name !== Role::ADMIN) {
+                $db->prepare('DELETE FROM admin_login_challenges WHERE id = ?')->execute([(int) $challenge['id']]);
+                $db->commit();
+                return $this->failure('This administrator account is unavailable.');
+            }
+            $db->prepare('DELETE FROM admin_login_challenges WHERE id = ?')->execute([(int) $challenge['id']]);
+            $db->commit();
+            $this->establishSession($user);
+            return $this->success(array_merge($this->publicUser($user), ['session_token' => session_id()]));
+        } catch (Throwable) {
+            if ($db->inTransaction()) $db->rollBack();
+            return $this->failure('Unable to verify the admin code. Please try again.');
+        }
+    }
+
+    public function resendAdminLoginCode(string $challengeToken): array {
+        if (preg_match('/^[a-f0-9]{64}$/D', $challengeToken) !== 1) {
+            return $this->failure('This admin sign-in request is invalid or expired. Sign in again.');
+        }
+        $db = Database::getConnection();
+        try {
+            $db->beginTransaction();
+            $stmt = $db->prepare('SELECT id, user_id, expires_at > NOW() AS is_valid, resend_after <= NOW() AS can_resend FROM admin_login_challenges WHERE token_hash = ? LIMIT 1 FOR UPDATE');
+            $stmt->execute([hash('sha256', $challengeToken)]);
+            $challenge = $stmt->fetch();
+            if (!$challenge || !(bool) $challenge['is_valid']) {
+                if ($challenge) $db->prepare('DELETE FROM admin_login_challenges WHERE id = ?')->execute([(int) $challenge['id']]);
+                $db->commit();
+                return $this->failure('This admin sign-in request is invalid or expired. Sign in again.');
+            }
+            if (!(bool) $challenge['can_resend']) {
+                $db->rollBack();
+                return $this->failure('Please wait before requesting another code.');
+            }
+            $user = User::findById((int) $challenge['user_id']);
+            if (!$user || !$user->is_active || $user->getRole()?->role_name !== Role::ADMIN) {
+                $db->prepare('DELETE FROM admin_login_challenges WHERE id = ?')->execute([(int) $challenge['id']]);
+                $db->commit();
+                return $this->failure('This administrator account is unavailable.');
+            }
+            $code = (string) random_int(100000, 999999);
+            $db->prepare('UPDATE admin_login_challenges SET code_hash = ?, resend_after = DATE_ADD(NOW(), INTERVAL 60 SECOND) WHERE id = ?')
+                ->execute([password_hash($code, PASSWORD_DEFAULT), (int) $challenge['id']]);
+            $db->commit();
+            if (!$this->sendAdminLoginCode($user, $code)) {
+                return $this->failure('We could not send the admin verification code. Please try again after a short wait.');
+            }
+            return $this->success(['message' => 'A new verification code was sent to ' . $this->maskedEmail($user->email) . '.']);
+        } catch (Throwable) {
+            if ($db->inTransaction()) $db->rollBack();
+            return $this->failure('Unable to resend the admin code. Please try again.');
+        }
+    }
+
+    private function sendAdminLoginCode(User $user, string $code): bool {
+        $body = "Hi {$user->full_name},\n\nYour Food by K administrator sign-in code is {$code}. It expires in 10 minutes. If you did not attempt to sign in, you can ignore this email and consider changing your password.";
+        try {
+            return (new EmailService())->send($user->email, 'Your Food by K administrator sign-in code', $body);
+        } catch (Throwable) {
+            error_log('Administrator login code email delivery failed for user ' . $user->id . '.');
+            return false;
+        }
+    }
+
+    private function maskedEmail(string $email): string {
+        [$name, $domain] = array_pad(explode('@', $email, 2), 2, '');
+        return ($name === '' ? '*' : substr($name, 0, 1) . str_repeat('*', max(2, strlen($name) - 1))) . '@' . $domain;
     }
 
     public function verifyEmail(string $rawToken): array {

@@ -48,6 +48,7 @@ CREATE TABLE business_settings (
     minimum_order_amount   DECIMAL(10,2) NOT NULL DEFAULT 0.00,
     enforce_minimum_order  TINYINT(1)    NOT NULL DEFAULT 0,
     ordering_enabled       TINYINT(1)    NOT NULL DEFAULT 1,
+    admin_email_2fa_enabled TINYINT(1)   NOT NULL DEFAULT 0,
     business_phone        VARCHAR(30)   NOT NULL DEFAULT '081 447 8365',
     business_address      VARCHAR(255)  NOT NULL DEFAULT '8513 Goshawk Street, Lenasia South, Gauteng',
     updated_at             TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -55,6 +56,19 @@ CREATE TABLE business_settings (
 ) ENGINE=InnoDB;
 
 INSERT INTO business_settings (id) VALUES (1);
+
+CREATE TABLE admin_login_challenges (
+    id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    token_hash    CHAR(64) NOT NULL UNIQUE,
+    user_id       INT UNSIGNED NOT NULL,
+    code_hash     VARCHAR(255) NOT NULL,
+    expires_at    DATETIME NOT NULL,
+    resend_after  DATETIME NOT NULL,
+    attempts      TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_admin_login_challenges_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_admin_login_challenges_expiry (expires_at)
+) ENGINE=InnoDB;
 
 CREATE TABLE business_trading_hours (
     weekday    TINYINT UNSIGNED PRIMARY KEY,
