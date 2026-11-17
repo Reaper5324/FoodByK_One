@@ -75,6 +75,7 @@ $cookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
 $secondCookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
 $password = 'BlueRiver!9072';
 $productId = null;
+$createdCategoryId = null;
 
 try {
     $health = apiRequest('GET', '/health');
@@ -177,7 +178,11 @@ try {
     // Exercise cart writes through the real router, middleware, controller,
     // service, and test database using an isolated catalogue fixture.
     $categoryId = (int) $pdo->query('SELECT id FROM categories ORDER BY id LIMIT 1')->fetchColumn();
-    apiExpect($categoryId > 0, 'Cart integration checks require the seeded catalogue category.');
+    if ($categoryId <= 0) {
+        $pdo->prepare('INSERT INTO categories (name) VALUES (?)')->execute(['Cart API fixture ' . bin2hex(random_bytes(4))]);
+        $categoryId = (int) $pdo->lastInsertId();
+        $createdCategoryId = $categoryId;
+    }
     $minimumOrder = (float) $pdo->query('SELECT minimum_order_amount FROM business_settings WHERE id = 1')->fetchColumn();
     $testProductPrice = max(10.00, $minimumOrder + 1.00);
     $insertProduct = $pdo->prepare('INSERT INTO products (category_id, name, description, price, is_available, status) VALUES (?, ?, ?, ?, 1, ?)');
@@ -345,6 +350,7 @@ try {
         $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$existingSecondUserId]);
     }
     if ($productId !== null) $pdo->prepare('DELETE FROM products WHERE id = ?')->execute([$productId]);
+    if ($createdCategoryId !== null) $pdo->prepare('DELETE FROM categories WHERE id = ?')->execute([$createdCategoryId]);
 
     if (is_file($cookieFile)) unlink($cookieFile);
     if (is_file($secondCookieFile)) unlink($secondCookieFile);
