@@ -401,6 +401,17 @@ try {
         'Exactly one collection order must persist without an address, including when an address ID is supplied.');
     $pdo->prepare('UPDATE business_settings SET max_orders_per_slot = ?, max_advance_booking_days = ? WHERE id = 1')->execute([$originalCapacity, $originalAdvance]);
 
+    // The first customer's cart may have been cleared by the successful race
+    // submission. Recreate the deletion fixture instead of reusing a stale ID.
+    $deleteCartAdd = apiRequest('POST', '/cart/items', ['product_id' => $productId, 'quantity' => 1], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect($deleteCartAdd['status'] === 201 && ($deleteCartAdd['json']['success'] ?? false)
+        && (int) ($deleteCartAdd['json']['data']['id'] ?? 0) > 0,
+        'A cart item must be available for explicit deletion after the checkout race.');
+    $quoteCartItemId = (int) $deleteCartAdd['json']['data']['id'];
+
     $cartDelete = apiRequest('DELETE', '/cart/items/' . $quoteCartItemId, null, [
         'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
         'Origin: https://foodbyks.netlify.app',
