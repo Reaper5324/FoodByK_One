@@ -218,8 +218,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             // (for example 1.5) before our whole-quantity handler can restore it.
             quantity.type = "text";
             quantity.pattern = "[0-9]*";
-            quantity.max = String(Math.max(currentQuantity, rowMaximum));
-            quantity.step = "1";
             quantity.inputMode = "numeric";
             quantity.value = String(currentQuantity);
             quantity.id = `cart-quantity-${item.id}`;
@@ -269,7 +267,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
 
+            let quantityUpdateTimer = null;
+            let quantityUpdateInFlight = false;
             const updateQuantity = async (rawQuantity) => {
+                if (quantityUpdateInFlight) return;
                 const quantityText = String(rawQuantity);
                 if (!/^\d+$/.test(quantityText)) {
                     quantity.value = String(item.quantity);
@@ -285,25 +286,33 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return;
                 }
                 if (newQuantity === currentQuantity) return;
+                // Keep the last server-confirmed value visible while this update
+                // is in flight. A failed or delayed request must never leave an
+                // unconfirmed quantity displayed as if the cart had accepted it.
+                quantity.value = String(item.quantity);
+                quantityUpdateInFlight = true;
                 decrease.disabled = true;
                 increase.disabled = true;
                 quantity.disabled = true;
-                const result = await apiPut(`/cart/items/${item.id}`, { quantity: newQuantity });
-                if (result.success) {
-                    await loadCart();
-                    showMessage("Cart quantity updated.", false, true);
-                }
-                else {
-                    if (result.status === 0) {
+                try {
+                    const result = await apiPut(`/cart/items/${item.id}`, { quantity: newQuantity });
+                    if (result.success) {
+                        await loadCart();
+                        showMessage("Cart quantity updated.", false, true);
+                    }
+                    else if (result.status === 0) {
                         await loadCart();
                         showMessage("We couldn't confirm that update. Your cart has been refreshed from the server.", true);
-                        return;
                     }
-                    quantity.disabled = false;
-                    decrease.disabled = newQuantity <= 1;
-                    increase.disabled = newQuantity >= rowMaximum;
-                    quantity.value = String(item.quantity);
-                    showMessage(result.error || "Unable to update the quantity.", true);
+                    else {
+                        quantity.disabled = false;
+                        decrease.disabled = currentQuantity <= 1;
+                        increase.disabled = currentQuantity >= rowMaximum;
+                        quantity.value = String(item.quantity);
+                        showMessage(result.error || "Unable to update the quantity.", true);
+                    }
+                } finally {
+                    quantityUpdateInFlight = false;
                 }
             };
 
@@ -313,11 +322,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
             increase.addEventListener("click", () => updateQuantity(Number(quantity.value) + 1));
             quantity.addEventListener("input", () => {
+                clearTimeout(quantityUpdateTimer);
                 if (quantity.value !== "" && !/^\d+$/.test(quantity.value)) {
                     updateQuantity(quantity.value);
+                } else if (quantity.value !== "") {
+                    quantityUpdateTimer = setTimeout(() => updateQuantity(quantity.value), 300);
                 }
             });
-            quantity.addEventListener("change", () => updateQuantity(quantity.value));
+            quantity.addEventListener("change", () => {
+                clearTimeout(quantityUpdateTimer);
+                updateQuantity(quantity.value);
+            });
 
             row.append(image, itemInfo, quantityLabel, subtotal, remove);
             cartItems.appendChild(row);
