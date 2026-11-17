@@ -42,6 +42,7 @@
     let previewRequestId = 0;
     let previewTimer = null;
     let slotRequestId = 0;
+    let tradingSchedule = null;
 
     const formatPoints = (amount) => Number(amount || 0).toLocaleString(undefined, {
         minimumFractionDigits: 2,
@@ -72,6 +73,7 @@
         const result = await apiGet("/business/settings").catch(() => null);
         const settings = result?.success ? result.data : null;
         if (!settings) return;
+        tradingSchedule = Array.isArray(settings.trading_hours) ? settings.trading_hours : null;
 
         const orderingEnabled = settings.ordering_enabled !== false && Number(settings.ordering_enabled) !== 0;
         const deliveryEnabled = settings.delivery_enabled !== false && Number(settings.delivery_enabled) !== 0;
@@ -102,6 +104,26 @@
             addressSelect.required = false;
             clearPreview("Choose an available fulfilment option to review your total.");
         }
+    };
+
+    const isOpenDate = (dateValue) => {
+        if (!tradingSchedule || !dateValue) return true;
+        const selectedDate = new Date(`${dateValue}T12:00:00`);
+        if (Number.isNaN(selectedDate.getTime())) return false;
+        const weekday = selectedDate.getDay() || 7;
+        const day = tradingSchedule.find((entry) => Number(entry.weekday) === weekday);
+        return Boolean(day && (day.is_open === true || Number(day.is_open) === 1));
+    };
+
+    const nextOpenDate = (dateValue) => {
+        const candidate = new Date(`${dateValue}T12:00:00`);
+        if (Number.isNaN(candidate.getTime())) return "";
+        for (let offset = 1; offset <= 366; offset++) {
+            candidate.setDate(candidate.getDate() + 1);
+            const formatted = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
+            if (isOpenDate(formatted)) return formatted;
+        }
+        return "";
     };
 
     try {
@@ -423,6 +445,11 @@
         const requestId = ++slotRequestId;
 
         slotSelect.replaceChildren();
+        if (!date) {
+            slotSelect.appendChild(new Option("No open days are currently scheduled", ""));
+            slotSelect.setAttribute("aria-busy", "false");
+            return;
+        }
 
         const placeholder = document.createElement("option");
         placeholder.value = "";
@@ -757,9 +784,23 @@
     });
 
     dateInput.addEventListener("change", async () => {
+        await loadBusinessAvailability();
+        let redirectedFromClosedDay = false;
+        if (!isOpenDate(dateInput.value)) {
+            const closedDate = dateInput.value;
+            dateInput.value = nextOpenDate(closedDate);
+            if (!dateInput.value) {
+                slotSelect.replaceChildren(new Option("No open days are currently scheduled", ""));
+                clearPreview("No collection or delivery days are currently available.");
+                showMessage("The selected day is closed. Please contact support for assistance.", true);
+                return;
+            }
+            redirectedFromClosedDay = true;
+        }
         clearPreview();
         await loadSlots();
         schedulePreview();
+        if (redirectedFromClosedDay) showMessage("That day is closed. The date has moved to the next open day.");
     });
 
     [addressSelect, slotSelect, promotionInput, loyaltyPointsInput]
@@ -868,9 +909,12 @@
     addressSelect.required = false;
 
     dateInput.min = getLocalDate();
-    dateInput.value = getLocalDate();
 
     await loadBusinessAvailability();
+    dateInput.value = isOpenDate(getLocalDate())
+        ? getLocalDate()
+        : nextOpenDate(getLocalDate());
+    if (!dateInput.value) dateInput.disabled = true;
     await loadCartPreview();
     renderCartPreview();
     const cartRefreshTimer = window.setInterval(loadCartPreview, 10000);

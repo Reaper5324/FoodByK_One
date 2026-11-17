@@ -170,6 +170,35 @@ test('all customer pages use the homepage footer and include Contact support', a
   }
 });
 
+test('checkout redirects dates that are closed in the current business schedule', async ({ page }) => {
+  const openDays = [1, 2, 3, 4, 5];
+  await page.route(/https:\/\/api\.foodbyk\.co\.za\//, async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const data = path === '/business/settings'
+      ? { trading_hours: Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, is_open: openDays.includes(index + 1), open_time: '09:00', close_time: '17:00' })), ordering_enabled: true, delivery_enabled: true, collection_enabled: true }
+      : path === '/cart' ? { items: [] }
+        : path === '/products' || path === '/addresses' ? []
+          : path === '/checkout/slots' ? []
+            : { points: 0 };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data }) });
+  });
+
+  await page.goto('/pages/customer/checkout.html');
+  const dateInput = page.locator('#slotDate');
+  await expect(dateInput).toBeEnabled();
+
+  const sunday = new Date();
+  sunday.setDate(sunday.getDate() + (7 - sunday.getDay()));
+  const monday = new Date(sunday);
+  monday.setDate(monday.getDate() + 1);
+  const toDateValue = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+  await dateInput.fill(toDateValue(sunday));
+  await dateInput.dispatchEvent('change');
+  await expect(dateInput).toHaveValue(toDateValue(monday));
+  await expect(page.locator('#checkoutMessage')).toContainText('That day is closed');
+});
+
 test('order tracking uses delivery-specific progress labels', async ({ page }) => {
   await mockAnonymousSession(page);
   await page.route(/\/orders\?limit=1$/, (route) => route.fulfill({
