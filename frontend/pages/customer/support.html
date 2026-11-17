@@ -9,241 +9,12 @@
   <link rel="stylesheet" href="../../public%20assets/css/style.css">
   <link rel="stylesheet" href="../../public%20assets/css/home.css">
   <link rel="stylesheet" href="../../public%20assets/css/mobile-navigation.css">
+  <link rel="stylesheet" href="../../public%20assets/css/support.css">
 
-  <!-- Support page styles (replaces the missing support.css) -->
-  <style>
-    body.support-page {
-      --k-ink: #111111;
-      --k-text: #2f2b27;
-      --k-red: #d91e24;
-      --k-orange: #b85300;
-      --k-panel: #1b1917;
-      --k-panel-text: #f7f2ea;
-      --k-panel-muted: #d6cfc4;
-      --k-border: #8a8176;
-    }
 
-    /* keep the hidden attribute working even where display is set below */
-    body.support-page [hidden] { display: none !important; }
-
-    /* ---------- Layout ---------- */
-    body.support-page .support-main {
-      width: 100% !important;
-      max-width: 1100px !important;
-      margin: 0 auto !important;
-      padding: 56px 24px 80px !important;
-      box-sizing: border-box !important;
-    }
-
-    body.support-page .support-layout {
-      display: grid !important;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
-      gap: 24px !important;
-      align-items: start !important;
-      margin-top: 24px !important;
-    }
-
-    /* ---------- Intro ---------- */
-    body.support-page .support-intro { margin-bottom: 32px; }
-
-    body.support-page .support-intro .section-tag {
-      color: var(--k-red) !important;
-      font-weight: 800 !important;
-      letter-spacing: 0.14em !important;
-      opacity: 1 !important;
-      margin: 0 0 12px !important;
-    }
-
-    body.support-page .support-intro h1 {
-      color: var(--k-ink) !important;
-      opacity: 1 !important;
-      font-size: clamp(2.6rem, 7vw, 5rem) !important;
-      line-height: 1.05 !important;
-      margin: 0 0 16px !important;
-    }
-
-    body.support-page .support-intro h1 span {
-      color: var(--k-orange) !important;
-      opacity: 1 !important;
-    }
-
-    body.support-page .support-intro p:not(.section-tag) {
-      color: var(--k-text) !important;
-      opacity: 1 !important;
-      font-size: 1.15rem !important;
-      line-height: 1.6 !important;
-      max-width: 60ch !important;
-      margin: 0 !important;
-    }
-
-    /* ---------- Panels ---------- */
-    body.support-page .support-panel {
-      background: var(--k-panel) !important;
-      color: var(--k-panel-text) !important;
-      border: 2px solid #000 !important;
-      border-radius: 24px !important;
-      padding: 32px !important;
-      box-shadow: 0 10px 30px rgba(17, 17, 17, 0.18) !important;
-      box-sizing: border-box !important;
-    }
-
-    body.support-page .support-panel h2 {
-      color: #ffffff !important;
-      margin: 0 0 20px !important;
-    }
-
-    body.support-page .support-panel p,
-    body.support-page .support-access-notice {
-      color: var(--k-panel-text) !important;
-      font-size: 1.1rem !important;
-      line-height: 1.6 !important;
-      opacity: 1 !important;
-    }
-
-    body.support-page .support-empty,
-    body.support-page .support-panel small { color: var(--k-panel-muted); }
-
-    /* ---------- Sign-in notice buttons ---------- */
-    body.support-page .support-access-notice {
-      display: flex !important;
-      flex-wrap: wrap !important;
-      align-items: center !important;
-      gap: 16px !important;
-    }
-
-    body.support-page .support-access-notice > p,
-    body.support-page .support-access-notice > span {
-      flex: 1 1 100% !important;
-      margin: 0 !important;
-    }
-
-    body.support-page .support-access-notice a,
-    body.support-page .support-access-notice button {
-      display: inline-block !important;
-      padding: 14px 28px !important;
-      border-radius: 10px !important;
-      font-weight: 800 !important;
-      letter-spacing: 0.08em !important;
-      text-transform: uppercase !important;
-      text-decoration: none !important;
-      cursor: pointer !important;
-      border: 2px solid var(--k-red) !important;
-      background: var(--k-red) !important;
-      color: #ffffff !important;
-    }
-
-    body.support-page .support-access-notice a:nth-of-type(2),
-    body.support-page .support-access-notice button:nth-of-type(2) {
-      background: transparent !important;
-      border-color: #ffffff !important;
-    }
-
-    body.support-page .support-access-notice a:hover,
-    body.support-page .support-access-notice button:hover {
-      background: #ffffff !important;
-      border-color: #ffffff !important;
-      color: var(--k-ink) !important;
-    }
-
-    /* ---------- Form ---------- */
-    body.support-page .support-panel label {
-      display: block !important;
-      color: var(--k-panel-text) !important;
-      font-weight: 700 !important;
-      margin-bottom: 18px !important;
-    }
-
-    body.support-page .support-panel input,
-    body.support-page .support-panel select,
-    body.support-page .support-panel textarea {
-      display: block !important;
-      width: 100% !important;
-      margin-top: 8px !important;
-      padding: 14px 16px !important;
-      box-sizing: border-box !important;
-      background: #ffffff !important;
-      color: var(--k-ink) !important;
-      border: 2px solid var(--k-border) !important;
-      border-radius: 10px !important;
-      font: inherit !important;
-      font-weight: 400 !important;
-    }
-
-    body.support-page .support-panel textarea { resize: vertical; }
-
-    body.support-page .support-lookup-status { margin: -8px 0 18px; color: var(--k-panel-muted); font-size: .95rem; }
-    body.support-page .support-lookup-status.is-error { color: #ffd0cc; }
-    body.support-page .support-lookup-search { margin-bottom: 8px !important; }
-    body.support-page .support-lookup-fields .btn-secondary { margin: 0 0 10px; padding: 10px 14px; border: 1px solid #fff; border-radius: 8px; background: transparent; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
-    body.support-page .support-lookup-fields .btn-secondary:disabled { opacity: .6; cursor: wait; }
-    body.support-page .support-lookup-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    @media (max-width: 600px) { body.support-page .support-lookup-row { grid-template-columns: 1fr; gap: 0; } }
-
-    body.support-page .support-panel ::placeholder { color: #6b645b; opacity: 1; }
-
-    body.support-page .support-panel input:focus,
-    body.support-page .support-panel select:focus,
-    body.support-page .support-panel textarea:focus,
-    body.support-page .support-access-notice a:focus-visible,
-    body.support-page .support-access-notice button:focus-visible {
-      outline: 3px solid #ffb347 !important;
-      outline-offset: 2px !important;
-      border-color: #ffb347 !important;
-    }
-
-    body.support-page .support-panel .btn.btn-primary {
-      background: var(--k-red) !important;
-      color: #ffffff !important;
-      border: 2px solid var(--k-red) !important;
-      padding: 14px 32px !important;
-      border-radius: 10px !important;
-      font-weight: 800 !important;
-      letter-spacing: 0.08em !important;
-      text-transform: uppercase !important;
-      cursor: pointer !important;
-    }
-
-    body.support-page .support-panel .btn.btn-primary:hover {
-      background: #ffffff !important;
-      color: var(--k-ink) !important;
-      border-color: #ffffff !important;
-    }
-
-    /* ---------- Feedback + tickets ---------- */
-    body.support-page .support-feedback {
-      background: #ffffff !important;
-      color: var(--k-ink) !important;
-      border-left: 6px solid var(--k-red) !important;
-      border-radius: 8px !important;
-      padding: 12px 16px !important;
-      margin-bottom: 20px !important;
-      font-weight: 600 !important;
-    }
-
-    body.support-page .support-ticket-list > * {
-      background: #272320 !important;
-      color: var(--k-panel-text) !important;
-      border: 1px solid #5a5249 !important;
-      border-radius: 14px !important;
-      padding: 16px 20px !important;
-      margin-bottom: 12px !important;
-    }
-
-    /* ---------- Mobile ---------- */
-    @media (max-width: 600px) {
-      body.support-page .support-main { padding: 36px 16px 64px; }
-      body.support-page .support-layout { grid-template-columns: 1fr; }
-      body.support-page .support-panel { padding: 22px; border-radius: 18px; }
-      body.support-page .support-access-notice a,
-      body.support-page .support-access-notice button {
-        flex: 1 1 100% !important;
-        text-align: center !important;
-      }
-    }
-  </style>
 <link rel="icon" type="image/png" href="/images/logo-mark.png">
 </head>
-<body class="home-page support-page">
+<body class="home-page support-page support-page-shell">
   <header class="navbar">
     <div class="logo"><a href="../../src/index.html">FOOD<span>BY K</span></a></div>
     <nav aria-label="Main navigation">
@@ -254,10 +25,19 @@
     </nav>
   </header>
   <main class="support-main">
-    <section class="support-intro">
-      <p class="section-tag">WE’RE HERE TO HELP</p>
-      <h1>Let’s sort it <span>together.</span></h1>
-      <p>Send our team a message and follow replies to your support requests here.</p>
+    <section class="support-intro" aria-labelledby="supportTitle">
+      <div class="support-intro-copy">
+        <p class="section-tag">WE ARE HERE TO HELP</p>
+        <h1 id="supportTitle">Let&#39;s sort it <span>together.</span></h1>
+        <p>Send our team a message and follow replies to your support requests here.</p>
+      </div>
+      <aside class="support-hero-card" aria-label="Support topics">
+        <span class="support-hero-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none"><path d="M9 11.5A4.5 4.5 0 0 1 13.5 7h21a4.5 4.5 0 0 1 4.5 4.5v15a4.5 4.5 0 0 1-4.5 4.5H22l-9 8v-8.2a4.5 4.5 0 0 1-4-4.3v-15Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M16 17h16M16 23h11" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+        </span>
+        <div><p class="support-hero-kicker">A LITTLE CONTEXT HELPS</p><h2>Order, menu or account?</h2><p>Choose a topic and link an order or menu item to help us get you a useful answer.</p></div>
+        <ul class="support-topic-list" aria-label="Common support topics"><li>ORDERS</li><li>MENU</li><li>ACCOUNT</li></ul>
+      </aside>
     </section>
     <div id="supportAccessNotice" class="support-panel support-access-notice" role="status" aria-live="polite" hidden></div>
     <section class="support-layout" aria-label="Customer support">
@@ -272,8 +52,8 @@
             <option value="account">My account</option><option value="other">Something else</option>
           </select>
         </label>
-        <fieldset class="support-lookup-fields" style="border: 0; padding: 0; margin: 0 0 10px">
-          <legend style="color: var(--k-panel-text); font-weight: 800; margin-bottom: 12px">Link an order or menu item (optional)</legend>
+        <fieldset class="support-lookup-fields">
+          <legend>Link an order or menu item <span>(optional)</span></legend>
           <p id="supportLookupStatus" class="support-lookup-status" role="status" aria-live="polite">Loading your orders and menu items…</p>
           <div class="support-lookup-row">
             <div class="support-lookup-control">
