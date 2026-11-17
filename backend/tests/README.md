@@ -141,7 +141,9 @@ These are browser behavior checks, not full production-backend tests.
 4. **RAG unit and routing:** installs the RAG dependencies and runs deterministic
    tests without model weights, Groq credentials, or outbound provider calls.
 5. **HTTP load baseline:** starts a disposable database/API and runs the
-   read-only public-endpoint baseline, publishing JSON and Markdown KPIs.
+   read-only public-endpoint baseline at a fixed request rate, publishing JSON
+   and Markdown KPIs. This is a controlled baseline, not an unbounded capacity
+   test.
 
 The workflow uses synthetic credentials and a disposable database. It never
 calls PayFast, Resend, Twilio, Groq, or Tavily. Provider delivery and answer

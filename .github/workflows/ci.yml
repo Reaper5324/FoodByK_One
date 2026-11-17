@@ -171,6 +171,8 @@ jobs:
       LOAD_TEST_DURATION: 45
       LOAD_TEST_WARMUP: 8
       LOAD_TEST_CONCURRENCY: 5
+      # Keep this baseline reproducible on variable GitHub-hosted runner capacity.
+      LOAD_TEST_MAX_RPS: 100
       LOAD_TEST_TIMEOUT: 10
       LOAD_TEST_P95_LIMIT_MS: 1500
       LOAD_TEST_ERROR_LIMIT_PERCENT: 1
