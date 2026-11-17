@@ -1,730 +1,418 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Must stay first: skips service-worker registration when opened from disk (file://). Does nothing on https/localhost. -->
+  <script>
+    (function () {
+      if (location.protocol !== 'file:' || !('serviceWorker' in navigator)) return;
+      try { navigator.serviceWorker.register = function () { return new Promise(function () {}); }; } catch (e) {}
+    })();
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customers | Food by K Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+  <style>
+    /* Same type system as Support Tickets.
+       Interface = CAPS (headings, menu, labels, chips, headers, badges, buttons).
+       Content = normal case (names, emails, phones, numbers).
+       For sentence case everywhere: --tt: none; --ls-caps: 0; */
+    :root {
+      --st-font-display: "Anton", "Impact", "Arial Narrow", sans-serif;
+      --st-font: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      --fs-xs: 0.75rem; --fs-sm: 0.875rem; --fs-base: 1rem; --fs-lg: 1.25rem;
+      --fs-xl: clamp(1.9rem, 3.6vw, 2.5rem);
+      --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600;
+      --tt: uppercase; --ls-caps: 0.08em; --lh-body: 1.6;
+      --st-red: #d71920; --st-red-dark: #b3131a; --st-ink: #1a1a1a;
+      --st-tile: #faf5ee; --st-line: #e3dbd0; --st-muted: #5f5a54; --st-gold: #f5b323;
+    }
 
-    <title>Customers - Food by K Admin</title>
+    body, button, input, select, textarea,
+    .sidebar, .sidebar *, .topbar, .topbar *, .main-content, .main-content *, .modal, .modal * { font-family: var(--st-font); }
+    .sidebar .brand h1, .topbar h2, .main-content .menu-page-header h3,
+    .main-content .stat-card h3, .modal-header h3 { font-family: var(--st-font-display); }
+    i.fa-solid { font-family: "Font Awesome 6 Free" !important; }
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    .sidebar .brand p, .sidebar .menu-item, .topbar .welcome-text {
+      font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: var(--ls-caps); text-transform: var(--tt);
+    }
+    .sidebar .menu-item span { text-transform: inherit; letter-spacing: inherit; }
+    .topbar h2 { font-size: var(--fs-lg); font-weight: 400; letter-spacing: 0.02em; text-transform: var(--tt); }
+    .topbar .profile-info h4, .topbar .profile-info p { text-transform: none; letter-spacing: 0; }
 
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Poppins:wght@400;500;600;700&display=swap"
-          rel="stylesheet">
+    .main-content { font-size: var(--fs-sm); line-height: var(--lh-body); color: var(--st-ink); }
 
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    /* page header */
+    .main-content .menu-page-header { margin-bottom: 1.6rem; }
+    .main-content .menu-page-header .card-label {
+      margin: 0 0 0.35rem; font-size: var(--fs-xs); font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps); text-transform: var(--tt); color: var(--st-red);
+    }
+    .main-content .menu-page-header h3 {
+      margin: 0 0 0.4rem; font-size: var(--fs-xl); font-weight: 400; line-height: 1.1;
+      letter-spacing: 0.02em; text-transform: var(--tt); color: var(--st-ink);
+    }
+    .main-content .menu-description { margin: 0; font-size: var(--fs-base); color: var(--st-muted); }
 
-    <link rel="stylesheet" href="../css/dashboard.css">
-<link rel="icon" type="image/png" href="/images/logo-mark.png">
+    /* stat cards */
+    .main-content .stat-card {
+      border: 1px solid var(--st-line); border-top: 4px solid var(--st-ink); border-radius: 0;
+      box-shadow: 0 10px 30px rgba(20, 15, 10, 0.06);
+    }
+    .main-content .stat-card .stat-icon { border-radius: 0; }
+    .main-content .stat-card p {
+      margin: 0 0 0.2rem; font-size: var(--fs-xs); font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps); text-transform: var(--tt); color: var(--st-muted);
+    }
+    .main-content .stat-card h3 { margin: 0; font-size: 2rem; font-weight: 400; line-height: 1.1; letter-spacing: 0.02em; }
+
+    /* cards */
+    .main-content .content-card {
+      padding: 0; overflow: hidden; background: #fff; border: 1px solid var(--st-line);
+      border-top: 4px solid var(--st-ink); border-radius: 0; box-shadow: 0 10px 30px rgba(20, 15, 10, 0.06);
+    }
+    .main-content .customer-filter-card { margin-bottom: 1.4rem; background: var(--st-tile); }
+
+    /* toolbar: search + status chips + count */
+    .main-content .customer-filter-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1.2rem 1.5rem;
+    }
+    .main-content .search-box {
+      display: flex; align-items: center; gap: 0.6rem; flex: 1 1 260px; max-width: 380px; height: 44px;
+      padding: 0 0.9rem; background: #fff; border: 1px solid var(--st-line); border-radius: 0;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .main-content .search-box:focus-within { border-color: var(--st-ink); box-shadow: 0 0 0 3px rgba(215, 25, 32, 0.18); }
+    .main-content .search-box i { color: var(--st-muted); }
+    .main-content .search-box input {
+      flex: 1; min-width: 0; height: 100%; padding: 0; font-size: var(--fs-sm); color: var(--st-ink);
+      background: transparent; border: 0; outline: none; text-transform: none; letter-spacing: normal;
+    }
+    .st-clear { display: none; width: 28px; height: 28px; padding: 0; color: var(--st-muted); background: transparent; border: 0; cursor: pointer; }
+    .st-clear.is-visible { display: inline-block; }
+    .st-clear:hover { color: var(--st-red); }
+
+    .st-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .st-chip {
+      display: inline-flex; align-items: center; gap: 0.5rem; height: 40px; padding: 0 1.1rem;
+      font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: var(--ls-caps); text-transform: var(--tt);
+      line-height: 1; color: var(--st-ink); background: #fff; border: 1.5px solid var(--st-line); border-radius: 999px;
+      cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .st-chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #b9b0a4; }
+    .st-chip[data-value="active"]::before   { background: #2ea05a; }
+    .st-chip[data-value="inactive"]::before { background: #8d867d; }
+    .st-chip:hover { border-color: var(--st-ink); }
+    .st-chip:focus-visible { outline: 2px solid var(--st-red); outline-offset: 3px; }
+    .st-chip.is-active { color: #fff; background: var(--st-ink); border-color: var(--st-ink); }
+
+    .st-count {
+      padding: 0.6rem 1rem; font-size: var(--fs-xs); font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps); text-transform: var(--tt); color: #fff; background: var(--st-ink); white-space: nowrap;
+    }
+    .st-count b { margin: 0 0.15rem; font-size: var(--fs-base); letter-spacing: 0; color: var(--st-gold); }
+
+    .st-sr-only {
+      position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+
+    /* table */
+    .main-content .table-wrapper { overflow-x: auto; padding: 0; }
+    .main-content .customer-table { width: 100%; min-width: 820px; margin: 0; border-collapse: collapse; background: #fff; }
+    .main-content .customer-table thead th {
+      padding: 0.9rem 1rem; font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: var(--ls-caps);
+      text-align: left; text-transform: var(--tt); white-space: nowrap; color: var(--st-muted);
+      background: #fff; border-bottom: 2px solid var(--st-ink); user-select: none;
+    }
+    .main-content .customer-table thead th[data-sort] { cursor: pointer; }
+    .main-content .customer-table thead th[data-sort]:hover { color: var(--st-ink); }
+    .main-content .customer-table thead th[data-sort]:focus-visible { outline: 2px solid var(--st-red); outline-offset: -2px; }
+    .main-content .customer-table thead th[aria-sort="ascending"]::after  { content: " \25B2"; font-size: 0.6rem; color: var(--st-red); }
+    .main-content .customer-table thead th[aria-sort="descending"]::after { content: " \25BC"; font-size: 0.6rem; color: var(--st-red); }
+    .main-content .customer-table tbody td {
+      padding: 0.9rem 1rem; font-size: var(--fs-sm); line-height: 1.4; vertical-align: middle;
+      border-bottom: 1px solid var(--st-line); color: var(--st-ink);
+    }
+    .main-content .customer-table tbody tr { transition: background 0.15s; }
+    .main-content .customer-table tbody tr:hover { background: var(--st-tile); }
+    .main-content .customer-table tbody tr:last-child td { border-bottom: 0; }
+    .main-content .customer-table th:nth-child(4), .main-content .customer-table td:nth-child(4),
+    .main-content .customer-table th:nth-child(5), .main-content .customer-table td:nth-child(5) { text-align: right; font-variant-numeric: tabular-nums; }
+    .main-content .customer-table td:nth-child(2) { color: var(--st-muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .main-content .customer-table td:nth-child(3) { color: var(--st-muted); white-space: nowrap; }
+    .main-content .customer-table tbody td[colspan] { padding: 3rem 1rem; text-align: center; color: var(--st-muted); white-space: normal; }
+
+    .main-content .customer-name { display: flex; align-items: center; gap: 0.8rem; min-width: 190px; }
+    .main-content .customer-name strong { display: block; font-weight: var(--fw-medium); }
+    .main-content .customer-name small { display: block; font-size: var(--fs-xs); color: var(--st-muted); }
+    .main-content .customer-avatar, .modal .customer-detail-avatar {
+      display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 0;
+      font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: var(--ls-caps); color: #fff; background: var(--st-ink);
+    }
+    .modal .customer-detail-avatar { width: 56px; height: 56px; font-size: var(--fs-sm); }
+
+    .main-content .customer-status {
+      display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0.7rem;
+      font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: var(--ls-caps); text-transform: var(--tt);
+      line-height: 1.2; white-space: nowrap; border: 1px solid currentColor; border-radius: 0;
+    }
+    .main-content .customer-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .main-content .customer-status.active   { color: #14532d; background: #eaf6ef; }
+    .main-content .customer-status.inactive { color: #4b4640; background: #efebe5; }
+
+    /* actions stay on one line */
+    .main-content .customer-actions { display: flex; flex-wrap: nowrap; gap: 0.4rem; }
+    .main-content .customer-actions button {
+      height: 38px; min-width: 38px; padding: 0 0.9rem; font-size: var(--fs-xs); font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps); text-transform: var(--tt); line-height: 1; white-space: nowrap;
+      color: #fff; background: var(--st-ink); border: 0; border-radius: 0; cursor: pointer; transition: background 0.2s;
+    }
+    .main-content .customer-actions button:hover { background: var(--st-red); }
+    .main-content .customer-actions button:focus-visible { outline: 2px solid var(--st-red); outline-offset: 3px; }
+
+    /* empty state (only when filters hide every row) */
+    .st-empty { padding: 3rem 1rem; text-align: center; color: var(--st-muted); font-size: var(--fs-base); }
+    .st-empty[hidden] { display: none; }
+    .st-empty button {
+      display: block; margin: 1rem auto 0; height: 40px; padding: 0 1.25rem; font-size: var(--fs-xs); font-weight: var(--fw-semibold);
+      letter-spacing: var(--ls-caps); text-transform: var(--tt); color: #fff; background: var(--st-red); border: 0; cursor: pointer;
+    }
+    .st-empty button:hover { background: var(--st-red-dark); }
+
+    /* details modal (open/close behaviour stays in dashboard.js) */
+    .modal-header h3 { font-size: var(--fs-lg); font-weight: 400; letter-spacing: 0.02em; text-transform: var(--tt); }
+    .customer-detail-profile { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.2rem; }
+    .customer-detail-profile h3 { margin: 0; font-family: var(--st-font); font-size: var(--fs-lg); font-weight: var(--fw-semibold); text-transform: none; letter-spacing: 0; }
+    .customer-detail-profile p { margin: 0; font-size: var(--fs-sm); color: var(--st-muted); }
+    .customer-detail-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.8rem 0; border-top: 1px solid var(--st-line); }
+    .customer-detail-row span { font-size: var(--fs-xs); font-weight: var(--fw-semibold); letter-spacing: var(--ls-caps); text-transform: var(--tt); color: var(--st-muted); }
+    .customer-detail-row strong { font-size: var(--fs-sm); font-weight: var(--fw-medium); text-align: right; overflow-wrap: anywhere; }
+
+    @media (max-width: 700px) {
+      .main-content .customer-filter-row { padding: 1rem; }
+      .main-content .search-box { max-width: none; flex-basis: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) { .main-content * { transition: none !important; } }
+  </style>
+  <link rel="icon" type="image/png" href="/images/logo-mark.png">
 </head>
 
 <body>
-    <div class="admin-page-skeleton" id="adminLoadingState" aria-label="Loading live dashboard data">
-        <div class="admin-skeleton-app" aria-hidden="true">
-            <aside class="admin-skeleton-sidebar"><span class="admin-skeleton-logo"></span><i></i><i></i><i></i><i></i><i></i><i></i></aside>
-            <main class="admin-skeleton-main"><div class="admin-skeleton-top"><i></i><i></i></div><div class="admin-skeleton-stats"><i></i><i></i><i></i><i></i></div><div class="admin-skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div></main>
-        </div>
-        <div class="admin-loading-feedback"><p role="status" aria-live="polite" data-admin-loading-message>Loading current business data...</p><button type="button" data-admin-loading-retry hidden>Try again</button></div>
+  <div class="admin-page-skeleton" id="adminLoadingState" aria-label="Loading live dashboard data">
+    <div class="admin-skeleton-app" aria-hidden="true">
+      <aside class="admin-skeleton-sidebar"><span class="admin-skeleton-logo"></span><i></i><i></i><i></i><i></i><i></i><i></i></aside>
+      <main class="admin-skeleton-main"><div class="admin-skeleton-top"><i></i><i></i></div><div class="admin-skeleton-stats"><i></i><i></i><i></i><i></i></div><div class="admin-skeleton-panel"><i></i><i></i><i></i><i></i><i></i></div></main>
     </div>
+    <div class="admin-loading-feedback"><p role="status" aria-live="polite" data-admin-loading-message>Loading current business data...</p><button type="button" data-admin-loading-retry hidden>Try again</button></div>
+  </div>
 
+  <aside class="sidebar">
+    <div class="brand"><h1>FOOD <span>BY K</span></h1><p>ADMIN PANEL</p></div>
+    <nav class="sidebar-menu">
+      <a href="dashboard.html" class="menu-item"><i class="fa-solid fa-chart-line"></i><span>Dashboard</span></a>
+      <a href="orders.html" class="menu-item"><i class="fa-solid fa-receipt"></i><span>All Orders</span></a>
+      <a href="menu-items.html" class="menu-item"><i class="fa-solid fa-utensils"></i><span>Menu Items</span></a>
+      <a href="categories.html" class="menu-item"><i class="fa-solid fa-layer-group"></i><span>Categories</span></a>
+      <a href="promotions.html" class="menu-item"><i class="fa-solid fa-tags"></i><span>Promotions</span></a>
+      <a href="customers.html" class="menu-item active"><i class="fa-solid fa-users"></i><span>Customers</span></a>
+      <a href="support-tickets.html" class="menu-item"><i class="fa-solid fa-headset"></i><span>Support Tickets</span></a>
+      <a href="#" class="menu-item"><i class="fa-solid fa-user-shield"></i><span>Staff &amp; Users</span></a>
+      <a href="#" class="menu-item"><i class="fa-solid fa-chart-pie"></i><span>Reports</span></a>
+      <a href="#" class="menu-item"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
+    </nav>
+    <div class="sidebar-bottom"><a href="#" class="menu-item logout"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></a></div>
+  </aside>
 
-    <!-- SIDEBAR -->
+  <main class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar"><i class="fa-solid fa-bars"></i></button>
+        <div><p class="welcome-text">Customer management</p><h2>Customers</h2></div>
+      </div>
+      <div class="topbar-right"><div class="admin-profile"><div class="profile-image">A</div><div class="profile-info"><h4>Admin</h4><p>Administrator</p></div></div></div>
+    </header>
 
-    <aside class="sidebar">
+    <section class="dashboard-content">
+      <div class="menu-page-header"><div>
+        <p class="card-label">Customers</p>
+        <h3>Manage customers</h3>
+        <p class="menu-description">Search, sort and review registered customers.</p>
+      </div></div>
 
-        <div class="brand">
-            <h1>FOOD <span>BY K</span></h1>
-            <p>ADMIN PANEL</p>
+      <div class="stats-grid customer-stats">
+        <div class="stat-card"><div class="stat-icon orders-icon"><i class="fa-solid fa-users"></i></div><div><p>Total customers</p><h3 id="totalCustomers">0</h3></div></div>
+        <div class="stat-card"><div class="stat-icon completed-icon"><i class="fa-solid fa-user-check"></i></div><div><p>Active customers</p><h3 id="activeCustomers">0</h3></div></div>
+        <div class="stat-card"><div class="stat-icon today-icon"><i class="fa-solid fa-user-plus"></i></div><div><p>New this month</p><h3 id="newCustomers">0</h3></div></div>
+      </div>
+
+      <div class="content-card customer-filter-card">
+        <div class="customer-filter-row">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="customerSearch" placeholder="Search customers (press / to focus)" autocomplete="off" aria-label="Search customers">
+            <button type="button" class="st-clear" id="customerSearchClear" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="st-chips" id="customerStatusChips" role="group" aria-label="Filter by status">
+            <button type="button" class="st-chip" data-value="all">All</button>
+            <button type="button" class="st-chip" data-value="active">Active</button>
+            <button type="button" class="st-chip" data-value="inactive">Inactive</button>
+          </div>
+          <select id="customerStatusFilter" class="st-sr-only" tabindex="-1" aria-hidden="true">
+            <option value="all">All Customers</option><option value="active">Active</option><option value="inactive">Inactive</option>
+          </select>
+          <span class="st-count" id="customerCount" aria-live="polite">Showing <b>0</b> of <b>0</b></span>
         </div>
+      </div>
 
-        <nav class="sidebar-menu">
-
-            <a href="dashboard.html" class="menu-item">
-                <i class="fa-solid fa-chart-line"></i>
-                <span>Dashboard</span>
-            </a>
-
-            <a href="orders.html" class="menu-item">
-                <i class="fa-solid fa-receipt"></i>
-                <span>Orders</span>
-            </a>
-
-            <a href="menu-items.html" class="menu-item">
-                <i class="fa-solid fa-utensils"></i>
-                <span>Menu Items</span>
-            </a>
-
-            <a href="categories.html" class="menu-item">
-                <i class="fa-solid fa-layer-group"></i>
-                <span>Categories</span>
-            </a>
-
-            <a href="promotions.html" class="menu-item">
-                <i class="fa-solid fa-tags"></i>
-                <span>Promotions</span>
-            </a>
-
-            <a href="customers.html" class="menu-item active">
-                <i class="fa-solid fa-users"></i>
-                <span>Customers</span>
-            </a>
-
-            <a href="#" class="menu-item">
-                <i class="fa-solid fa-user-shield"></i>
-                <span>Staff & Users</span>
-            </a>
-
-            <a href="#" class="menu-item">
-                <i class="fa-solid fa-chart-pie"></i>
-                <span>Reports</span>
-            </a>
-
-            <a href="#" class="menu-item">
-                <i class="fa-solid fa-gear"></i>
-                <span>Settings</span>
-            </a>
-
-        </nav>
-
-        <div class="sidebar-bottom">
-
-            <a href="#" class="menu-item logout">
-                <i class="fa-solid fa-right-from-bracket"></i>
-                <span>Logout</span>
-            </a>
-
+      <div class="content-card">
+        <div class="table-wrapper">
+          <table class="customer-table">
+            <thead>
+              <tr>
+                <th data-sort="text" tabindex="0">Customer</th>
+                <th data-sort="text" tabindex="0">Email</th>
+                <th>Phone</th>
+                <th data-sort="num" tabindex="0">Orders</th>
+                <th data-sort="num" tabindex="0">Total spent</th>
+                <th data-sort="text" tabindex="0">Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="customerTableBody"></tbody>
+          </table>
         </div>
-
-    </aside>
-
-
-    <!-- MAIN CONTENT -->
-
-    <main class="main-content">
-
-        <!-- TOPBAR -->
-
-        <header class="topbar">
-
-            <div class="topbar-left">
-
-                <button class="sidebar-toggle" id="sidebarToggle">
-                    <i class="fa-solid fa-bars"></i>
-                </button>
-
-                <div>
-                    <p class="welcome-text">CUSTOMER MANAGEMENT</p>
-                    <h2>Customers</h2>
-                </div>
-
-            </div>
-
-
-            <div class="topbar-right">
-
-
-                <div class="admin-profile">
-
-                    <div class="profile-image">
-                        A
-                    </div>
-
-                    <div class="profile-info">
-                        <h4>Admin</h4>
-                        <p>Administrator</p>
-                    </div>
-
-                </div>
-
-            </div>
-
-        </header>
-
-
-        <!-- PAGE CONTENT -->
-
-        <section class="dashboard-content">
-
-            <div class="menu-page-header">
-
-                <div>
-                    <p class="card-label">CUSTOMERS</p>
-
-                    <h3>Manage Customers</h3>
-
-                    <p class="menu-description">
-                        View and manage registered customers.
-                    </p>
-                </div>
-
-            </div>
-
-
-            <!-- STATISTICS -->
-
-            <div class="stats-grid customer-stats">
-
-                <div class="stat-card">
-
-                    <div class="stat-icon orders-icon">
-                        <i class="fa-solid fa-users"></i>
-                    </div>
-
-                    <div>
-                        <p>Total Customers</p>
-                        <h3 id="totalCustomers">8</h3>
-                    </div>
-
-                </div>
-
-
-                <div class="stat-card">
-
-                    <div class="stat-icon completed-icon">
-                        <i class="fa-solid fa-user-check"></i>
-                    </div>
-
-                    <div>
-                        <p>Active Customers</p>
-                        <h3 id="activeCustomers">6</h3>
-                    </div>
-
-                </div>
-
-
-                <div class="stat-card">
-
-                    <div class="stat-icon today-icon">
-                        <i class="fa-solid fa-user-plus"></i>
-                    </div>
-
-                    <div>
-                        <p>New This Month</p>
-                        <h3 id="newCustomers">3</h3>
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- SEARCH AND FILTER -->
-
-            <div class="content-card customer-filter-card">
-
-                <div class="customer-filter-row">
-
-                    <div class="search-box">
-
-                        <i class="fa-solid fa-magnifying-glass"></i>
-
-                        <input
-                            type="text"
-                            id="customerSearch"
-                            placeholder="Search customers..."
-                        >
-
-                    </div>
-
-
-                    <select id="customerStatusFilter">
-
-                        <option value="all">
-                            All Customers
-                        </option>
-
-                        <option value="active">
-                            Active
-                        </option>
-
-                        <option value="inactive">
-                            Inactive
-                        </option>
-
-                    </select>
-
-                </div>
-
-            </div>
-
-
-            <!-- CUSTOMER TABLE -->
-
-            <div class="content-card">
-
-                <div class="table-wrapper">
-
-                    <table class="customer-table">
-
-                        <thead>
-
-                            <tr>
-                                <th>Customer</th>
-                                <th>Email</th>
-                                <th>Phone</th>
-                                <th>Orders</th>
-                                <th>Total Spent</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-
-                        </thead>
-
-
-                        <tbody id="customerTableBody">
-
-
-                            <tr data-status="active">
-
-                                <td>
-
-                                    <div class="customer-name">
-
-                                        <div class="customer-avatar">
-                                            TM
-                                        </div>
-
-                                        <div>
-                                            <strong>
-                                                Thabo Mokoena
-                                            </strong>
-
-                                            <small>
-                                                Customer #001
-                                            </small>
-                                        </div>
-
-                                    </div>
-
-                                </td>
-
-                                <td>
-                                    thabo@example.com
-                                </td>
-
-                                <td>
-                                    081 234 5678
-                                </td>
-
-                                <td>
-                                    12
-                                </td>
-
-                                <td>
-                                    R1,450
-                                </td>
-
-                                <td>
-
-                                    <span class="customer-status active">
-                                        Active
-                                    </span>
-
-                                </td>
-
-                                <td>
-
-                                    <div class="customer-actions">
-
-                                        <button
-                                            class="customer-view-btn"
-                                            title="View Customer"
-                                        >
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-
-                                        <button
-                                            class="customer-toggle-btn"
-                                            title="Deactivate"
-                                        >
-                                            <i class="fa-solid fa-power-off"></i>
-                                        </button>
-
-                                    </div>
-
-                                </td>
-
-                            </tr>
-
-
-                            <tr data-status="active">
-
-                                <td>
-
-                                    <div class="customer-name">
-
-                                        <div class="customer-avatar">
-                                            LM
-                                        </div>
-
-                                        <div>
-                                            <strong>
-                                                Lerato Molefe
-                                            </strong>
-
-                                            <small>
-                                                Customer #002
-                                            </small>
-                                        </div>
-
-                                    </div>
-
-                                </td>
-
-                                <td>
-                                    lerato@example.com
-                                </td>
-
-                                <td>
-                                    082 345 6789
-                                </td>
-
-                                <td>
-                                    8
-                                </td>
-
-                                <td>
-                                    R920
-                                </td>
-
-                                <td>
-
-                                    <span class="customer-status active">
-                                        Active
-                                    </span>
-
-                                </td>
-
-                                <td>
-
-                                    <div class="customer-actions">
-
-                                        <button class="customer-view-btn">
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-
-                                        <button class="customer-toggle-btn">
-                                            <i class="fa-solid fa-power-off"></i>
-                                        </button>
-
-                                    </div>
-
-                                </td>
-
-                            </tr>
-
-
-                            <tr data-status="inactive">
-
-                                <td>
-
-                                    <div class="customer-name">
-
-                                        <div class="customer-avatar">
-                                            SK
-                                        </div>
-
-                                        <div>
-                                            <strong>
-                                                Sipho Khumalo
-                                            </strong>
-
-                                            <small>
-                                                Customer #003
-                                            </small>
-                                        </div>
-
-                                    </div>
-
-                                </td>
-
-                                <td>
-                                    sipho@example.com
-                                </td>
-
-                                <td>
-                                    083 456 7890
-                                </td>
-
-                                <td>
-                                    3
-                                </td>
-
-                                <td>
-                                    R360
-                                </td>
-
-                                <td>
-
-                                    <span class="customer-status inactive">
-                                        Inactive
-                                    </span>
-
-                                </td>
-
-                                <td>
-
-                                    <div class="customer-actions">
-
-                                        <button class="customer-view-btn">
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-
-                                        <button class="customer-toggle-btn">
-                                            <i class="fa-solid fa-power-off"></i>
-                                        </button>
-
-                                    </div>
-
-                                </td>
-
-                            </tr>
-
-
-                            <tr data-status="active">
-
-                                <td>
-
-                                    <div class="customer-name">
-
-                                        <div class="customer-avatar">
-                                            NP
-                                        </div>
-
-                                        <div>
-                                            <strong>
-                                                Naledi Phiri
-                                            </strong>
-
-                                            <small>
-                                                Customer #004
-                                            </small>
-                                        </div>
-
-                                    </div>
-
-                                </td>
-
-                                <td>
-                                    naledi@example.com
-                                </td>
-
-                                <td>
-                                    084 567 8901
-                                </td>
-
-                                <td>
-                                    15
-                                </td>
-
-                                <td>
-                                    R1,875
-                                </td>
-
-                                <td>
-
-                                    <span class="customer-status active">
-                                        Active
-                                    </span>
-
-                                </td>
-
-                                <td>
-
-                                    <div class="customer-actions">
-
-                                        <button class="customer-view-btn">
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-
-                                        <button class="customer-toggle-btn">
-                                            <i class="fa-solid fa-power-off"></i>
-                                        </button>
-
-                                    </div>
-
-                                </td>
-
-                            </tr>
-
-
-                            <tr data-status="active">
-
-                                <td>
-
-                                    <div class="customer-name">
-
-                                        <div class="customer-avatar">
-                                            ZD
-                                        </div>
-
-                                        <div>
-                                            <strong>
-                                                Zanele Dlamini
-                                            </strong>
-
-                                            <small>
-                                                Customer #005
-                                            </small>
-                                        </div>
-
-                                    </div>
-
-                                </td>
-
-                                <td>
-                                    zanele@example.com
-                                </td>
-
-                                <td>
-                                    079 678 9012
-                                </td>
-
-                                <td>
-                                    6
-                                </td>
-
-                                <td>
-                                    R710
-                                </td>
-
-                                <td>
-
-                                    <span class="customer-status active">
-                                        Active
-                                    </span>
-
-                                </td>
-
-                                <td>
-
-                                    <div class="customer-actions">
-
-                                        <button class="customer-view-btn">
-                                            <i class="fa-solid fa-eye"></i>
-                                        </button>
-
-                                        <button class="customer-toggle-btn">
-                                            <i class="fa-solid fa-power-off"></i>
-                                        </button>
-
-                                    </div>
-
-                                </td>
-
-                            </tr>
-
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-        </section>
-
-    </main>
-
-
-    <!-- CUSTOMER DETAILS MODAL -->
-
-    <div class="modal" id="customerModal">
-
-        <div class="modal-content">
-
-            <div class="modal-header">
-
-                <h3>Customer Details</h3>
-
-                <button class="close-modal" id="closeCustomerModal">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-
-            </div>
-
-
-            <div class="modal-body">
-
-                <div class="customer-detail-profile">
-
-                    <div
-                        class="customer-detail-avatar"
-                        id="detailAvatar"
-                    >
-                        TM
-                    </div>
-
-                    <div>
-
-                        <h3 id="detailName">
-                            Thabo Mokoena
-                        </h3>
-
-                        <p id="detailCustomerId">
-                            Customer #001
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div class="customer-detail-row">
-
-                    <span>Email</span>
-
-                    <strong id="detailEmail">
-                        thabo@example.com
-                    </strong>
-
-                </div>
-
-
-                <div class="customer-detail-row">
-
-                    <span>Phone</span>
-
-                    <strong id="detailPhone">
-                        081 234 5678
-                    </strong>
-
-                </div>
-
-
-                <div class="customer-detail-row">
-
-                    <span>Total Orders</span>
-
-                    <strong id="detailOrders">
-                        12
-                    </strong>
-
-                </div>
-
-
-                <div class="customer-detail-row">
-
-                    <span>Total Spent</span>
-
-                    <strong id="detailSpent">
-                        R1,450
-                    </strong>
-
-                </div>
-
-            </div>
-
+        <div class="st-empty" id="customerEmpty" hidden>
+          No customers match your search or filter.
+          <button type="button" id="customerClearFilters">Clear filters</button>
         </div>
+      </div>
+    </section>
+  </main>
 
+  <!-- Customer details modal (opened and filled by dashboard.js) -->
+  <div class="modal" id="customerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Customer details</h3>
+        <button class="close-modal" id="closeCustomerModal" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="customer-detail-profile">
+          <div class="customer-detail-avatar" id="detailAvatar">–</div>
+          <div><h3 id="detailName">–</h3><p id="detailCustomerId">–</p></div>
+        </div>
+        <div class="customer-detail-row"><span>Email</span><strong id="detailEmail">–</strong></div>
+        <div class="customer-detail-row"><span>Phone</span><strong id="detailPhone">–</strong></div>
+        <div class="customer-detail-row"><span>Total orders</span><strong id="detailOrders">–</strong></div>
+        <div class="customer-detail-row"><span>Total spent</span><strong id="detailSpent">–</strong></div>
+      </div>
     </div>
+  </div>
 
+  <script src="../js/dashboard.js"></script>
 
-    <script src="../js/dashboard.js"></script>
+  <!-- Extras only: status chips, sorting, live count, empty state, clear button, shortcuts.
+       It reads the table and reorders rows; it never changes customer data or sends anything. -->
+  <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      var body = $('customerTableBody'), count = $('customerCount'), empty = $('customerEmpty');
+      var search = $('customerSearch'), clearBtn = $('customerSearchClear'), select = $('customerStatusFilter');
+      var chips = document.querySelectorAll('#customerStatusChips .st-chip');
+      var heads = document.querySelectorAll('.customer-table thead th[data-sort]');
+      if (!body) return;
 
+      var sort = { col: -1, dir: 1 }, observer = null;
+      var FIXES = [['\u00e2\u20ac\u201d', '\u2014'], ['\u00e2\u20ac\u201c', '\u2013'], ['\u00e2\u20ac\u2122', '\u2019']];
+
+      function dataRows() {
+        return Array.prototype.filter.call(body.rows, function (r) { return r.cells.length >= 7; });
+      }
+      function isShown(r) { return !r.hidden && r.style.display !== 'none'; }
+
+      // repairs garbled dashes (a character-encoding problem) in the cells
+      function fixText(root) {
+        var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n;
+        while ((n = w.nextNode())) {
+          FIXES.forEach(function (f) { if (n.nodeValue.indexOf(f[0]) > -1) n.nodeValue = n.nodeValue.split(f[0]).join(f[1]); });
+        }
+      }
+
+      function keyOf(row, col, type) {
+        var t = (row.cells[col].textContent || '').trim();
+        return type === 'num' ? (parseFloat(t.replace(/[^0-9.\-]/g, '')) || 0) : t.toLowerCase();
+      }
+
+      function applySort() {
+        if (sort.col < 0) return;
+        var type = heads[0] && document.querySelectorAll('.customer-table thead th')[sort.col].getAttribute('data-sort');
+        dataRows().sort(function (a, b) {
+          var x = keyOf(a, sort.col, type), y = keyOf(b, sort.col, type);
+          return (x < y ? -1 : x > y ? 1 : 0) * sort.dir;
+        }).forEach(function (r) { body.appendChild(r); });
+      }
+
+      function refresh() {
+        if (observer) observer.disconnect();
+        fixText(body);
+        applySort();
+        var rows = dataRows(), shown = rows.filter(isShown).length;
+        count.innerHTML = 'Showing <b>' + shown + '</b> of <b>' + rows.length + '</b>';
+        empty.hidden = !(rows.length > 0 && shown === 0);
+        if (observer) observer.observe(body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['style', 'hidden'] });
+      }
+
+      function syncChips() {
+        Array.prototype.forEach.call(chips, function (c) {
+          var on = c.getAttribute('data-value') === select.value;
+          c.classList.toggle('is-active', on);
+          c.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      }
+      function syncClear() { clearBtn.classList.toggle('is-visible', !!search.value); }
+      function fire(el, type) { el.dispatchEvent(new Event(type, { bubbles: true })); }
+
+      Array.prototype.forEach.call(chips, function (c) {
+        c.addEventListener('click', function () { select.value = c.getAttribute('data-value'); fire(select, 'change'); syncChips(); setTimeout(refresh, 0); });
+      });
+      select.addEventListener('change', function () { syncChips(); setTimeout(refresh, 0); });
+      search.addEventListener('input', function () { syncClear(); setTimeout(refresh, 0); });
+      clearBtn.addEventListener('click', function () { search.value = ''; fire(search, 'input'); search.focus(); });
+      $('customerClearFilters').addEventListener('click', function () {
+        search.value = ''; select.value = 'all'; fire(search, 'input'); fire(select, 'change'); syncChips(); syncClear();
+      });
+
+      Array.prototype.forEach.call(heads, function (th) {
+        function go() {
+          var col = Array.prototype.indexOf.call(th.parentNode.children, th);
+          sort.dir = sort.col === col ? -sort.dir : 1; sort.col = col;
+          Array.prototype.forEach.call(th.parentNode.children, function (h) { h.removeAttribute('aria-sort'); });
+          th.setAttribute('aria-sort', sort.dir === 1 ? 'ascending' : 'descending');
+          refresh();
+        }
+        th.addEventListener('click', go);
+        th.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      });
+
+      // shortcuts: "/" focuses search, Escape closes the details modal
+      document.addEventListener('keydown', function (e) {
+        var tag = (e.target.tagName || '').toLowerCase();
+        if (e.key === '/' && tag !== 'input' && tag !== 'textarea' && tag !== 'select') { e.preventDefault(); search.focus(); }
+        if (e.key === 'Escape') { var x = $('closeCustomerModal'); if (x) x.click(); }
+      });
+      var modal = $('customerModal');
+      if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) $('closeCustomerModal').click(); });
+
+      if (window.MutationObserver) observer = new MutationObserver(refresh);
+      syncChips(); syncClear(); refresh();
+      setTimeout(syncChips, 300); setTimeout(syncChips, 1200);
+    })();
+  </script>
 </body>
-
 </html>
