@@ -139,6 +139,17 @@
     line-height: 1.5;
 }
 
+.foodbyk-assistant-beta {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-left: 3px solid var(--assistant-red);
+    border-radius: 4px;
+    background: #fff6f5;
+    color: var(--assistant-ink);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
 .foodbyk-assistant-prompts {
     display: flex;
     flex-wrap: wrap;
