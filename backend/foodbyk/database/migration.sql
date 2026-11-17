@@ -42,6 +42,7 @@ CREATE TABLE business_settings (
     collection_enabled     TINYINT(1)    NOT NULL DEFAULT 1,
     slot_duration_minutes  INT UNSIGNED  NOT NULL DEFAULT 30,
     max_orders_per_slot    INT UNSIGNED  NOT NULL DEFAULT 10,
+    max_advance_booking_days INT UNSIGNED NOT NULL DEFAULT 30,
     max_item_quantity      INT UNSIGNED  NOT NULL DEFAULT 6,
     max_cart_items         INT UNSIGNED  NOT NULL DEFAULT 10,
     minimum_order_amount   DECIMAL(10,2) NOT NULL DEFAULT 0.00,

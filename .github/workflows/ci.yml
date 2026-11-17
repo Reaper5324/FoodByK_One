@@ -74,7 +74,7 @@ jobs:
       - name: Start local API server
         shell: bash
         run: |
-          php -S 127.0.0.1:8080 -t backend/public backend/public/router.php > /tmp/foodbyk-api.log 2>&1 &
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8080 -t backend/public backend/public/router.php > /tmp/foodbyk-api.log 2>&1 &
           echo $! > /tmp/foodbyk-api.pid
           for attempt in $(seq 1 30); do
             if curl --silent --fail http://127.0.0.1:8080/health > /dev/null; then exit 0; fi

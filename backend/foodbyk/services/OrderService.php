@@ -469,7 +469,7 @@ class OrderService {
             $order = new Order(
                 customer_id: $customerId,
                 fulfilment_type: $fulfilmentType,
-                address_id: $addressId,
+                address_id: $fulfilmentType === Order::TYPE_DELIVERY ? $addressId : null,
                 requested_window_start: $requestedWindowStart,
                 requested_window_end: $requestedWindowEnd,
                 status: Order::STATUS_SUBMITTED
@@ -494,7 +494,7 @@ class OrderService {
             }
             $order->subtotal = round($subtotal, 2);
             $deliveryService = new DeliveryService();
-            $address = $addressId ? Address::findById($addressId) : null;
+            $address = $fulfilmentType === Order::TYPE_DELIVERY && $addressId ? Address::findById($addressId) : null;
             if ($fulfilmentType === Order::TYPE_DELIVERY && (!$address || $address->customer_id !== $customerId)) {
                 throw new \Exception('Delivery address not found.');
             }

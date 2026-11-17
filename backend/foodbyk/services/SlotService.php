@@ -22,12 +22,20 @@ class SlotService {
         if ($date < $today) {
             return ['success' => false, 'data' => null, 'error' => 'Past dates cannot be scheduled.'];
         }
+        $latestDate = $today->modify('+' . BusinessSettings::current()->max_advance_booking_days . ' days');
+        if ($date > $latestDate) {
+            return ['success' => false, 'data' => null, 'error' => 'Selected date is outside the booking window.'];
+        }
         (new OrderService())->expireAbandonedPaymentSetups();
         return $this->getAvailableSlots($date);
     }
 
     public function getAvailableSlots(\DateTimeImmutable $date): array {
         $settings = BusinessSettings::current();
+        $today = new DateTimeImmutable('today', $date->getTimezone());
+        if ($date > $today->modify('+' . $settings->max_advance_booking_days . ' days')) {
+            return ['success' => true, 'data' => [], 'error' => null];
+        }
         $hours = $settings->tradingHoursForDay((int) $date->format('N'));
         if (!$hours || !$hours['is_open']) return ['success' => true, 'data' => [], 'error' => null];
         $duration = $settings->slot_duration_minutes;
@@ -78,6 +86,12 @@ class SlotService {
 
         $settings = BusinessSettings::current();
         $duration = $settings->slot_duration_minutes;
+
+        $today = new DateTimeImmutable('today', $start->getTimezone());
+        $latestDate = $today->modify('+' . $settings->max_advance_booking_days . ' days');
+        if ($start->setTime(0, 0) > $latestDate) {
+            return ['success' => false, 'error' => 'Selected date is outside the booking window.'];
+        }
 
         if ($start <= new \DateTimeImmutable('now', $start->getTimezone())) {
             return ['success' => false, 'error' => 'Selected slot is in the past.'];

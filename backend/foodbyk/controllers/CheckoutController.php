@@ -3,6 +3,12 @@
 class CheckoutController extends Controller {
 
     public function preview(Request $request): Response {
+        $fulfilmentType = $request->input('fulfilment_type', '');
+        $rawAddressId = $request->input('address_id');
+        $addressId = $rawAddressId === null ? null : InputValidator::positiveInteger($rawAddressId);
+        if (!is_string($fulfilmentType) || ($rawAddressId !== null && $addressId === null)) {
+            return Response::error('Choose a valid fulfilment option and address.', 422);
+        }
         $points = $request->input('loyalty_points_to_redeem', 0);
         $promotionCode = $request->input('promotion_code');
         if ($promotionCode !== null && !is_string($promotionCode)) {
@@ -13,14 +19,20 @@ class CheckoutController extends Controller {
         }
         return $this->respond((new CheckoutService())->getCheckoutPreview(
             $request->user()->id,
-            (string) $request->input('fulfilment_type', ''),
-            $request->input('address_id') === null ? null : (int) $request->input('address_id'),
+            $fulfilmentType,
+            $addressId,
             $promotionCode,
             (float) $points
         ));
     }
 
     public function submit(Request $request): Response {
+        $fulfilmentType = $request->input('fulfilment_type', '');
+        $rawAddressId = $request->input('address_id');
+        $addressId = $rawAddressId === null ? null : InputValidator::positiveInteger($rawAddressId);
+        if (!is_string($fulfilmentType) || ($rawAddressId !== null && $addressId === null)) {
+            return Response::error('Choose a valid fulfilment option and address.', 422);
+        }
         $points = $request->input('loyalty_points_to_redeem', 0);
         $promotionCode = $request->input('promotion_code');
         $quoteFingerprint = $request->input('quote_fingerprint');
@@ -35,8 +47,8 @@ class CheckoutController extends Controller {
         }
         return $this->respond((new CheckoutService())->submitOrder(
             $request->user()->id,
-            (string) $request->input('fulfilment_type', ''),
-            $request->input('address_id') === null ? null : (int) $request->input('address_id'),
+            $fulfilmentType,
+            $addressId,
             (string) $request->input('requested_window_start', ''),
             (string) $request->input('requested_window_end', ''),
             $promotionCode,

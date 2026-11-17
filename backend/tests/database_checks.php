@@ -45,6 +45,8 @@ $promotionId = null;
 
 try {
     databaseExpect((int) $pdo->query('SELECT COUNT(*) FROM business_settings')->fetchColumn() === 1, 'Migration must seed exactly one business settings row.');
+    databaseExpect((int) $pdo->query('SELECT max_advance_booking_days FROM business_settings WHERE id = 1')->fetchColumn() === 30,
+        'Migration must configure a safe default booking window of 30 days.');
     $customerRoleId = (int) $pdo->query("SELECT id FROM roles WHERE role_name = 'customer'")->fetchColumn();
     databaseExpect($customerRoleId > 0, 'Migration must seed the customer role.');
 

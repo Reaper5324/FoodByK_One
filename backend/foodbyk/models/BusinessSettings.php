@@ -17,6 +17,7 @@ public function __construct(
     public bool    $collection_enabled    = true,
     public int     $slot_duration_minutes = 30,
     public int     $max_orders_per_slot   = 10,
+    public int     $max_advance_booking_days = 30,
     public int     $max_item_quantity     = 6,
     public int     $max_cart_items        = 10,
     public float   $minimum_order_amount  = 0.0,
@@ -93,6 +94,7 @@ protected function toArray(): array {
         'collection_enabled'    => (int) $this->collection_enabled,
         'slot_duration_minutes' => $this->slot_duration_minutes,
         'max_orders_per_slot'   => $this->max_orders_per_slot,
+        'max_advance_booking_days' => $this->max_advance_booking_days,
         'max_item_quantity'     => $this->max_item_quantity,
         'max_cart_items'        => $this->max_cart_items,
         'minimum_order_amount'  => $this->minimum_order_amount,
@@ -118,6 +120,7 @@ protected static function fromRow(array $row): static {
     $s->collection_enabled    = (bool)  $row['collection_enabled'];
     $s->slot_duration_minutes = (int) ($row['slot_duration_minutes'] ?? 30);
     $s->max_orders_per_slot   = (int) ($row['max_orders_per_slot'] ?? 10);
+    $s->max_advance_booking_days = (int) ($row['max_advance_booking_days'] ?? 30);
     $s->max_item_quantity     = (int) ($row['max_item_quantity'] ?? 6);
     $s->max_cart_items        = (int) ($row['max_cart_items'] ?? 10);
     $s->minimum_order_amount  = (float) ($row['minimum_order_amount'] ?? 0);

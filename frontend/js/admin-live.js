@@ -1573,6 +1573,7 @@ const initializeAdminLive = async () => {
             ["minimum_order_amount", "Minimum order amount", { min: 0, max: 100000, step: "0.01", unit: "R", help: "Measured against item subtotal before promo-code discounts and delivery." }],
             ["slot_duration_minutes", "Slot length", { min: 5, max: 240, step: "1", unit: "min" }],
             ["max_orders_per_slot", "Maximum orders per time slot", { min: 1, max: 4294967295, step: "1", unit: "orders" }],
+            ["max_advance_booking_days", "Maximum days ahead customers can book", { min: 1, max: 365, step: "1", unit: "days" }],
             ["max_item_quantity", "Maximum quantity of one menu item", { min: 1, max: 99, step: "1", unit: "items" }],
             ["max_cart_items", "Maximum cart quantity, including item quantities", { min: 1, max: 500, step: "1", unit: "items" }]
         ]);

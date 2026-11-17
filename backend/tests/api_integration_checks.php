@@ -57,6 +57,33 @@ function apiRequest(string $method, string $path, ?array $body = null, array $he
     return ['status' => $status, 'headers' => $responseHeaders, 'body' => $responseBody, 'json' => json_decode($responseBody, true)];
 }
 
+/** Dispatches requests together so final slot reservations contend in the API. */
+function apiConcurrentRequests(array $requests): array {
+    global $baseUrl;
+    $multi = curl_multi_init();
+    $handles = [];
+    foreach ($requests as $index => $request) {
+        $handle = curl_init($baseUrl . $request['path']);
+        $headers = array_merge(['Accept: application/json', 'Content-Type: application/json'], $request['headers']);
+        curl_setopt_array($handle, [
+            CURLOPT_CUSTOMREQUEST => 'POST', CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => $headers, CURLOPT_POSTFIELDS => json_encode($request['body'], JSON_THROW_ON_ERROR),
+            CURLOPT_TIMEOUT => 15, CURLOPT_COOKIEFILE => $request['cookie'], CURLOPT_COOKIEJAR => $request['cookie'],
+        ]);
+        curl_multi_add_handle($multi, $handle);
+        $handles[$index] = $handle;
+    }
+    do { $status = curl_multi_exec($multi, $running); if ($running) curl_multi_select($multi, 1.0); } while ($running && $status === CURLM_OK);
+    $results = [];
+    foreach ($handles as $index => $handle) {
+        $results[$index] = ['status' => (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE), 'json' => json_decode((string) curl_multi_getcontent($handle), true)];
+        curl_multi_remove_handle($multi, $handle);
+        curl_close($handle);
+    }
+    curl_multi_close($multi);
+    return $results;
+}
+
 /**
  * Returns the cookie name from a raw Set-Cookie header value.
  */
@@ -77,6 +104,8 @@ $secondCookieFile = tempnam(sys_get_temp_dir(), 'foodbyk-cookie-');
 $password = 'BlueRiver!9072';
 $productId = null;
 $createdCategoryId = null;
+$originalCapacity = null;
+$originalAdvance = null;
 
 try {
     $health = apiRequest('GET', '/health');
@@ -240,6 +269,21 @@ try {
     ], $secondCookieFile);
     apiExpect($secondLogin['status'] === 200 && ($secondLogin['json']['success'] ?? false), 'The second customer fixture must sign in.');
     $secondMe = apiRequest('GET', '/auth/me', null, ['Origin: https://foodbyks.netlify.app'], $secondCookieFile);
+    $secondUserIdQuery = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $secondUserIdQuery->execute([$secondEmail]);
+    $secondUserIdForAddress = (int) $secondUserIdQuery->fetchColumn();
+    $pdo->prepare('INSERT INTO addresses (customer_id, raw_address, street, city, postal_code) VALUES (?, ?, ?, ?, ?)')
+        ->execute([$secondUserIdForAddress, 'Private address ownership fixture', '1 Test Street', 'Lenasia', '1827']);
+    $foreignAddressId = (int) $pdo->lastInsertId();
+    $foreignAddressPreview = apiRequest('POST', '/checkout/preview', [
+        'fulfilment_type' => 'delivery', 'address_id' => $foreignAddressId,
+    ], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
+        'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    apiExpect(($foreignAddressPreview['json']['success'] ?? true) === false
+        && str_contains((string) ($foreignAddressPreview['json']['error'] ?? ''), 'address not found'),
+        'Delivery checkout must reject an address owned by another customer.');
     $crossCustomerUpdate = apiRequest('PUT', '/cart/items/' . $cartItemId, ['quantity' => 2], [
         'X-CSRF-Token: ' . ($secondMe['headers']['x-csrf-token'] ?? ''),
         'Origin: https://foodbyks.netlify.app',
@@ -308,6 +352,50 @@ try {
         && str_contains((string) ($staleQuoteSubmit['json']['error'] ?? ''), 'changed after your review'),
         'A product price change after preview must require another customer review before order creation.');
 
+    // Two authenticated customers race for the final capacity of one real slot.
+    $secondCartAdd = apiRequest('POST', '/cart/items', ['product_id' => $productId, 'quantity' => 1], [
+        'X-CSRF-Token: ' . ($secondMe['headers']['x-csrf-token'] ?? ''), 'Origin: https://foodbyks.netlify.app',
+    ], $secondCookieFile);
+    apiExpect(($secondCartAdd['json']['success'] ?? false), 'Second customer must have a cart for the capacity race.');
+    $originalCapacity = (int) $pdo->query('SELECT max_orders_per_slot FROM business_settings WHERE id = 1')->fetchColumn();
+    $originalAdvance = (int) $pdo->query('SELECT max_advance_booking_days FROM business_settings WHERE id = 1')->fetchColumn();
+    $pdo->exec('UPDATE business_settings SET max_orders_per_slot = 1, max_advance_booking_days = 30 WHERE id = 1');
+    $beyondBookingWindow = (new DateTimeImmutable('today', new DateTimeZone('Africa/Johannesburg')))->modify('+31 days')->format('Y-m-d');
+    $rejectedDate = apiRequest('GET', '/checkout/slots?date=' . $beyondBookingWindow, null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+    apiExpect(($rejectedDate['json']['success'] ?? true) === false,
+        'Customers must not retrieve slots beyond the configured advance-booking window.');
+    $selectedSlot = null;
+    for ($offset = 0; $offset <= 30 && $selectedSlot === null; $offset++) {
+        $date = (new DateTimeImmutable('today', new DateTimeZone('Africa/Johannesburg')))->modify('+' . $offset . ' days')->format('Y-m-d');
+        $available = apiRequest('GET', '/checkout/slots?date=' . $date, null, ['Origin: https://foodbyks.netlify.app'], $cookieFile);
+        foreach (($available['json']['data'] ?? []) as $slot) {
+            if (($slot['available'] ?? false) && (int) ($slot['remaining'] ?? 0) > 0) { $selectedSlot = $slot; break; }
+        }
+    }
+    apiExpect(is_array($selectedSlot), 'The configured schedule must expose a future slot for capacity checks.');
+    $firstRacePreview = apiRequest('POST', '/checkout/preview', ['fulfilment_type' => 'collection', 'address_id' => 999999999], [
+        'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'], 'Origin: https://foodbyks.netlify.app',
+    ], $cookieFile);
+    $secondRacePreview = apiRequest('POST', '/checkout/preview', ['fulfilment_type' => 'collection'], [
+        'X-CSRF-Token: ' . $secondMe['headers']['x-csrf-token'], 'Origin: https://foodbyks.netlify.app',
+    ], $secondCookieFile);
+    apiExpect(($firstRacePreview['json']['success'] ?? false) && ($secondRacePreview['json']['success'] ?? false),
+        'Collection preview must ignore a supplied address ID and both customers must review valid quotes.');
+    $raceSubmits = apiConcurrentRequests([
+        ['path' => '/checkout/submit', 'cookie' => $cookieFile, 'headers' => ['X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'], 'Origin: https://foodbyks.netlify.app'], 'body' => ['fulfilment_type' => 'collection', 'address_id' => 999999999, 'requested_window_start' => $selectedSlot['start'], 'requested_window_end' => $selectedSlot['end'], 'quote_fingerprint' => $firstRacePreview['json']['data']['quote_fingerprint']]],
+        ['path' => '/checkout/submit', 'cookie' => $secondCookieFile, 'headers' => ['X-CSRF-Token: ' . $secondMe['headers']['x-csrf-token'], 'Origin: https://foodbyks.netlify.app'], 'body' => ['fulfilment_type' => 'collection', 'requested_window_start' => $selectedSlot['start'], 'requested_window_end' => $selectedSlot['end'], 'quote_fingerprint' => $secondRacePreview['json']['data']['quote_fingerprint']]],
+    ]);
+    $raceSuccesses = count(array_filter($raceSubmits, static fn(array $result): bool => ($result['json']['success'] ?? false) === true));
+    apiExpect($raceSuccesses === 1, 'With one slot remaining, exactly one of two simultaneous real checkout submissions must succeed.');
+    $raceCustomers = $pdo->prepare('SELECT id FROM users WHERE email IN (?, ?)');
+    $raceCustomers->execute([$email, $secondEmail]);
+    $raceCustomerIds = array_map('intval', $raceCustomers->fetchAll(PDO::FETCH_COLUMN));
+    $raceOrderCheck = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE requested_window_start = ? AND customer_id IN (?, ?) AND fulfilment_type = 'collection' AND address_id IS NULL");
+    $raceOrderCheck->execute([str_replace('T', ' ', $selectedSlot['start']), ...$raceCustomerIds]);
+    apiExpect((int) $raceOrderCheck->fetchColumn() === 1,
+        'Exactly one collection order must persist without an address, including when an address ID is supplied.');
+    $pdo->prepare('UPDATE business_settings SET max_orders_per_slot = ?, max_advance_booking_days = ? WHERE id = 1')->execute([$originalCapacity, $originalAdvance]);
+
     $cartDelete = apiRequest('DELETE', '/cart/items/' . $quoteCartItemId, null, [
         'X-CSRF-Token: ' . $profileAfterRejectedWrites['headers']['x-csrf-token'],
         'Origin: https://foodbyks.netlify.app',
@@ -330,9 +418,28 @@ try {
 
     echo "API integration and security checks passed.\n";
 } finally {
+    if ($originalCapacity !== null && $originalAdvance !== null) {
+        $pdo->prepare('UPDATE business_settings SET max_orders_per_slot = ?, max_advance_booking_days = ? WHERE id = 1')->execute([$originalCapacity, $originalAdvance]);
+    }
     $userId = $pdo->prepare('SELECT id FROM users WHERE email = ?');
     $userId->execute([$email]);
     $existingUserId = $userId->fetchColumn();
+
+    $secondUserId = $pdo->prepare('SELECT id FROM users WHERE email = ?');
+    $secondUserId->execute([$secondEmail]);
+    $existingSecondUserId = $secondUserId->fetchColumn();
+    $fixtureUserIds = array_values(array_filter([$existingUserId, $existingSecondUserId], static fn($id): bool => $id !== false));
+    if ($fixtureUserIds !== []) {
+        $placeholders = implode(',', array_fill(0, count($fixtureUserIds), '?'));
+        $fixtureOrders = $pdo->prepare("SELECT id FROM orders WHERE customer_id IN ({$placeholders})");
+        $fixtureOrders->execute($fixtureUserIds);
+        $orderIds = array_map('intval', $fixtureOrders->fetchAll(PDO::FETCH_COLUMN));
+        if ($orderIds !== []) {
+            $orderPlaceholders = implode(',', array_fill(0, count($orderIds), '?'));
+            $pdo->prepare("DELETE FROM payments WHERE order_id IN ({$orderPlaceholders})")->execute($orderIds);
+            $pdo->prepare("DELETE FROM orders WHERE id IN ({$orderPlaceholders})")->execute($orderIds);
+        }
+    }
 
     if ($existingUserId !== false) {
         $pdo->prepare('DELETE FROM customer_email_verifications WHERE user_id = ?')->execute([$existingUserId]);
@@ -341,9 +448,6 @@ try {
         $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$existingUserId]);
     }
 
-    $secondUserId = $pdo->prepare('SELECT id FROM users WHERE email = ?');
-    $secondUserId->execute([$secondEmail]);
-    $existingSecondUserId = $secondUserId->fetchColumn();
     if ($existingSecondUserId !== false) {
         $pdo->prepare('DELETE FROM customer_email_verifications WHERE user_id = ?')->execute([$existingSecondUserId]);
         $pdo->prepare('DELETE FROM policy_acceptances WHERE user_id = ?')->execute([$existingSecondUserId]);

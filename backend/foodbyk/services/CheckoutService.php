@@ -47,7 +47,7 @@ class CheckoutService {
         $subtotal = round($subtotal, 2);
 
         $deliveryService = new DeliveryService();
-        $address = $addressId ? Address::findById($addressId) : null;
+        $address = $fulfilmentType === Order::TYPE_DELIVERY && $addressId ? Address::findById($addressId) : null;
         if ($fulfilmentType === Order::TYPE_DELIVERY && (!$address || $address->customer_id !== $customerId)) {
             return $this->failure('Delivery address not found.');
         }
@@ -233,9 +233,9 @@ class CheckoutService {
     }
 
     /** Geocodes the address if needed and checks delivery eligibility. */
-    public function validateDeliveryAddress(int $addressId): array {
+    public function validateDeliveryAddress(int $customerId, int $addressId): array {
         $address = Address::findById($addressId);
-        if (!$address) {
+        if (!$address || $address->customer_id !== $customerId) {
             return $this->failure('Address not found.');
         }
 

@@ -5,14 +5,20 @@
 -- prepared statements, dynamic SQL, procedures, or DELIMITER commands.
 --
 -- This version assumes the earlier business-settings and weekly-hours schema
--- has already been applied. It adds only the newer minimum-enforcement flag.
--- Before running: if enforce_minimum_order is already in business_settings,
--- comment out its ALTER TABLE statement. Also check order_items.free_quantity
+-- has already been applied. It adds the minimum-enforcement flag and booking
+-- window setting introduced by the current schema.
+-- Before running: if enforce_minimum_order or max_advance_booking_days is
+-- already in business_settings, comment out its corresponding ALTER statement.
+-- Also check order_items.free_quantity
 -- and its named CHECK constraint and skip those statements if already present.
 -- CREATE TABLE IF NOT EXISTS and INSERT IGNORE preserve existing data.
 
 ALTER TABLE business_settings
     ADD COLUMN enforce_minimum_order TINYINT(1) NOT NULL DEFAULT 0 AFTER minimum_order_amount;
+
+-- Maximum inclusive booking window; skip this ALTER if already present.
+ALTER TABLE business_settings
+    ADD COLUMN max_advance_booking_days INT UNSIGNED NOT NULL DEFAULT 30 AFTER max_orders_per_slot;
 
 -- Ensure the already-installed hours table has all weekday rows. Existing
 -- schedules are preserved by INSERT IGNORE.
@@ -79,13 +85,19 @@ WHERE ranked.item_rank = 1
 DROP TEMPORARY TABLE foodbyk_legacy_bogo_free_units;
 
 -- Verification: expect enforce_minimum_order, both tables, free_quantity,
--- and seven trading-hour rows.
+-- max_advance_booking_days, and seven trading-hour rows.
 SELECT COLUMN_NAME
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = DATABASE()
   AND TABLE_NAME = 'business_settings'
   AND COLUMN_NAME = 'enforce_minimum_order'
 ORDER BY COLUMN_NAME;
+
+SELECT COLUMN_NAME
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 'business_settings'
+  AND COLUMN_NAME = 'max_advance_booking_days';
 
 SELECT TABLE_NAME
 FROM information_schema.TABLES
