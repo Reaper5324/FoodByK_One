@@ -97,6 +97,79 @@ test('cart rejects decimal quantities and restores the last valid value after a 
   await expect(page.locator('#cartMessage')).toContainText('whole number of at least 1');
 });
 
+test('customer navigation fits on one desktop row and collapses to a tablet hamburger', async ({ page }) => {
+  await page.setViewportSize({ width: 1365, height: 900 });
+  await page.route(/\/auth\/me$/, (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ success: true, data: { id: 7, role: 'customer', full_name: 'Test Customer' } }),
+  }));
+  await page.route(/\/orders\?limit=1$/, (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ success: true, data: { orders: [{ id: 73 }], total: 1 } }),
+  }));
+
+  await page.goto('/pages/customer/menu.html');
+  const desktopNav = page.locator('.navbar nav');
+  await expect(desktopNav).toHaveAttribute('data-auth-ready', 'true');
+  const desktopLayout = await page.locator('.navbar').evaluate((navbar) => {
+    const nav = navbar.querySelector('nav');
+    const links = [...nav.querySelectorAll('a')].map((link) => link.getBoundingClientRect());
+    const verticalCenters = links.map((rect) => rect.top + rect.height / 2);
+    return {
+      navFits: nav.scrollWidth <= nav.clientWidth,
+      oneRow: Math.max(...verticalCenters) - Math.min(...verticalCenters) < 1,
+      withinViewport: Math.max(...links.map((rect) => rect.right)) <= window.innerWidth,
+    };
+  });
+  expect(desktopLayout).toEqual({ navFits: true, oneRow: true, withinViewport: true });
+  await expect(page.locator('[data-mobile-nav-toggle]')).toBeHidden();
+
+  await page.setViewportSize({ width: 1025, height: 900 });
+  const narrowDesktopLayout = await desktopNav.evaluate((nav) => {
+    const links = [...nav.querySelectorAll('a')].map((link) => link.getBoundingClientRect());
+    const verticalCenters = links.map((rect) => rect.top + rect.height / 2);
+    return {
+      navFits: nav.scrollWidth <= nav.clientWidth,
+      oneRow: Math.max(...verticalCenters) - Math.min(...verticalCenters) < 1,
+      withinViewport: Math.max(...links.map((rect) => rect.right)) <= window.innerWidth,
+    };
+  });
+  expect(narrowDesktopLayout).toEqual({ navFits: true, oneRow: true, withinViewport: true });
+
+  await page.setViewportSize({ width: 1024, height: 900 });
+  const toggle = page.locator('[data-mobile-nav-toggle]');
+  await expect(toggle).toBeVisible();
+  await expect(desktopNav).toBeHidden();
+  await toggle.click();
+  await expect(desktopNav).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('all customer pages use the homepage footer and include Contact support', async ({ page }) => {
+  await page.route(/https:\/\/api\.foodbyk\.co\.za\//, (route) => route.fulfill({
+    status: 401,
+    contentType: 'application/json',
+    body: JSON.stringify({ success: false, data: null, error: 'Authentication required.' }),
+  }));
+
+  for (const path of [
+    '/pages/customer/cart.html',
+    '/pages/customer/checkout.html',
+    '/pages/customer/loyalty.html',
+    '/pages/customer/menu-item.html?id=1',
+    '/pages/customer/menu.html',
+    '/pages/customer/orders.html',
+    '/pages/customer/promotions.html',
+    '/pages/customer/support.html',
+  ]) {
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    const footer = page.locator('footer.home-footer');
+    await expect(footer, path).toHaveCount(1);
+    await expect(footer.getByRole('link', { name: 'Contact support' }), path)
+      .toHaveAttribute('href', '/pages/customer/support.html');
+  }
+});
+
 test('order tracking uses delivery-specific progress labels', async ({ page }) => {
   await mockAnonymousSession(page);
   await page.route(/\/orders\?limit=1$/, (route) => route.fulfill({

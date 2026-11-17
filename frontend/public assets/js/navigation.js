@@ -198,11 +198,68 @@ function ensureSupportFooter() {
         || document.querySelector('.home-footer a[href*="support.html"]')) return;
     const footer = document.createElement("footer");
     footer.dataset.supportFooter = "true";
-    footer.className = "support-site-footer";
-    const link = document.createElement("a");
-    link.href = "/pages/customer/support.html";
-    link.textContent = "Contact support";
-    footer.append(link);
+    footer.className = "home-footer";
+
+    const addLink = (parent, label, href, className = "") => {
+        const link = document.createElement("a");
+        link.href = href;
+        link.textContent = label;
+        if (className) link.className = className;
+        parent.appendChild(link);
+        return link;
+    };
+
+    const brand = document.createElement("div");
+    brand.className = "footer-brand";
+    const brandLink = document.createElement("a");
+    brandLink.href = "/src/index.html";
+    brandLink.append("FOOD");
+    const brandAccent = document.createElement("span");
+    brandAccent.textContent = "BY K";
+    brandLink.appendChild(brandAccent);
+    const brandTagline = document.createElement("p");
+    brandTagline.textContent = "Food. Love. Soul.";
+    brand.append(brandLink, brandTagline);
+
+    const links = document.createElement("div");
+    links.className = "footer-links";
+    addLink(links, "Menu", "/pages/customer/menu.html");
+    addLink(links, "Our story", "/src/index.html#about");
+    addLink(links, "Contact", "/src/index.html#contact");
+    addLink(links, "Contact support", "/pages/customer/support.html");
+    addLink(links, "Login", "/pages/auth/login.html");
+
+    const socials = document.createElement("div");
+    socials.className = "footer-socials";
+    [
+        ["Instagram", "https://www.instagram.com/food_by_k_/?hl=en"],
+        ["TikTok", "https://www.tiktok.com/@foodbyk1"],
+        ["Facebook", "https://web.facebook.com/p/Food_By_k_-100084958604392/?_rdc=1&_rdr#"],
+    ].forEach(([label, href]) => {
+        const link = addLink(socials, `${label} `, href);
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        const arrow = document.createElement("span");
+        arrow.className = "ui-arrow ui-arrow-up-right";
+        arrow.setAttribute("aria-hidden", "true");
+        link.appendChild(arrow);
+    });
+
+    const bottom = document.createElement("div");
+    bottom.className = "footer-bottom";
+    const copyright = document.createElement("p");
+    copyright.textContent = "© 2026 Food by K. All rights reserved.";
+    const backToTop = addLink(bottom, "Back to top ", "#top");
+    backToTop.setAttribute("aria-label", "Back to top");
+    const backToTopArrow = document.createElement("span");
+    backToTopArrow.className = "ui-arrow ui-arrow-up";
+    backToTopArrow.setAttribute("aria-hidden", "true");
+    backToTop.appendChild(backToTopArrow);
+    bottom.prepend(copyright);
+
+    footer.append(brand, links, socials, bottom);
+    const navbar = document.querySelector(".navbar");
+    if (navbar && !document.getElementById("top")) navbar.id = "top";
     document.body.appendChild(footer);
 }
 
