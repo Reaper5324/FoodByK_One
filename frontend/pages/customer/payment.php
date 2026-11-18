@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html>
-<head><title>Payment</title><link rel="icon" type="image/png" href="/images/logo-mark.png">
+<head><title>Payment</title><link rel="icon" type="image/png" href="/images/logo.png">
 </head>
 <body>
 <?php if ($paymentSetup): ?>
