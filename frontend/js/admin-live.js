@@ -2095,7 +2095,7 @@ const initializeAdminLive = async () => {
                 const input = form.elements.namedItem(key);
                 body[key] = input.type === "checkbox" ? input.checked : input.type === "number" ? Number(value) : value;
             });
-            ["ordering_enabled", "delivery_enabled", "collection_enabled", "enforce_minimum_order"].forEach((key) => {
+            ["ordering_enabled", "delivery_enabled", "collection_enabled", "enforce_minimum_order","admin_email_2fa_enabled" ].forEach((key) => {
                 body[key] = Boolean(form.elements.namedItem(key).checked);
             });
             body.trading_hours = [...form.querySelectorAll(".hr")].map((row, index) => ({
