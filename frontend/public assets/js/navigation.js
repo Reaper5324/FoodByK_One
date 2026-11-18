@@ -1,3 +1,4 @@
+
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
         initializeMobileNavigation();
@@ -194,8 +195,13 @@ function renderNavigationActions(nav, user) {
 }
 
 function ensureSupportFooter() {
-    if (!document.querySelector(".navbar") || document.querySelector("[data-support-footer]")
-        || document.querySelector('.home-footer a[href*="support.html"]')) return;
+    // Do not inject a fallback footer if the page already has one.
+    if (
+        !document.querySelector(".navbar") ||
+        document.querySelector("footer") ||
+        document.querySelector("[data-support-footer]")
+    ) return;
+
     const footer = document.createElement("footer");
     footer.dataset.supportFooter = "true";
     footer.className = "home-footer";
